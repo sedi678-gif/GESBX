@@ -1,0 +1,101 @@
+/* Səhifə-spesifik tema — ayarlardan gələn data-theme ilə */
+
+[data-theme="dark"] {
+  --shop-bg: linear-gradient(165deg, #060d12 0%, #0c1524 40%, #081510 100%);
+  --shop-card-bg: rgba(15, 23, 42, 0.78);
+  --shop-tab-bg: rgba(15, 23, 42, 0.6);
+  --profile-glow-a: rgba(236, 72, 153, 0.22);
+  --profile-glow-b: rgba(99, 102, 241, 0.18);
+  --explore-glow-a: rgba(236, 72, 153, 0.2);
+  --alliance-map-tint: rgba(8, 12, 24, 0.12);
+  --msg-hub-bg: #111b21;
+  --msg-hub-header: #202c33;
+  --msg-hub-panel: #0b141a;
+  --msg-hub-text: #e9edef;
+  --msg-hub-muted: #8696a0;
+  --msg-hub-border: #2a3942;
+  --boot-bg: linear-gradient(160deg, #0a0f1e 0%, #111827 40%, #0f172a 100%);
+}
+
+[data-theme="light"] {
+  --shop-bg: linear-gradient(165deg, #f8fafc 0%, #e2e8f0 45%, #f1f5f9 100%);
+  --shop-card-bg: rgba(255, 255, 255, 0.92);
+  --shop-tab-bg: rgba(255, 255, 255, 0.85);
+  --profile-glow-a: rgba(236, 72, 153, 0.12);
+  --profile-glow-b: rgba(99, 102, 241, 0.1);
+  --explore-glow-a: rgba(236, 72, 153, 0.1);
+  --alliance-map-tint: rgba(255, 255, 255, 0.08);
+  --msg-hub-bg: #f0f2f5;
+  --msg-hub-header: #ffffff;
+  --msg-hub-panel: #efeae2;
+  --msg-hub-text: #111b21;
+  --msg-hub-muted: #667781;
+  --msg-hub-border: #d1d7db;
+  --boot-bg: linear-gradient(160deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+}
+
+[data-theme="light"] .shopTitle,
+[data-theme="light"] .profileTopTitle,
+[data-theme="light"] .exploreTitle {
+  filter: none;
+}
+
+[data-theme="light"] .world {
+  color: #0f172a;
+}
+
+[data-theme="light"] .glassHeader,
+[data-theme="light"] .profileTopBar,
+[data-theme="light"] .exploreHeader {
+  background: var(--surface-glass);
+  border-bottom-color: var(--border-soft);
+}
+
+[data-theme="light"] .msgHubPage {
+  background: var(--msg-hub-bg);
+  color: var(--msg-hub-text);
+}
+
+[data-theme="light"] .msgHubHeader {
+  background: var(--msg-hub-header);
+  border-bottom-color: var(--msg-hub-border);
+}
+
+[data-theme="light"] .msgHubTitle,
+[data-theme="light"] .msgHubChatTitle,
+[data-theme="light"] .msgChatName {
+  color: var(--msg-hub-text);
+}
+
+[data-theme="light"] .msgHubSubtitle,
+[data-theme="light"] .msgHubChatSub,
+[data-theme="light"] .msgChatTime,
+[data-theme="light"] .msgChatPreview {
+  color: var(--msg-hub-muted);
+}
+
+[data-theme="light"] .msgTabBar,
+[data-theme="light"] .msgSafetyStrip {
+  background: var(--msg-hub-header);
+  border-color: var(--msg-hub-border);
+}
+
+[data-theme="light"] .msgHubPage .messageArea,
+[data-theme="light"] .msgHubPage .messageScroll {
+  background: var(--msg-hub-panel);
+  background-image: none;
+}
+
+[data-theme="light"] .msgHubPage .composeBar {
+  background: var(--msg-hub-header);
+  border-top-color: var(--msg-hub-border);
+}
+
+[data-theme="light"] .bootSkeleton {
+  background: var(--boot-bg);
+}
+
+[data-theme="light"] .profileGlow,
+[data-theme="light"] .exploreGlow {
+  opacity: 0.55;
+}

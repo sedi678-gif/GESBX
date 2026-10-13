@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="land" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d5a3d"/>
+      <stop offset="50%" stop-color="#3d6b4f"/>
+      <stop offset="100%" stop-color="#1a4030"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <rect width="1200" height="800" fill="url(#glow)"/>
+  <path fill="url(#land)" opacity="0.9" d="M0,520 C180,480 260,560 420,530 C580,500 640,420 780,450 C920,480 1020,400 1200,460 L1200,800 L0,800 Z"/>
+  <path fill="#234434" opacity="0.7" d="M0,580 C220,540 340,620 520,590 C700,560 860,500 1200,540 L1200,800 L0,800 Z"/>
+  <ellipse cx="600" cy="380" rx="280" ry="120" fill="#1e293b" opacity="0.35"/>
+</svg>

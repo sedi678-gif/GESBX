@@ -1,0 +1,114 @@
+:global(html.keyboard-open) .bottomNav {
+  transform: translateY(110%);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  column-gap: 4px;
+  min-height: calc(var(--app-nav-bar, 62px) + env(safe-area-inset-bottom, 0px));
+  padding: 8px max(8px, env(safe-area-inset-left, 0px))
+    max(8px, env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px));
+  background: rgba(5, 6, 15, 0.94);
+  border-top: 1px solid rgba(34, 211, 238, 0.18);
+  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+}
+
+.navItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 4px 6px 2px;
+  text-decoration: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.navItemCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  align-self: center;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  min-height: 46px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0891b2, #7c3aed);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.35);
+  text-decoration: none;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.navLabel {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(203, 213, 225, 0.78);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
+  padding: 0 2px;
+}
+
+.navLabelActive {
+  color: #67e8f9;
+  font-weight: 700;
+}
+
+.navIcon {
+  flex-shrink: 0;
+  display: block;
+}
+
+@media (max-width: 360px) {
+  .navItem {
+    gap: 3px;
+    padding: 4px 2px 2px;
+  }
+
+  .navLabel {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 320px) {
+  .navIcon {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Landscape short screens */
+@media (orientation: landscape) and (max-height: 430px) {
+  .navLabel {
+    display: none;
+  }
+
+  .bottomNav {
+    min-height: calc(48px + env(safe-area-inset-bottom, 0px));
+  }
+}

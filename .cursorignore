@@ -1,0 +1,38 @@
+﻿# Dependencies and install noise
+node_modules/
+.pnp
+.yarn/
+
+# Next / build outputs
+.next/
+out/
+build/
+dist/
+coverage/
+.vercel/
+*.tsbuildinfo
+
+# Logs and env
+*.log
+.env
+.env.*
+
+# Heavy binaries
+android/.gradle/
+android/app/build/
+android/build/
+**/*.glb
+**/*.fbx
+**/*.FBX
+**/*.mp4
+**/*.webm
+**/*.wav
+**/*.mp3
+
+# Lock and dumps
+package-lock.json
+scripts/model-image-files.json
+scripts/model-root-names.txt
+
+# Binary card sources
+public/models/

@@ -1,0 +1,2633 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isProtectedPath(path) {
+      return path.size() > 0 && (
+        path[0] == 'battles' ||
+        path[0] == 'alliance_battle_cooldowns' ||
+        path[0] == 'battle_card_costs' ||
+        path[0] == 'server_clock' ||
+        path[0] == 'leaderboard_daily' ||
+        path[0] == 'leaderboard_weekly' ||
+        path[0] == 'leaderboard_state' ||
+        path[0] == 'leaderboard_resets' ||
+        path[0] == 'leaderboard_archives' ||
+        path[0] == 'leaderboard_awards' ||
+        path[0] == 'alliances' ||
+        path[0] == 'arena_matches' ||
+        path[0] == 'arena_rewards' ||
+        path[0] == 'arena_reward_settlements' ||
+        path[0] == 'reel_signal_events' ||
+        path[0] == 'user_profile_scores'
+      );
+    }
+
+    function isAllianceMemberOrLeader(allianceId, playerId) {
+      return allianceId is string
+        && playerId is string
+        && exists(/databases/$(database)/documents/alliances/$(allianceId))
+        && (
+          get(/databases/$(database)/documents/alliances/$(allianceId)).data.leaderId == playerId
+          || (
+            get(/databases/$(database)/documents/alliances/$(allianceId)).data.keys().hasAny(['members'])
+            && get(/databases/$(database)/documents/alliances/$(allianceId)).data.members is list
+            && playerId in get(/databases/$(database)/documents/alliances/$(allianceId)).data.members
+          )
+        );
+    }
+
+    function playerBelongsToAlliance(playerId, allianceId) {
+      return exists(/databases/$(database)/documents/players/$(playerId))
+        && get(/databases/$(database)/documents/players/$(playerId)).data.allianceId == allianceId
+        && isAllianceMemberOrLeader(allianceId, playerId);
+    }
+
+    function sidePlayersBelong(ids, allianceId) {
+      return ids is list
+        && (
+          ids.size() == 0
+          || (
+            playerBelongsToAlliance(ids[0], allianceId)
+            && (ids.size() < 2 || playerBelongsToAlliance(ids[1], allianceId))
+            && (ids.size() < 3 || playerBelongsToAlliance(ids[2], allianceId))
+            && (ids.size() < 4 || playerBelongsToAlliance(ids[3], allianceId))
+            && (ids.size() < 5 || playerBelongsToAlliance(ids[4], allianceId))
+          )
+        );
+    }
+
+    function isBattleEventType(t) {
+      return t in [
+        'battle_created',
+        'player_joined',
+        'player_left',
+        'loadout_locked',
+        'card_played',
+        'energy_changed',
+        'card_blocked',
+        'card_countered',
+        'click_started',
+        'click_completed',
+        'damage_applied',
+        'score_changed',
+        'turn_started',
+        'turn_timeout',
+        'battle_finished'
+      ];
+    }
+
+    function isValidOpenBattleCreate() {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.keys().hasOnly([
+          'createdBy',
+          'createdAt',
+          'updatedAt',
+          'status',
+          'eventSeq',
+          'participantIds',
+          'schemaVersion',
+          'attackerScore',
+          'defenderScore',
+          'scoreVersion',
+          'lastScoreRequestId'
+        ])
+        && d.createdBy is string
+        && d.createdBy.size() > 0
+        && d.createdBy.size() < 64
+        && d.createdAt == request.time
+        && d.updatedAt == request.time
+        && d.status == 'open'
+        && d.eventSeq == 1
+        && d.participantIds is list
+        && d.participantIds.size() == 1
+        && d.schemaVersion == 1
+        && d.attackerScore == 0
+        && d.defenderScore == 0
+        && d.scoreVersion == 0
+        && d.lastScoreRequestId == null;
+    }
+
+    function isValidMapBattleCreate() {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.keys().hasOnly([
+          'createdBy',
+          'createdAt',
+          'updatedAt',
+          'status',
+          'eventSeq',
+          'participantIds',
+          'schemaVersion',
+          'kind',
+          'attackerAllianceId',
+          'defenderAllianceId',
+          'attackerAllianceName',
+          'defenderAllianceName',
+          'attackerPlayerIds',
+          'defenderPlayerIds',
+          'attackerUids',
+          'defenderUids',
+          'joinDurationMs',
+          'attackerScore',
+          'defenderScore',
+          'scoreVersion',
+          'lastScoreRequestId'
+        ])
+        && d.createdBy is string
+        && d.createdBy.size() > 0
+        && d.createdBy.size() < 64
+        && d.createdAt == request.time
+        && d.updatedAt == request.time
+        && d.status == 'joining'
+        && d.kind == 'alliance_map'
+        && d.eventSeq == 1
+        && d.schemaVersion == 1
+        && d.joinDurationMs == 15000
+        && d.attackerAllianceId is string
+        && d.defenderAllianceId is string
+        && d.attackerAllianceId != d.defenderAllianceId
+        && d.attackerPlayerIds is list
+        && d.attackerPlayerIds.size() == 1
+        && d.defenderPlayerIds is list
+        && d.defenderPlayerIds.size() == 0
+        && d.attackerUids is list
+        && d.attackerUids.size() == 1
+        && d.attackerUids[0] == request.auth.uid
+        && d.defenderUids is list
+        && d.defenderUids.size() == 0
+        && d.participantIds == d.attackerPlayerIds
+        && d.attackerScore == 0
+        && d.defenderScore == 0
+        && d.scoreVersion == 0
+        && d.lastScoreRequestId == null
+        && exists(/databases/$(database)/documents/alliances/$(d.defenderAllianceId))
+        && exists(/databases/$(database)/documents/alliances/$(d.attackerAllianceId))
+        && d.createdBy == d.attackerPlayerIds[0]
+        && playerBelongsToAlliance(d.createdBy, d.attackerAllianceId);
+    }
+
+    function isValidLegacySeqBump() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && after.eventSeq == before.eventSeq + 1
+        && after.createdAt == before.createdAt
+        && after.createdBy == before.createdBy
+        && after.schemaVersion == before.schemaVersion
+        && after.diff(before).affectedKeys()
+          .hasOnly(['eventSeq', 'updatedAt'])
+        && after.status == before.status
+        && after.status in ['open', 'joining', 'locked', 'active']
+        && after.participantIds == before.participantIds
+        && after.updatedAt == request.time;
+    }
+
+    function isValidMapBattleJoin() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.kind == 'alliance_map'
+        && before.status in ['joining', 'locked', 'active']
+        && after.status == before.status
+        && (
+          before.status != 'joining'
+          || request.time < before.createdAt + duration.value(15, 's')
+        )
+        && after.eventSeq == before.eventSeq + 1
+        && after.createdAt == before.createdAt
+        && after.joinDurationMs == before.joinDurationMs
+        && after.attackerAllianceId == before.attackerAllianceId
+        && after.defenderAllianceId == before.defenderAllianceId
+        && after.attackerPlayerIds is list
+        && after.defenderPlayerIds is list
+        && after.attackerPlayerIds.size() <= 5
+        && after.defenderPlayerIds.size() <= 5
+        && after.attackerPlayerIds.size() >= before.attackerPlayerIds.size()
+        && after.defenderPlayerIds.size() >= before.defenderPlayerIds.size()
+        && after.attackerPlayerIds.size() + after.defenderPlayerIds.size()
+          == before.attackerPlayerIds.size() + before.defenderPlayerIds.size() + 1
+        && after.attackerUids is list
+        && after.defenderUids is list
+        && after.attackerUids.size() == after.attackerPlayerIds.size()
+        && after.defenderUids.size() == after.defenderPlayerIds.size()
+        && after.attackerUids.size() + after.defenderUids.size()
+          == before.attackerUids.size() + before.defenderUids.size() + 1
+        && (
+          (
+            after.attackerPlayerIds.size() == before.attackerPlayerIds.size() + 1
+            && after.defenderUids == before.defenderUids
+            && request.auth.uid in after.attackerUids
+          ) || (
+            after.defenderPlayerIds.size() == before.defenderPlayerIds.size() + 1
+            && after.attackerUids == before.attackerUids
+            && request.auth.uid in after.defenderUids
+          )
+        )
+        && after.diff(before).affectedKeys()
+          .hasOnly([
+            'eventSeq',
+            'updatedAt',
+            'participantIds',
+            'attackerPlayerIds',
+            'defenderPlayerIds',
+            'attackerUids',
+            'defenderUids'
+          ])
+        && sidePlayersBelong(after.attackerPlayerIds, after.attackerAllianceId)
+        && sidePlayersBelong(after.defenderPlayerIds, after.defenderAllianceId)
+        && after.updatedAt == request.time;
+    }
+
+    function isValidOfflineDefenseSeat() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let added = after.defenderPlayerIds[after.defenderPlayerIds.size() - 1];
+      let player = get(/databases/$(database)/documents/players/$(added)).data;
+      return request.auth != null
+        && before.kind == 'alliance_map'
+        && before.status in ['joining', 'locked']
+        && after.status == before.status
+        && request.auth.uid in before.attackerUids
+        && after.attackerPlayerIds == before.attackerPlayerIds
+        && after.attackerUids == before.attackerUids
+        && after.defenderUids == before.defenderUids
+        && after.defenderPlayerIds.size() == before.defenderPlayerIds.size() + 1
+        && after.defenderPlayerIds.size() <= 5
+        && after.participantIds.size() == before.participantIds.size() + 1
+        && added in after.participantIds
+        && (before.defenderPlayerIds.size() < 1 || before.defenderPlayerIds[0] == after.defenderPlayerIds[0])
+        && (before.defenderPlayerIds.size() < 2 || before.defenderPlayerIds[1] == after.defenderPlayerIds[1])
+        && (before.defenderPlayerIds.size() < 3 || before.defenderPlayerIds[2] == after.defenderPlayerIds[2])
+        && (before.defenderPlayerIds.size() < 4 || before.defenderPlayerIds[3] == after.defenderPlayerIds[3])
+        && after.eventSeq == before.eventSeq + 1
+        && after.createdAt == before.createdAt
+        && after.defenderAllianceId == before.defenderAllianceId
+        && playerBelongsToAlliance(added, before.defenderAllianceId)
+        && player.keys().hasAny(['defenseLoadout'])
+        && isValidDefenseCardList(player.defenseLoadout)
+        && after.diff(before).affectedKeys()
+          .hasOnly(['eventSeq', 'updatedAt', 'participantIds', 'defenderPlayerIds'])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidDefenseUidBind() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.kind == 'alliance_map'
+        && before.status in ['joining', 'locked', 'active']
+        && after.status == before.status
+        && after.defenderPlayerIds == before.defenderPlayerIds
+        && after.attackerPlayerIds == before.attackerPlayerIds
+        && after.attackerUids == before.attackerUids
+        && before.defenderUids is list
+        && after.defenderUids is list
+        && after.defenderUids.size() == before.defenderUids.size() + 1
+        && request.auth.uid in after.defenderUids
+        && !(request.auth.uid in before.defenderUids)
+        && after.eventSeq == before.eventSeq + 1
+        && after.createdAt == before.createdAt
+        && after.diff(before).affectedKeys().hasOnly(['eventSeq', 'updatedAt', 'defenderUids'])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidDefenseCardList(ids) {
+      return ids is list
+        && ids.size() >= 1
+        && ids.size() <= 5
+        && isLoadoutCardId(ids[0])
+        && (ids.size() < 2 || (isLoadoutCardId(ids[1]) && ids[1] != ids[0]))
+        && (ids.size() < 3 || (isLoadoutCardId(ids[2]) && ids[2] != ids[0] && ids[2] != ids[1]))
+        && (ids.size() < 4 || (isLoadoutCardId(ids[3]) && ids[3] != ids[0] && ids[3] != ids[1] && ids[3] != ids[2]))
+        && (ids.size() < 5 || (isLoadoutCardId(ids[4]) && ids[4] != ids[0] && ids[4] != ids[1] && ids[4] != ids[2] && ids[4] != ids[3]));
+    }
+
+    function isValidMapBattleLock() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.kind == 'alliance_map'
+        && before.status == 'joining'
+        && request.time >= before.createdAt + duration.value(15, 's')
+        && after.eventSeq == before.eventSeq + 1
+        && after.status in ['locked', 'finished']
+        && after.attackerPlayerIds == before.attackerPlayerIds
+        && after.defenderPlayerIds == before.defenderPlayerIds
+        && after.updatedAt == request.time
+        && (
+          (
+            after.status == 'locked'
+            && after.attackerPlayerIds.size() >= 1
+            && after.diff(before).affectedKeys().hasOnly(['eventSeq', 'updatedAt', 'status'])
+          ) || (
+            after.status == 'finished'
+            && after.attackerPlayerIds.size() == 0
+            && after.finishReason == 'join_failed'
+            && after.winnerAllianceId == null
+            && after.winnerSide == null
+            && after.diff(before).affectedKeys()
+              .hasOnly(['eventSeq', 'updatedAt', 'status', 'finishReason', 'winnerSide', 'winnerAllianceId'])
+          )
+        );
+    }
+
+    function isGenericBattleEventType(t) {
+      return t in [
+        'card_blocked',
+        'card_countered',
+      ];
+    }
+
+    function isBattleEventDoc(battleId, eventId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'eventId',
+          'battleId',
+          'playerId',
+          'type',
+          'seq',
+          'createdAt',
+          'schemaVersion',
+          'meta'
+        ])
+        && d.eventId == eventId
+        && d.battleId == battleId
+        && d.playerId is string
+        && d.playerId.size() > 0
+        && d.playerId.size() < 64
+        && d.seq is int
+        && d.seq > 0
+        && d.createdAt == request.time
+        && d.schemaVersion == 1
+        && d.meta is map
+        && d.meta.size() <= 8;
+    }
+
+    function battleAfter(battleId) {
+      return getAfter(/databases/$(database)/documents/battles/$(battleId)).data;
+    }
+
+    function isNextEventSeq(battleId) {
+      return exists(/databases/$(database)/documents/battles/$(battleId))
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && request.resource.data.seq == battleData(battleId).eventSeq + 1
+        && request.resource.data.seq == battleAfter(battleId).eventSeq;
+    }
+
+    function isValidBattleEventCreate(battleId, eventId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && isGenericBattleEventType(d.type)
+        && isNextEventSeq(battleId)
+        && battleData(battleId).status != 'finished'
+        && (
+          (
+            battleData(battleId).keys().hasAny(['attackerUids'])
+            && request.auth.uid in battleData(battleId).attackerUids
+          )
+          || (
+            battleData(battleId).keys().hasAny(['defenderUids'])
+            && request.auth.uid in battleData(battleId).defenderUids
+          )
+        );
+    }
+
+    function isValidBattleCreatedEvent(battleId, eventId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && !exists(/databases/$(database)/documents/battles/$(battleId))
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && battleAfter(battleId).eventSeq == 1
+        && isBattleEventDoc(battleId, eventId)
+        && d.type == 'battle_created'
+        && d.seq == 1;
+    }
+
+    function isValidPlayerJoinedEvent(battleId, eventId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && d.type == 'player_joined'
+        && isNextEventSeq(battleId)
+        && battleData(battleId).status in ['joining', 'locked', 'active']
+        && battleAfter(battleId).status == battleData(battleId).status
+        && d.playerId in battleAfter(battleId).participantIds;
+    }
+
+    function isValidLoadoutLockedEvent(battleId, eventId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && d.type == 'loadout_locked'
+        && isNextEventSeq(battleId)
+        && battleData(battleId).status == 'joining'
+        && battleAfter(battleId).status == 'locked';
+    }
+
+    function isValidBattleFinishedEvent(battleId, eventId) {
+      let d = request.resource.data;
+      let before = battleData(battleId);
+      let after = battleAfter(battleId);
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && d.type == 'battle_finished'
+        && isNextEventSeq(battleId)
+        && after.status == 'finished'
+        && !d.meta.keys().hasAny(['winnerPlayerId'])
+        && (
+          (
+            before.status == 'joining'
+            && after.finishReason == 'join_failed'
+            && d.meta.reason == 'join_failed'
+            && !d.meta.keys().hasAny(['winnerAllianceId', 'winnerSide'])
+          ) || (
+            before.status in ['joining', 'locked', 'active']
+            && exists(/databases/$(database)/documents/arena_matches/$(battleId))
+            && get(/databases/$(database)/documents/arena_matches/$(battleId)).data.status == 'closed'
+            && d.meta.reason == after.finishReason
+            && d.meta.reason in ['score_reached', 'turn_limit']
+            && d.meta.attackerScore == after.attackerScore
+            && d.meta.defenderScore == after.defenderScore
+          ) || (
+            before.status == 'active'
+            && d.meta.reason == after.finishReason
+            && d.meta.attackerScore == after.attackerScore
+            && d.meta.defenderScore == after.defenderScore
+            && (
+              (after.winnerAllianceId == null && !d.meta.keys().hasAny(['winnerAllianceId']))
+              || d.meta.winnerAllianceId == after.winnerAllianceId
+            )
+          )
+        );
+    }
+
+    function isValidBattleFinish(battleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let hasArena = exists(/databases/$(database)/documents/arena_matches/$(battleId));
+      let arenaClosed = hasArena
+        && get(/databases/$(database)/documents/arena_matches/$(battleId)).data.status == 'closed';
+      let atk = hasArena
+        ? get(/databases/$(database)/documents/arena_matches/$(battleId)).data.sideScores.home
+        : before.attackerScore;
+      let def = hasArena
+        ? get(/databases/$(database)/documents/arena_matches/$(battleId)).data.sideScores.away
+        : before.defenderScore;
+      let reached = atk >= 40 || def >= 40;
+      return request.auth != null
+        && (
+          before.status == 'active'
+          || (arenaClosed && before.status in ['joining', 'locked', 'active'])
+        )
+        && after.status == 'finished'
+        && after.eventSeq == before.eventSeq + 1
+        && after.attackerScore == atk
+        && after.defenderScore == def
+        && after.createdAt == before.createdAt
+        && after.createdBy == before.createdBy
+        && after.finishReason in ['score_reached', 'turn_limit']
+        && (
+          (after.finishReason == 'score_reached' && reached)
+          || (after.finishReason == 'turn_limit' && !reached && (before.turn > 8 || arenaClosed))
+        )
+        && after.winnerAllianceId == (
+          atk > def
+            ? before.attackerAllianceId
+            : def > atk
+              ? before.defenderAllianceId
+              : null
+        )
+        && after.winnerSide == (
+          atk > def
+            ? 'attacker'
+            : def > atk
+              ? 'defender'
+              : null
+        )
+        && after.finishedAt == request.time
+        && after.diff(before).affectedKeys().hasOnly([
+          'eventSeq', 'updatedAt', 'status', 'finishReason', 'winnerSide',
+          'winnerAllianceId', 'finishedAt', 'attackerScore', 'defenderScore'
+        ])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidBattleResultCreate(battleId, resultId) {
+      let d = request.resource.data;
+      let after = battleAfter(battleId);
+      return request.auth != null
+        && resultId == 'final'
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && after.status == 'finished'
+        && d.battleId == battleId
+        && d.status == 'finished'
+        && d.winnerPlayerId == null
+        && d.reason == after.finishReason
+        && d.attackerScore == after.attackerScore
+        && d.defenderScore == after.defenderScore
+        && d.winnerAllianceId == after.winnerAllianceId
+        && d.winnerSide == after.winnerSide
+        && d.playerDeltaWin == 8
+        && d.playerDeltaLoss == 2
+        && d.playerDeltaDraw == 4
+        && d.allianceDeltaWin == 6
+        && d.allianceDeltaLoss == 0
+        && d.allianceDeltaDraw == 3
+        && d.scoreWin == 40
+        && d.turnLimit == 8
+        && d.schemaVersion == 1
+        && d.createdAt == request.time
+        && d.eventSeq == after.eventSeq
+        && d.keys().hasOnly([
+          'battleId', 'status', 'reason', 'winnerSide', 'winnerAllianceId', 'winnerPlayerId',
+          'attackerScore', 'defenderScore', 'attackerAllianceId', 'defenderAllianceId',
+          'playerDeltas', 'allianceDeltas', 'participantIds', 'eventSeq',
+          'playerDeltaWin', 'playerDeltaLoss', 'playerDeltaDraw',
+          'allianceDeltaWin', 'allianceDeltaLoss', 'allianceDeltaDraw',
+          'scoreWin', 'turnLimit', 'schemaVersion', 'createdAt'
+        ]);
+    }
+
+    function isValidTurnStartedEvent(battleId, eventId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && d.type == 'turn_started'
+        && isNextEventSeq(battleId)
+        && battleData(battleId).status in ['joining', 'locked']
+        && battleAfter(battleId).status == 'active';
+    }
+
+    function isValidCooldownWrite(allianceId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.keys().hasOnly([
+          'lastBattleId',
+          'lastBattleAt',
+          'cooldownUntil',
+          'attackerAllianceId',
+          'updatedAt'
+        ])
+        && d.lastBattleId is string
+        && d.attackerAllianceId is string
+        && d.lastBattleAt == request.time
+        && d.updatedAt == request.time
+        && d.cooldownUntil is timestamp
+        && d.cooldownUntil > request.time + duration.value(2, 'h')
+        && d.cooldownUntil < request.time + duration.value(4, 'h')
+        && exists(/databases/$(database)/documents/alliances/$(allianceId))
+        && existsAfter(/databases/$(database)/documents/battles/$(d.lastBattleId))
+        && getAfter(/databases/$(database)/documents/battles/$(d.lastBattleId)).data.kind == 'alliance_map'
+        && getAfter(/databases/$(database)/documents/battles/$(d.lastBattleId)).data.defenderAllianceId == allianceId
+        && getAfter(/databases/$(database)/documents/battles/$(d.lastBattleId)).data.attackerAllianceId == d.attackerAllianceId
+        && request.auth.uid in getAfter(/databases/$(database)/documents/battles/$(d.lastBattleId)).data.attackerUids;
+    }
+
+    function battleData(battleId) {
+      return get(/databases/$(database)/documents/battles/$(battleId)).data;
+    }
+
+    function isLoadoutCardId(id) {
+      return id in [
+        '2x', 'casus', 'duman', 'guzgu', 'joker', 'ogru', 'qaya', 'qul',
+        'qutb', 'sehrbaz', 'tikanli', 'felaket', 'usyan'
+      ];
+    }
+
+    function isValidLoadoutCardList(ids) {
+      return ids is list
+        && ids.size() == 5
+        && isLoadoutCardId(ids[0])
+        && isLoadoutCardId(ids[1])
+        && isLoadoutCardId(ids[2])
+        && isLoadoutCardId(ids[3])
+        && isLoadoutCardId(ids[4])
+        && ids[0] != ids[1] && ids[0] != ids[2] && ids[0] != ids[3] && ids[0] != ids[4]
+        && ids[1] != ids[2] && ids[1] != ids[3] && ids[1] != ids[4]
+        && ids[2] != ids[3] && ids[2] != ids[4]
+        && ids[3] != ids[4];
+    }
+
+    function playerOwnsLoadoutCard(p, cardId) {
+      return (p.keys().hasAny(['battleCards']) && cardId in p.battleCards && p.battleCards[cardId] is int && p.battleCards[cardId] >= 1)
+        || (p.keys().hasAny(['loadoutCards']) && cardId in p.loadoutCards && p.loadoutCards[cardId] is int && p.loadoutCards[cardId] >= 1);
+    }
+
+    function playerOwnsLoadout(playerId, ids) {
+      return request.auth != null && playerId is string && playerId.size() > 0 && isValidLoadoutCardList(ids);
+    }
+
+    function battleParticipant(b) {
+      return request.auth != null
+        && (
+          (b.keys().hasAny(['attackerUids']) && b.attackerUids is list && request.auth.uid in b.attackerUids)
+          || (b.keys().hasAny(['defenderUids']) && b.defenderUids is list && request.auth.uid in b.defenderUids)
+        );
+    }
+
+    function defenderIsOffline(battleId, playerId) {
+      return !exists(/databases/$(database)/documents/battles/$(battleId)/presence/$(playerId))
+        || request.time > get(/databases/$(database)/documents/battles/$(battleId)/presence/$(playerId)).data.lastSeen + duration.value(20, 's');
+    }
+
+    function defenseSnapshotHas(battleId, playerId, cardId) {
+      return exists(/databases/$(database)/documents/battles/$(battleId)/defense_loadouts/$(playerId))
+        && get(/databases/$(database)/documents/battles/$(battleId)/defense_loadouts/$(playerId)).data.locked == true
+        && get(/databases/$(database)/documents/battles/$(battleId)/defense_loadouts/$(playerId)).data.cardIds is list
+        && cardId in get(/databases/$(database)/documents/battles/$(battleId)/defense_loadouts/$(playerId)).data.cardIds;
+    }
+
+    function isDefenseAiTurn(battleId, playerId, side, cardId) {
+      let b = battleData(battleId);
+      return side == 'defender'
+        && b.turnSide == 'defender'
+        && b.turnPlayerId == playerId
+        && b.defenderPlayerIds is list
+        && playerId in b.defenderPlayerIds
+        && battleParticipant(b)
+        && defenderIsOffline(battleId, playerId)
+        && defenseSnapshotHas(battleId, playerId, cardId);
+    }
+
+    function isValidDefenseSnapshot(battleId, playerId) {
+      let d = request.resource.data;
+      let player = get(/databases/$(database)/documents/players/$(playerId)).data;
+      let b = getAfter(/databases/$(database)/documents/battles/$(battleId)).data;
+      return request.auth != null
+        && battleParticipant(b)
+        && playerId in b.defenderPlayerIds
+        && d.battleId == battleId
+        && d.playerId == playerId
+        && d.locked == true
+        && d.schemaVersion == 1
+        && d.createdAt == request.time
+        && isValidDefenseCardList(player.defenseLoadout)
+        && d.cardIds == player.defenseLoadout
+        && d.keys().hasOnly(['battleId', 'playerId', 'cardIds', 'locked', 'schemaVersion', 'createdAt']);
+    }
+
+    function isValidPresenceHeartbeat(battleId, playerId) {
+      let d = request.resource.data;
+      let b = battleData(battleId);
+      return request.auth != null
+        && playerId in b.participantIds
+        && (
+          uidOwnsBattleSlot(b, playerId, 'attacker')
+          || uidOwnsBattleSlot(b, playerId, 'defender')
+        )
+        && d.battleId == battleId
+        && d.playerId == playerId
+        && d.uid == request.auth.uid
+        && d.lastSeen == request.time
+        && d.schemaVersion == 1
+        && d.keys().hasOnly(['battleId', 'playerId', 'uid', 'lastSeen', 'schemaVersion']);
+    }
+
+    function isValidPlayerDefenseWrite() {
+      let d = request.resource.data;
+      return isValidDefenseCardList(d.defenseLoadout)
+        && d.defenseLoadoutUpdatedAt == request.time
+        && d.diff(resource.data).affectedKeys()
+          .hasOnly(['defenseLoadout', 'defenseLoadoutUpdatedAt', 'updatedAt']);
+    }
+
+    function uidOwnsBattleSlot(b, playerId, side) {
+      return (
+        side == 'attacker'
+        && b.attackerPlayerIds is list
+        && b.attackerUids is list
+        && (
+          (b.attackerPlayerIds.size() > 0 && b.attackerPlayerIds[0] == playerId && b.attackerUids[0] == request.auth.uid)
+          || (b.attackerPlayerIds.size() > 1 && b.attackerPlayerIds[1] == playerId && b.attackerUids[1] == request.auth.uid)
+          || (b.attackerPlayerIds.size() > 2 && b.attackerPlayerIds[2] == playerId && b.attackerUids[2] == request.auth.uid)
+          || (b.attackerPlayerIds.size() > 3 && b.attackerPlayerIds[3] == playerId && b.attackerUids[3] == request.auth.uid)
+          || (b.attackerPlayerIds.size() > 4 && b.attackerPlayerIds[4] == playerId && b.attackerUids[4] == request.auth.uid)
+        )
+      ) || (
+        side == 'defender'
+        && b.defenderPlayerIds is list
+        && b.defenderUids is list
+        && (
+          (b.defenderPlayerIds.size() > 0 && b.defenderPlayerIds[0] == playerId && b.defenderUids[0] == request.auth.uid)
+          || (b.defenderPlayerIds.size() > 1 && b.defenderPlayerIds[1] == playerId && b.defenderUids[1] == request.auth.uid)
+          || (b.defenderPlayerIds.size() > 2 && b.defenderPlayerIds[2] == playerId && b.defenderUids[2] == request.auth.uid)
+          || (b.defenderPlayerIds.size() > 3 && b.defenderPlayerIds[3] == playerId && b.defenderUids[3] == request.auth.uid)
+          || (b.defenderPlayerIds.size() > 4 && b.defenderPlayerIds[4] == playerId && b.defenderUids[4] == request.auth.uid)
+        )
+      );
+    }
+
+    function isLoadoutTeamRead(battleId) {
+      let b = battleData(battleId);
+      return request.auth != null
+        && (
+          resource.data.ownerUid == request.auth.uid
+          || (resource.data.side == 'attacker' && request.auth.uid in b.attackerUids)
+          || (resource.data.side == 'defender' && request.auth.uid in b.defenderUids)
+        );
+    }
+
+    function isValidLoadoutWrite(battleId, playerId, creating) {
+      let d = request.resource.data;
+      let b = battleData(battleId);
+      return request.auth != null
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && (
+          b.status in ['joining', 'locked']
+          || (b.status == 'active' && creating)
+        )
+        && officialLoadoutEnergy(d.cardIds) > 0
+        && officialLoadoutEnergy(d.cardIds) <= 25
+        && d.ownerUid == request.auth.uid
+        && d.battleId == battleId
+        && d.playerId == playerId
+        && d.side in ['attacker', 'defender']
+        && d.locked is bool
+        && d.schemaVersion == 1
+        && d.updatedAt == request.time
+        && (d.committedAt == null || d.committedAt == request.time)
+        && isValidLoadoutCardList(d.cardIds)
+        && playerOwnsLoadout(playerId, d.cardIds)
+        && uidOwnsBattleSlot(b, playerId, d.side)
+        && (
+          creating
+            ? d.keys().hasOnly([
+                'battleId', 'playerId', 'side', 'ownerUid', 'cardIds',
+                'locked', 'schemaVersion', 'committedAt', 'updatedAt'
+              ])
+            : resource.data.ownerUid == request.auth.uid
+              && resource.data.locked != true
+              && resource.data.playerId == playerId
+              && resource.data.side == d.side
+              && request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['cardIds', 'locked', 'updatedAt', 'committedAt'])
+        );
+    }
+
+    function officialCardCooldownSec(id) {
+      return id == '2x' ? 8
+        : id == 'casus' ? 6
+        : id == 'duman' ? 5
+        : id == 'guzgu' ? 10
+        : id == 'joker' ? 12
+        : id == 'ogru' ? 8
+        : id == 'qaya' ? 7
+        : id == 'qul' ? 14
+        : id == 'qutb' ? 12
+        : id == 'sehrbaz' ? 8
+        : id == 'tikanli' ? 10
+        : id == 'felaket' ? 14
+        : id == 'usyan' ? 12
+        : 0;
+    }
+
+    function allianceMemberSize(allianceId) {
+      return allianceId is string
+        && allianceId.size() > 0
+        && exists(/databases/$(database)/documents/alliances/$(allianceId))
+        && get(/databases/$(database)/documents/alliances/$(allianceId)).data.keys().hasAny(['members'])
+        && get(/databases/$(database)/documents/alliances/$(allianceId)).data.members is list
+          ? get(/databases/$(database)/documents/alliances/$(allianceId)).data.members.size()
+          : 1;
+    }
+
+    function scaledInfoDamage(perPlayer, cap, allianceId) {
+      let n = allianceMemberSize(allianceId);
+      let members = n < 1 ? 1 : (n > 200 ? 200 : n);
+      let raw = perPlayer * members;
+      return raw > cap ? cap : raw;
+    }
+
+    function kindOn(kinds, name) {
+      return kinds is list && name in kinds;
+    }
+
+    function officialDamage(id, allianceId, kinds) {
+      return id == 'qutb' && kindOn(kinds, 'fire') && kindOn(kinds, 'ice') ? -1
+        : id == 'qutb' && kindOn(kinds, 'fire') ? scaledInfoDamage(50, 2500, allianceId)
+        : id == 'qutb' && kindOn(kinds, 'ice') ? 0
+        : id == 'qutb' ? -1
+        : id == 'felaket' && kindOn(kinds, 'earthquake') && kindOn(kinds, 'tsunami') ? -1
+        : id == 'felaket' && kindOn(kinds, 'earthquake') ? scaledInfoDamage(70, 3500, allianceId)
+        : id == 'felaket' && kindOn(kinds, 'tsunami') ? scaledInfoDamage(30, 1500, allianceId)
+        : id == 'felaket' ? -1
+        : id == '2x' || id == 'casus' || id == 'duman' || id == 'guzgu' || id == 'joker'
+          || id == 'ogru' || id == 'qaya' || id == 'qul' || id == 'sehrbaz'
+          || id == 'tikanli' || id == 'usyan' ? 0
+        : -1;
+    }
+
+    function officialPlayerDelta(id) {
+      return id == '2x' ? 8
+        : id == 'casus' ? 3
+        : id == 'duman' ? 2
+        : id == 'guzgu' ? 4
+        : id == 'joker' ? 5
+        : id == 'ogru' ? 4
+        : id == 'qaya' ? 3
+        : id == 'qul' ? 4
+        : id == 'qutb' ? 5
+        : id == 'sehrbaz' ? 4
+        : id == 'tikanli' ? 3
+        : id == 'felaket' ? 6
+        : id == 'usyan' ? 5
+        : -1;
+    }
+
+    function officialAllianceDelta(id) {
+      return id == '2x' ? 4
+        : id == 'casus' ? 1
+        : id == 'duman' ? 1
+        : id == 'guzgu' ? 2
+        : id == 'joker' ? 3
+        : id == 'ogru' ? 0
+        : id == 'qaya' ? 2
+        : id == 'qul' ? 2
+        : id == 'qutb' ? 3
+        : id == 'sehrbaz' ? 2
+        : id == 'tikanli' ? 2
+        : id == 'felaket' ? 4
+        : id == 'usyan' ? 3
+        : -1;
+    }
+
+    function officialClickBand(allianceId) {
+      let n = allianceId is string
+        && allianceId.size() > 0
+        && exists(/databases/$(database)/documents/alliances/$(allianceId))
+        && get(/databases/$(database)/documents/alliances/$(allianceId)).data.keys().hasAny(['members'])
+        && get(/databases/$(database)/documents/alliances/$(allianceId)).data.members is list
+          ? get(/databases/$(database)/documents/alliances/$(allianceId)).data.members.size()
+          : 1;
+      return n <= 5 ? 3 : n <= 15 ? 5 : 7;
+    }
+
+    function officialChallengeClicks(cardId, allianceId) {
+      return cardId == 'usyan' ? officialClickBand(allianceId) * 2
+        : (cardId == 'qul' || cardId == 'qutb' || cardId == 'felaket')
+          ? officialClickBand(allianceId)
+          : 0;
+    }
+
+    function officialSteal(id) {
+      return id == 'ogru' ? 4
+        : id == 'tikanli' ? 2
+        : id == 'usyan' ? 2
+        : id == '2x' ? 0
+        : id == 'casus' ? 0
+        : id == 'duman' ? 0
+        : id == 'guzgu' ? 0
+        : id == 'joker' ? 0
+        : id == 'qaya' ? 0
+        : id == 'qul' ? 0
+        : id == 'qutb' ? 0
+        : id == 'sehrbaz' ? 0
+        : id == 'felaket' ? 0
+        : -1;
+    }
+
+    function officialCardCost(id) {
+      return id == '2x' ? 5
+        : id == 'casus' ? 5
+        : id == 'duman' ? 4
+        : id == 'guzgu' ? 4
+        : id == 'joker' ? 4
+        : id == 'ogru' ? 3
+        : id == 'qaya' ? 5
+        : id == 'qul' ? 4
+        : id == 'qutb' ? 3
+        : id == 'sehrbaz' ? 5
+        : id == 'tikanli' ? 4
+        : id == 'felaket' ? 3
+        : id == 'usyan' ? 4
+        : 0;
+    }
+
+    function officialLoadoutEnergy(ids) {
+      return officialCardCost(ids[0]) + officialCardCost(ids[1]) + officialCardCost(ids[2])
+        + officialCardCost(ids[3]) + officialCardCost(ids[4]);
+    }
+
+    function isValidCardPlaySeqBump(battleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let receipt = getAfter(/databases/$(database)/documents/battles/$(battleId)/energy_requests/$(after.lastScoreRequestId)).data;
+      let atk0 = before.keys().hasAny(['attackerScore']) && before.attackerScore is int ? before.attackerScore : 0;
+      let def0 = before.keys().hasAny(['defenderScore']) && before.defenderScore is int ? before.defenderScore : 0;
+      let scoreV0 = before.keys().hasAny(['scoreVersion']) && before.scoreVersion is int ? before.scoreVersion : 0;
+      return request.auth != null
+        && before.status == 'active'
+        && after.status == 'active'
+        && after.eventSeq == before.eventSeq + 6
+        && after.stateVersion == before.stateVersion + 1
+        && after.createdAt == before.createdAt
+        && after.createdBy == before.createdBy
+        && after.schemaVersion == before.schemaVersion
+        && after.turn is int
+        && after.turn >= 1
+        && after.turnSide in ['attacker', 'defender']
+        && after.turnPlayerId is string
+        && (
+          (after.turnSide == 'attacker' && after.turnPlayerId in after.attackerPlayerIds)
+          || (after.turnSide == 'defender' && after.turnPlayerId in after.defenderPlayerIds)
+        )
+        && after.turnStartAt == request.time
+        && after.turnDurationMs == 15000
+        && request.time < before.turnStartAt + duration.value(15, 's')
+        && after.lastScoreRequestId is string
+        && receipt.requestId == after.lastScoreRequestId
+        && officialDamage(receipt.cardId, receipt.targetAllianceId, receipt.effectKinds) >= 0
+        && receipt.damage == officialDamage(receipt.cardId, receipt.targetAllianceId, receipt.effectKinds)
+        && receipt.playerDelta == officialPlayerDelta(receipt.cardId)
+        && receipt.allianceDelta == officialAllianceDelta(receipt.cardId)
+        && receipt.steal == officialSteal(receipt.cardId)
+        && receipt.playerDelta >= 0
+        && receipt.allianceDelta >= 0
+        && receipt.steal >= 0
+        && receipt.taken is int
+        && receipt.taken >= 0
+        && receipt.taken <= receipt.steal
+        && after.attackerScore is int
+        && after.defenderScore is int
+        && after.attackerScore == receipt.attackerScoreAfter
+        && after.defenderScore == receipt.defenderScoreAfter
+        && after.attackerScore >= 0
+        && after.defenderScore >= 0
+        && after.attackerScore <= 1000000
+        && after.defenderScore <= 1000000
+        && after.attackerScore >= atk0 - receipt.taken
+        && after.defenderScore >= def0 - receipt.taken
+        && after.scoreVersion == scoreV0 + 1
+        && after.diff(before).affectedKeys()
+          .hasOnly([
+            'eventSeq', 'updatedAt', 'status', 'turn', 'turnSide', 'turnPlayerId',
+            'stateVersion', 'turnStartAt', 'turnDurationMs',
+            'attackerScore', 'defenderScore', 'scoreVersion', 'lastScoreRequestId'
+          ])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidBattleActivate() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.kind == 'alliance_map'
+        && before.status in ['joining', 'locked']
+        && after.status == 'active'
+        && after.eventSeq == before.eventSeq + 1
+        && after.stateVersion == 1
+        && after.turn == 1
+        && after.turnSide == 'attacker'
+        && after.turnPlayerId == after.attackerPlayerIds[0]
+        && after.turnStartAt == request.time
+        && after.turnDurationMs == 15000
+        && after.createdAt == before.createdAt
+        && after.createdBy == before.createdBy
+        && after.diff(before).affectedKeys()
+          .hasOnly([
+            'eventSeq', 'updatedAt', 'status', 'turn', 'turnSide', 'turnPlayerId',
+            'stateVersion', 'turnStartAt', 'turnDurationMs'
+          ])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidTurnTimeout() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.status == 'active'
+        && request.time >= before.turnStartAt + duration.value(15, 's')
+        && after.status == 'active'
+        && after.eventSeq == before.eventSeq + 1
+        && after.stateVersion == before.stateVersion + 1
+        && after.turnStartAt == request.time
+        && after.turnDurationMs == 15000
+        && after.turn is int
+        && after.turnSide in ['attacker', 'defender']
+        && after.turnPlayerId is string
+        && (
+          (after.turnSide == 'attacker' && after.turnPlayerId in after.attackerPlayerIds)
+          || (after.turnSide == 'defender' && after.turnPlayerId in after.defenderPlayerIds)
+        )
+        && after.createdAt == before.createdAt
+        && after.createdBy == before.createdBy
+        && after.diff(before).affectedKeys()
+          .hasOnly([
+            'eventSeq', 'updatedAt', 'status', 'turn', 'turnSide', 'turnPlayerId',
+            'stateVersion', 'turnStartAt', 'turnDurationMs'
+          ])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidTurnTimeoutEvent(battleId, eventId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && d.type == 'turn_timeout'
+        && isNextEventSeq(battleId)
+        && battleData(battleId).status == 'active'
+        && request.time >= battleData(battleId).turnStartAt + duration.value(15, 's');
+    }
+
+    function energyReceipt(battleId, requestId) {
+      return getAfter(/databases/$(database)/documents/battles/$(battleId)/energy_requests/$(requestId)).data;
+    }
+
+    function isValidEnergyInit(battleId, playerId) {
+      let d = request.resource.data;
+      let b = getAfter(/databases/$(database)/documents/battles/$(battleId)).data;
+      return request.auth != null
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && b.status in ['open', 'joining', 'locked', 'active']
+        && d.battleId == battleId
+        && d.playerId == playerId
+        && d.energy == 25
+        && d.maxEnergy == 25
+        && d.cardUsage is map
+        && d.cardUsage.size() == 0
+        && d.cardCooldownUntil is map
+        && d.cardCooldownUntil.size() == 0
+        && d.lastRequestId == null
+        && d.schemaVersion == 1
+        && d.createdAt == request.time
+        && d.updatedAt == request.time
+        && d.keys().hasOnly([
+          'battleId', 'playerId', 'energy', 'maxEnergy', 'cardUsage',
+          'cardCooldownUntil', 'lastRequestId', 'schemaVersion', 'createdAt', 'updatedAt'
+        ])
+        && playerId in b.participantIds
+        && (
+          b.kind != 'alliance_map'
+          || uidOwnsBattleSlot(b, playerId, 'attacker')
+          || uidOwnsBattleSlot(b, playerId, 'defender')
+          || (playerId in b.defenderPlayerIds && request.auth.uid in b.attackerUids)
+        );
+    }
+
+    function isValidEnergySpend(battleId, playerId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let reqId = after.lastRequestId;
+      let receipt = energyReceipt(battleId, reqId);
+      let cid = receipt.cardId;
+      let prevUse = (before.keys().hasAny(['cardUsage']) && cid in before.cardUsage && before.cardUsage[cid] is int)
+        ? before.cardUsage[cid]
+        : ((before.keys().hasAny(['usedCardIds']) && cid in before.usedCardIds) ? 1 : 0);
+      let cdReady = !(before.keys().hasAny(['cardCooldownUntil']))
+        || !(cid in before.cardCooldownUntil)
+        || (
+          before.cardCooldownUntil[cid] is int
+          && request.time.toMillis() >= before.cardCooldownUntil[cid]
+        );
+      return request.auth != null
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && battleData(battleId).status == 'active'
+        && battleData(battleId).turnPlayerId == playerId
+        && request.time < battleData(battleId).turnStartAt + duration.value(15, 's')
+        && reqId is string
+        && reqId.size() >= 8
+        && receipt.playerId == playerId
+        && receipt.requestId == reqId
+        && cid is string
+        && officialCardCost(cid) > 0
+        && officialCardCooldownSec(cid) > 0
+        && receipt.cost == officialCardCost(cid)
+        && receipt.energyBefore == before.energy
+        && receipt.energyAfter == after.energy
+        && after.energy == before.energy - receipt.cost
+        && after.energy >= 0
+        && after.energy <= 25
+        && before.energy >= 0
+        && after.maxEnergy == 25
+        && prevUse < 3
+        && after.cardUsage is map
+        && after.cardUsage[cid] == prevUse + 1
+        && after.cardUsage[cid] <= 3
+        && cdReady
+        && after.cardCooldownUntil is map
+        && after.cardCooldownUntil[cid] is int
+        && after.cardCooldownUntil[cid] >= request.time.toMillis() + officialCardCooldownSec(cid) * 1000 - 3000
+        && after.cardCooldownUntil[cid] <= request.time.toMillis() + officialCardCooldownSec(cid) * 1000 + 8000
+        && (
+          (
+            exists(/databases/$(database)/documents/battles/$(battleId)/loadouts/$(playerId))
+            && cid in get(/databases/$(database)/documents/battles/$(battleId)/loadouts/$(playerId)).data.cardIds
+          ) || isDefenseAiTurn(battleId, playerId, 'defender', cid)
+        )
+        && after.diff(before).affectedKeys()
+          .hasOnly(['energy', 'cardUsage', 'cardCooldownUntil', 'lastRequestId', 'updatedAt'])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidEnergyRequestCreate(battleId, requestId) {
+      let d = request.resource.data;
+      let b = battleData(battleId);
+      let atk0 = b.keys().hasAny(['attackerScore']) && b.attackerScore is int ? b.attackerScore : 0;
+      let def0 = b.keys().hasAny(['defenderScore']) && b.defenderScore is int ? b.defenderScore : 0;
+      let own0 = d.side == 'attacker' ? atk0 : def0;
+      let opp0 = d.side == 'attacker' ? def0 : atk0;
+      return request.auth != null
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && battleData(battleId).status == 'active'
+        && battleData(battleId).turnPlayerId == d.playerId
+        && (
+          uidOwnsBattleSlot(battleData(battleId), d.playerId, d.side)
+          || isDefenseAiTurn(battleId, d.playerId, d.side, d.cardId)
+        )
+        && request.time < battleData(battleId).turnStartAt + duration.value(15, 's')
+        && d.requestId == requestId
+        && d.battleId == battleId
+        && d.playerId is string
+        && officialCardCost(d.cardId) > 0
+        && d.cost == officialCardCost(d.cardId)
+        && d.energyBefore is int
+        && d.energyAfter is int
+        && d.energyAfter == d.energyBefore - d.cost
+        && d.energyAfter >= 0
+        && d.energyBefore <= 25
+        && d.energyBefore >= d.cost
+        && d.usageAfter is int
+        && d.usageAfter > 0
+        && d.usageAfter <= 3
+        && d.schemaVersion == 1
+        && d.createdAt == request.time
+        && d.side in ['attacker', 'defender']
+        && (
+          (d.side == 'attacker' && d.playerId in battleData(battleId).attackerPlayerIds)
+          || (d.side == 'defender' && d.playerId in battleData(battleId).defenderPlayerIds)
+        )
+        && officialDamage(d.cardId, d.targetAllianceId, d.effectKinds) >= 0
+        && d.damage == officialDamage(d.cardId, d.targetAllianceId, d.effectKinds)
+        && d.playerDelta == officialPlayerDelta(d.cardId)
+        && d.allianceDelta == officialAllianceDelta(d.cardId)
+        && d.steal == officialSteal(d.cardId)
+        && d.clickRequired == officialChallengeClicks(d.cardId, d.targetAllianceId)
+        && (
+          d.clickRequired == 0
+          || (
+            d.cardId == 'usyan'
+            && (
+              (d.side == 'attacker' && d.targetAllianceId == battleData(battleId).attackerAllianceId)
+              || (d.side == 'defender' && d.targetAllianceId == battleData(battleId).defenderAllianceId)
+            )
+          )
+          || (
+            d.cardId != 'usyan'
+            && (
+              (d.side == 'attacker' && d.targetAllianceId == battleData(battleId).defenderAllianceId)
+              || (d.side == 'defender' && d.targetAllianceId == battleData(battleId).attackerAllianceId)
+            )
+          )
+        )
+        && d.clickRequired is int
+        && d.clickRequired >= 0
+        && d.clickRequired <= 14
+        && (d.challengeId == null || d.challengeId == d.requestId)
+        && (d.clickRequired == 0 || d.challengeId == d.requestId)
+        && d.effectKinds is list
+        && d.effectKinds.size() > 0
+        && d.effectKinds.size() <= 6
+        && d.damage is int
+        && d.playerDelta is int
+        && d.allianceDelta is int
+        && d.steal is int
+        && d.taken is int
+        && d.damage >= 0
+        && d.damage <= 3500
+        && d.playerDelta >= 0
+        && d.playerDelta <= 10
+        && d.allianceDelta >= 0
+        && d.allianceDelta <= 8
+        && d.steal >= 0
+        && d.steal <= 6
+        && d.taken >= 0
+        && d.taken <= d.steal
+        && d.playerScoreAfter is int
+        && d.attackerScoreAfter is int
+        && d.defenderScoreAfter is int
+        && d.ownAllianceAfter is int
+        && d.oppAllianceAfter is int
+        && (
+          (
+            exists(/databases/$(database)/documents/battles/$(battleId)/scores/$(d.playerId))
+            && d.playerScoreAfter == get(/databases/$(database)/documents/battles/$(battleId)/scores/$(d.playerId)).data.score + d.playerDelta
+          ) || (
+            !exists(/databases/$(database)/documents/battles/$(battleId)/scores/$(d.playerId))
+            && d.playerScoreAfter == d.playerDelta
+          )
+        )
+        && d.playerScoreAfter >= d.playerDelta
+        && d.playerScoreAfter <= 1000000
+        && d.attackerScoreAfter >= 0
+        && d.defenderScoreAfter >= 0
+        && d.attackerScoreAfter <= 1000000
+        && d.defenderScoreAfter <= 1000000
+        && d.taken == (d.steal < opp0 ? d.steal : opp0)
+        && d.ownAllianceAfter == own0 + d.allianceDelta + d.taken
+        && d.oppAllianceAfter == opp0 - d.taken
+        && d.ownAllianceAfter == (d.side == 'attacker' ? d.attackerScoreAfter : d.defenderScoreAfter)
+        && d.oppAllianceAfter == (d.side == 'attacker' ? d.defenderScoreAfter : d.attackerScoreAfter)
+        && d.eventSeq == battleData(battleId).eventSeq + 6
+        && d.keys().hasOnly([
+          'requestId', 'battleId', 'playerId', 'cardId', 'side', 'cost',
+          'energyBefore', 'energyAfter', 'usageAfter', 'cooldownUntil',
+          'eventSeq', 'stateVersion', 'turn', 'turnSide', 'turnPlayerId',
+          'damage', 'playerDelta', 'allianceDelta', 'steal', 'taken',
+          'playerScoreAfter', 'attackerScoreAfter', 'defenderScoreAfter',
+          'ownAllianceAfter', 'oppAllianceAfter',
+          'effectKinds', 'clickRequired', 'targetAllianceId', 'challengeId',
+          'schemaVersion', 'createdAt'
+        ]);
+    }
+
+    function isValidEnergyPlayEvent(battleId, eventId) {
+      let d = request.resource.data;
+      let reqId = d.meta.requestId;
+      let receipt = energyReceipt(battleId, reqId);
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && battleAfter(battleId).eventSeq == battleData(battleId).eventSeq + 6
+        && reqId is string
+        && receipt.playerId == d.playerId
+        && receipt.requestId == reqId
+        && receipt.cardId == d.meta.cardId
+        && (
+          (
+            d.type == 'card_played'
+            && d.seq == battleData(battleId).eventSeq + 1
+          ) || (
+            d.type == 'energy_changed'
+            && d.seq == battleData(battleId).eventSeq + 2
+            && d.meta.energy == receipt.energyAfter
+            && d.meta.delta == -receipt.cost
+          )
+        );
+    }
+
+    function isValidScorePlayEvent(battleId, eventId) {
+      let d = request.resource.data;
+      let reqId = d.meta.requestId;
+      let receipt = energyReceipt(battleId, reqId);
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && battleAfter(battleId).eventSeq == battleData(battleId).eventSeq + 6
+        && reqId is string
+        && receipt.playerId == d.playerId
+        && receipt.requestId == reqId
+        && officialDamage(receipt.cardId, receipt.targetAllianceId, receipt.effectKinds) >= 0
+        && (
+          (
+            d.type == 'damage_applied'
+            && d.seq == battleData(battleId).eventSeq + 3
+            && d.meta.amount == receipt.damage
+            && d.meta.amount == officialDamage(receipt.cardId, receipt.targetAllianceId, receipt.effectKinds)
+            && d.meta.source == receipt.cardId
+          ) || (
+            d.type == 'score_changed'
+            && d.meta.scope == 'player'
+            && d.seq == battleData(battleId).eventSeq + 4
+            && d.meta.delta == receipt.playerDelta
+            && d.meta.delta == officialPlayerDelta(receipt.cardId)
+            && d.meta.delta >= 0
+            && d.meta.score == receipt.playerScoreAfter
+            && d.meta.cardId == receipt.cardId
+          ) || (
+            d.type == 'score_changed'
+            && d.meta.scope == 'alliance'
+            && d.seq == battleData(battleId).eventSeq + 5
+            && d.meta.delta == receipt.allianceDelta + receipt.taken
+            && d.meta.delta >= 0
+            && d.meta.score == receipt.ownAllianceAfter
+            && d.meta.cardId == receipt.cardId
+          ) || (
+            d.type == 'score_changed'
+            && d.meta.scope == 'alliance'
+            && d.seq == battleData(battleId).eventSeq + 6
+            && d.meta.delta == 0 - receipt.taken
+            && d.meta.score == receipt.oppAllianceAfter
+            && d.meta.cardId == receipt.cardId
+          )
+        );
+    }
+
+    function isValidScoreInit(battleId, playerId) {
+      let d = request.resource.data;
+      let b = getAfter(/databases/$(database)/documents/battles/$(battleId)).data;
+      return request.auth != null
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && b.status in ['open', 'joining', 'locked', 'active']
+        && d.battleId == battleId
+        && d.playerId == playerId
+        && d.score == 0
+        && d.maxScore == 1000000
+        && d.lastRequestId == null
+        && d.schemaVersion == 1
+        && d.createdAt == request.time
+        && d.updatedAt == request.time
+        && d.keys().hasOnly([
+          'battleId', 'playerId', 'score', 'maxScore', 'lastRequestId',
+          'schemaVersion', 'createdAt', 'updatedAt'
+        ])
+        && playerId in b.participantIds;
+    }
+
+    function isValidScoreCreateOnPlay(battleId, playerId) {
+      let d = request.resource.data;
+      let receipt = energyReceipt(battleId, d.lastRequestId);
+      return request.auth != null
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && battleData(battleId).status == 'active'
+        && playerId in battleData(battleId).participantIds
+        && d.battleId == battleId
+        && d.playerId == playerId
+        && d.lastRequestId is string
+        && receipt.playerId == playerId
+        && receipt.requestId == d.lastRequestId
+        && receipt.playerDelta == officialPlayerDelta(receipt.cardId)
+        && d.score == receipt.playerDelta
+        && d.score == receipt.playerScoreAfter
+        && d.score >= 0
+        && d.score <= 1000000
+        && d.maxScore == 1000000
+        && d.schemaVersion == 1
+        && d.createdAt == request.time
+        && d.updatedAt == request.time
+        && d.keys().hasOnly([
+          'battleId', 'playerId', 'score', 'maxScore', 'lastRequestId',
+          'schemaVersion', 'createdAt', 'updatedAt'
+        ]);
+    }
+
+    function isValidScoreAward(battleId, playerId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let reqId = after.lastRequestId;
+      let receipt = energyReceipt(battleId, reqId);
+      return request.auth != null
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && battleData(battleId).status == 'active'
+        && reqId is string
+        && receipt.playerId == playerId
+        && receipt.requestId == reqId
+        && receipt.playerDelta == officialPlayerDelta(receipt.cardId)
+        && receipt.playerDelta >= 0
+        && receipt.playerDelta <= 10
+        && before.score is int
+        && after.score is int
+        && after.score == before.score + receipt.playerDelta
+        && after.score == receipt.playerScoreAfter
+        && after.score >= 0
+        && after.score <= 1000000
+        && after.score >= before.score
+        && after.maxScore == 1000000
+        && after.diff(before).affectedKeys().hasOnly(['score', 'lastRequestId', 'updatedAt'])
+        && after.updatedAt == request.time;
+    }
+
+    function isValidCardCostCreate(cardId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && officialCardCost(cardId) > 0
+        && d.cardId == cardId
+        && d.energyCost == officialCardCost(cardId)
+        && d.energyCost is int
+        && d.schemaVersion == 1
+        && (
+          d.keys().hasOnly(['cardId', 'energyCost', 'schemaVersion', 'updatedAt'])
+          || (
+            d.keys().hasOnly(['cardId', 'energyCost', 'cooldownMs', 'schemaVersion', 'updatedAt'])
+            && d.cooldownMs == officialCardCooldownSec(cardId) * 1000
+          )
+        );
+    }
+
+    function challengeData(battleId, challengeId) {
+      return get(/databases/$(database)/documents/battles/$(battleId)/challenges/$(challengeId)).data;
+    }
+
+    function isValidChallengeCreate(battleId, challengeId) {
+      let d = request.resource.data;
+      let receipt = energyReceipt(battleId, challengeId);
+      return request.auth != null
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId)/energy_requests/$(challengeId))
+        && receipt.challengeId == challengeId
+        && receipt.clickRequired > 0
+        && d.challengeId == challengeId
+        && d.battleId == battleId
+        && d.requestId == challengeId
+        && d.cardId == receipt.cardId
+        && d.targetAllianceId == receipt.targetAllianceId
+        && d.requiredClicks == receipt.clickRequired
+        && d.requiredClicks == officialChallengeClicks(d.cardId, d.targetAllianceId)
+        && d.requiredClicks > 0
+        && d.requiredClicks <= 14
+        && d.currentClicks == 0
+        && d.status == 'active'
+        && d.startedAt == request.time
+        && d.durationMs == 15000
+        && d.schemaVersion == 1
+        && d.createdBy is string
+        && d.keys().hasOnly([
+          'challengeId', 'battleId', 'cardId', 'requestId', 'targetAllianceId',
+          'requiredClicks', 'currentClicks', 'startedAt', 'durationMs',
+          'status', 'createdBy', 'schemaVersion'
+        ]);
+    }
+
+    function isValidChallengeClick(battleId, challengeId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.status == 'active'
+        && request.time < before.startedAt + duration.value(15, 's')
+        && after.requiredClicks == before.requiredClicks
+        && after.targetAllianceId == before.targetAllianceId
+        && after.cardId == before.cardId
+        && after.currentClicks == before.currentClicks + 1
+        && after.currentClicks <= before.requiredClicks
+        && after.currentClicks > 0
+        && (
+          after.currentClicks < after.requiredClicks
+            ? after.status == 'active'
+            : after.status == 'succeeded'
+        )
+        && !exists(/databases/$(database)/documents/battles/$(battleId)/challenges/$(challengeId)/clicks/$(request.auth.uid))
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(challengeId)/clicks/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/alliances/$(before.targetAllianceId))
+        && (
+          getAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(challengeId)/clicks/$(request.auth.uid)).data.playerId
+            in get(/databases/$(database)/documents/alliances/$(before.targetAllianceId)).data.members
+          || get(/databases/$(database)/documents/alliances/$(before.targetAllianceId)).data.leaderId
+            == getAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(challengeId)/clicks/$(request.auth.uid)).data.playerId
+        )
+        && after.diff(before).affectedKeys().hasOnly(['currentClicks', 'status', 'updatedAt']);
+    }
+
+    function isValidChallengeExpire(battleId, challengeId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.status == 'active'
+        && request.time >= before.startedAt + duration.value(15, 's')
+        && after.status == 'expired'
+        && after.currentClicks == before.currentClicks
+        && after.requiredClicks == before.requiredClicks
+        && after.targetAllianceId == before.targetAllianceId
+        && after.diff(before).affectedKeys().hasOnly(['status', 'updatedAt']);
+    }
+
+    function isValidChallengeCloseOnFinish(battleId, challengeId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.status == 'active'
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId))
+        && battleAfter(battleId).status == 'finished'
+        && after.status == 'expired'
+        && after.currentClicks == before.currentClicks
+        && after.diff(before).affectedKeys().hasOnly(['status', 'updatedAt']);
+    }
+
+    function isValidChallengeClickCreate(battleId, challengeId, clickId) {
+      let d = request.resource.data;
+      let ch = challengeData(battleId, challengeId);
+      return request.auth != null
+        && clickId == request.auth.uid
+        && exists(/databases/$(database)/documents/battles/$(battleId)/challenges/$(challengeId))
+        && ch.status == 'active'
+        && request.time < ch.startedAt + duration.value(15, 's')
+        && d.uid == request.auth.uid
+        && d.playerId is string
+        && d.createdAt == request.time
+        && d.schemaVersion == 1
+        && exists(/databases/$(database)/documents/alliances/$(ch.targetAllianceId))
+        && (
+          d.playerId in get(/databases/$(database)/documents/alliances/$(ch.targetAllianceId)).data.members
+          || get(/databases/$(database)/documents/alliances/$(ch.targetAllianceId)).data.leaderId == d.playerId
+        )
+        && getAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(challengeId)).data.currentClicks
+          == ch.currentClicks + 1;
+    }
+
+    function canReadBattle(battleId) {
+      return exists(/databases/$(database)/documents/battles/$(battleId))
+        && request.auth != null
+        && (
+          battleData(battleId).status == 'joining'
+          || (
+            battleData(battleId).keys().hasAny(['attackerUids'])
+            && request.auth.uid in battleData(battleId).attackerUids
+          )
+          || (
+            battleData(battleId).keys().hasAny(['defenderUids'])
+            && request.auth.uid in battleData(battleId).defenderUids
+          )
+        );
+    }
+
+    function isValidClickCompleteEvent(battleId, eventId) {
+      let d = request.resource.data;
+      let cid = d.meta.requestId;
+      return request.auth != null
+        && isBattleEventDoc(battleId, eventId)
+        && d.type == 'click_completed'
+        && isNextEventSeq(battleId)
+        && cid is string
+        && existsAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(cid))
+        && d.meta.clicks is int
+        && d.meta.required is int
+        && d.meta.success is bool
+        && d.meta.required > 0
+        && d.meta.required <= 14
+        && d.meta.clicks >= 0
+        && d.meta.clicks <= d.meta.required
+        && d.meta.clicks == getAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(cid)).data.currentClicks
+        && d.meta.required == getAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(cid)).data.requiredClicks
+        && (
+          (d.meta.success == true && d.meta.clicks == d.meta.required
+            && getAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(cid)).data.status == 'succeeded')
+          || (d.meta.success == false && d.meta.clicks < d.meta.required
+            && getAfter(/databases/$(database)/documents/battles/$(battleId)/challenges/$(cid)).data.status == 'expired')
+        );
+    }
+
+    function isValidLoadoutFreeze(battleId) {
+      let b = battleData(battleId);
+      return request.auth != null
+        && exists(/databases/$(database)/documents/battles/$(battleId))
+        && b.status in ['active', 'finished']
+        && request.resource.data.locked == true
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['locked', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && (
+          request.auth.uid in b.attackerUids
+          || request.auth.uid in b.defenderUids
+        );
+    }
+
+    match /battles/{battleId} {
+      allow read: if request.auth != null
+        && (
+          resource.data.status == 'joining'
+          || (resource.data.keys().hasAny(['attackerUids']) && request.auth.uid in resource.data.attackerUids)
+          || (resource.data.keys().hasAny(['defenderUids']) && request.auth.uid in resource.data.defenderUids)
+        );
+      allow create: if isValidOpenBattleCreate() || isValidMapBattleCreate();
+      allow update: if isValidLegacySeqBump() || isValidMapBattleJoin() || isValidMapBattleLock()
+        || isValidOfflineDefenseSeat() || isValidDefenseUidBind()
+        || isValidBattleActivate() || isValidCardPlaySeqBump(battleId) || isValidTurnTimeout()
+        || isValidBattleFinish(battleId);
+      allow delete: if false;
+
+      match /events/{eventId} {
+        allow read: if canReadBattle(battleId);
+        allow create: if isValidBattleEventCreate(battleId, eventId)
+          || isValidBattleCreatedEvent(battleId, eventId)
+          || isValidPlayerJoinedEvent(battleId, eventId)
+          || isValidLoadoutLockedEvent(battleId, eventId)
+          || isValidBattleFinishedEvent(battleId, eventId)
+          || isValidTurnStartedEvent(battleId, eventId)
+          || isValidEnergyPlayEvent(battleId, eventId)
+          || isValidScorePlayEvent(battleId, eventId)
+          || isValidTurnTimeoutEvent(battleId, eventId)
+          || isValidClickCompleteEvent(battleId, eventId);
+        allow update, delete: if false;
+      }
+
+      match /energy/{playerId} {
+        allow read: if canReadBattle(battleId);
+        allow create: if isValidEnergyInit(battleId, playerId);
+        allow update: if isValidEnergySpend(battleId, playerId);
+        allow delete: if false;
+      }
+
+      match /energy_requests/{requestId} {
+        allow read: if canReadBattle(battleId);
+        allow create: if isValidEnergyRequestCreate(battleId, requestId);
+        allow update, delete: if false;
+      }
+
+      match /scores/{playerId} {
+        allow read: if canReadBattle(battleId);
+        allow create: if isValidScoreInit(battleId, playerId)
+          || isValidScoreCreateOnPlay(battleId, playerId);
+        allow update: if isValidScoreAward(battleId, playerId);
+        allow delete: if false;
+      }
+
+      match /challenges/{challengeId} {
+        allow read: if request.auth != null
+          && (
+            canReadBattle(battleId)
+            || (
+              resource.data.keys().hasAny(['targetAllianceId'])
+              && isAllianceMemberOrLeader(resource.data.targetAllianceId, request.auth.uid)
+            )
+          );
+        allow create: if isValidChallengeCreate(battleId, challengeId);
+        allow update: if isValidChallengeClick(battleId, challengeId)
+          || isValidChallengeExpire(battleId, challengeId)
+          || isValidChallengeCloseOnFinish(battleId, challengeId);
+        allow delete: if false;
+
+        match /clicks/{clickId} {
+          allow read: if canReadBattle(battleId);
+          allow create: if isValidChallengeClickCreate(battleId, challengeId, clickId);
+          allow update, delete: if false;
+        }
+      }
+
+      match /result/{resultId} {
+        allow read: if canReadBattle(battleId);
+        allow create: if isValidBattleResultCreate(battleId, resultId);
+        allow update, delete: if false;
+      }
+
+      match /loadouts/{playerId} {
+        allow read: if isLoadoutTeamRead(battleId);
+        allow create: if isValidLoadoutWrite(battleId, playerId, true);
+        allow update: if isValidLoadoutWrite(battleId, playerId, false)
+          || isValidLoadoutFreeze(battleId);
+        allow delete: if false;
+      }
+
+      match /defense_loadouts/{playerId} {
+        allow read: if canReadBattle(battleId);
+        allow create: if isValidDefenseSnapshot(battleId, playerId);
+        allow update, delete: if false;
+      }
+
+      match /presence/{playerId} {
+        allow read: if canReadBattle(battleId);
+        allow create, update: if isValidPresenceHeartbeat(battleId, playerId);
+        allow delete: if false;
+      }
+    }
+
+    match /battle_card_costs/{cardId} {
+      allow read: if true;
+      allow create: if isValidCardCostCreate(cardId);
+      allow update, delete: if false;
+    }
+
+    match /server_clock/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['t', 'updatedAt'])
+        && request.resource.data.t == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /alliance_battle_cooldowns/{allianceId} {
+      allow read: if true;
+      allow create: if isValidCooldownWrite(allianceId);
+      allow update: if isValidCooldownWrite(allianceId)
+        && request.time >= resource.data.cooldownUntil;
+      allow delete: if false;
+    }
+
+    function isLeaderboardPeriodKey(key) {
+      return key is string && key.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function isValidLeaderboardBoard(kind) {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.kind == kind
+        && d.timezone == 'Asia/Baku'
+        && d.offsetMs == 14400000
+        && d.status in ['open', 'closed']
+        && d.rows is list
+        && d.rows.size() <= 100
+        && d.schemaVersion == 1
+        && d.updatedAt == request.time;
+    }
+
+    match /leaderboard_state/{id} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.timezone == 'Asia/Baku'
+        && request.resource.data.offsetMs == 14400000
+        && isLeaderboardPeriodKey(request.resource.data.openDayKey)
+        && isLeaderboardPeriodKey(request.resource.data.openWeekKey);
+      allow delete: if false;
+    }
+
+    match /leaderboard_resets/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.status == 'done'
+        && request.resource.data.kind in ['daily', 'weekly']
+        && isLeaderboardPeriodKey(request.resource.data.periodKey)
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /leaderboard_archives/{id} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.kind in ['daily', 'weekly']
+        && isLeaderboardPeriodKey(request.resource.data.periodKey)
+        && request.resource.data.rows is list
+        && request.resource.data.archivedAt == request.time;
+      allow update, delete: if false;
+    }
+
+    function leaderboardAwardFromBattle(battleId) {
+      return exists(/databases/$(database)/documents/battles/$(battleId)/result/final)
+        && get(/databases/$(database)/documents/battles/$(battleId)/result/final).data.status == 'finished'
+        && existsAfter(/databases/$(database)/documents/leaderboard_awards/$(battleId));
+    }
+
+    match /leaderboard_daily/{dayKey} {
+      allow read: if true;
+      allow create: if isLeaderboardPeriodKey(dayKey)
+        && request.resource.data.periodKey == dayKey
+        && request.resource.data.version == 1
+        && request.resource.data.rows.size() == 0
+        && isValidLeaderboardBoard('daily');
+      allow update: if isLeaderboardPeriodKey(dayKey)
+        && request.resource.data.periodKey == dayKey
+        && isValidLeaderboardBoard('daily')
+        && request.resource.data.version == resource.data.version + 1;
+      allow delete: if false;
+
+      match /entries/{playerId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.playerId == playerId
+          && request.resource.data.dayKey == dayKey
+          && request.resource.data.battleId is string
+          && leaderboardAwardFromBattle(request.resource.data.battleId)
+          && playerId in get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.participantIds
+          && request.resource.data.score is int
+          && playerId in get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.playerDeltas
+          && request.resource.data.score == get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.playerDeltas[playerId]
+          && request.resource.data.score >= 0
+          && request.resource.data.score <= 8
+          && request.resource.data.updatedAt == request.time;
+        allow update: if request.auth != null
+          && request.resource.data.playerId == playerId
+          && request.resource.data.dayKey == dayKey
+          && request.resource.data.battleId is string
+          && leaderboardAwardFromBattle(request.resource.data.battleId)
+          && playerId in get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.participantIds
+          && playerId in get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.playerDeltas
+          && request.resource.data.score is int
+          && request.resource.data.score == resource.data.score + get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.playerDeltas[playerId]
+          && request.resource.data.score <= 1000000
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+      }
+    }
+
+    match /leaderboard_weekly/{weekKey} {
+      allow read: if true;
+      allow create: if isLeaderboardPeriodKey(weekKey)
+        && request.resource.data.periodKey == weekKey
+        && request.resource.data.version == 1
+        && isValidLeaderboardBoard('weekly');
+      allow update: if isLeaderboardPeriodKey(weekKey)
+        && request.resource.data.periodKey == weekKey
+        && isValidLeaderboardBoard('weekly')
+        && request.resource.data.version == resource.data.version + 1;
+      allow delete: if false;
+
+      match /entries/{allianceId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.allianceId == allianceId
+          && request.resource.data.weekKey == weekKey
+          && request.resource.data.battleId is string
+          && leaderboardAwardFromBattle(request.resource.data.battleId)
+          && allianceId in get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.allianceDeltas
+          && request.resource.data.rawScore is int
+          && allianceId in get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.allianceDeltas
+          && request.resource.data.rawScore == get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.allianceDeltas[allianceId]
+          && request.resource.data.rawScore >= 0
+          && request.resource.data.rawScore <= 6
+          && request.resource.data.score is int
+          && request.resource.data.score >= 0
+          && request.resource.data.score <= 1000000
+          && request.resource.data.updatedAt == request.time;
+        allow update: if request.auth != null
+          && request.resource.data.allianceId == allianceId
+          && request.resource.data.weekKey == weekKey
+          && request.resource.data.battleId is string
+          && leaderboardAwardFromBattle(request.resource.data.battleId)
+          && allianceId in get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.allianceDeltas
+          && request.resource.data.rawScore is int
+          && request.resource.data.rawScore == resource.data.rawScore + get(/databases/$(database)/documents/battles/$(request.resource.data.battleId)/result/final).data.allianceDeltas[allianceId]
+          && request.resource.data.score is int
+          && request.resource.data.score >= 0
+          && request.resource.data.score <= 1000000
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+      }
+    }
+
+    match /leaderboard_awards/{battleId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.battleId == battleId
+        && request.resource.data.status == 'done'
+        && isLeaderboardPeriodKey(request.resource.data.dayKey)
+        && isLeaderboardPeriodKey(request.resource.data.weekKey)
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/battles/$(battleId)/result/final)
+        && get(/databases/$(database)/documents/battles/$(battleId)/result/final).data.status == 'finished';
+      allow update, delete: if false;
+    }
+
+    function finishedResult(battleId) {
+      return get(/databases/$(database)/documents/battles/$(battleId)/result/final).data;
+    }
+
+    function isValidPlayerFinishScore(playerId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let battleId = after.lastScoreBattleId;
+      let delta = finishedResult(battleId).playerDeltas[playerId];
+      return battleId is string
+        && exists(/databases/$(database)/documents/battles/$(battleId)/result/final)
+        && finishedResult(battleId).status == 'finished'
+        && finishedResult(battleId).reason in ['score_reached', 'turn_limit']
+        && playerId in finishedResult(battleId).playerDeltas
+        && delta is int
+        && delta >= 0
+        && delta <= 8
+        && after.lastScoreBattleId != (before.keys().hasAny(['lastScoreBattleId']) ? before.lastScoreBattleId : '')
+        && after.score is int
+        && (
+          (before.keys().hasAny(['score']) && before.score is int && after.score == before.score + delta)
+          || (!before.keys().hasAny(['score']) && after.score == delta)
+        )
+        && after.dailyScore is int
+        && after.dailyScore >= 0
+        && after.dailyScore <= 1000000
+        && (
+          after.dailyScore == delta
+          || (
+            before.keys().hasAny(['dailyScore'])
+            && before.dailyScore is int
+            && after.dailyScore == before.dailyScore + delta
+          )
+        );
+    }
+
+    function isValidAllianceFinishScore(allianceId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let battleId = after.lastScoreBattleId;
+      let delta = finishedResult(battleId).allianceDeltas[allianceId];
+      let lifeBase = before.keys().hasAny(['lifetimeScore']) && before.lifetimeScore is int
+        ? before.lifetimeScore
+        : (before.keys().hasAny(['score']) && before.score is int ? before.score : 0);
+      return battleId is string
+        && exists(/databases/$(database)/documents/battles/$(battleId)/result/final)
+        && finishedResult(battleId).status == 'finished'
+        && finishedResult(battleId).reason in ['score_reached', 'turn_limit']
+        && allianceId in finishedResult(battleId).allianceDeltas
+        && delta is int
+        && delta > 0
+        && delta <= 6
+        && after.lastScoreBattleId != (before.keys().hasAny(['lastScoreBattleId']) ? before.lastScoreBattleId : '')
+        && after.score is int
+        && (
+          (before.keys().hasAny(['score']) && before.score is int && after.score == before.score + delta)
+          || after.score == 50 + delta
+        )
+        && after.lifetimeScore is int
+        && after.lifetimeScore == lifeBase + delta;
+    }
+
+    function isValidAllianceWeeklyReset() {
+      let after = request.resource.data;
+      return after.score == 50
+        && after.weeklyKey is string
+        && after.weeklyResetFrom is string
+        && after.weeklyKey != after.weeklyResetFrom
+        && existsAfter(/databases/$(database)/documents/leaderboard_resets/weekly_$(after.weeklyResetFrom));
+    }
+
+    match /alliances/{allianceId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['score', 'lifetimeScore'])
+          || isValidAllianceFinishScore(allianceId)
+          || isValidAllianceWeeklyReset()
+        );
+      allow delete: if false;
+    }
+
+    function currentUserPlan(d) {
+      return d.keys().hasAny(['userPlan']) && d.userPlan in ['FREE', 'PRO', 'VIP_PRO']
+        ? d.userPlan
+        : 'FREE';
+    }
+
+    function isValidVipProPurchase() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let beforeManat = before.keys().hasAny(['manat']) && before.manat is int ? before.manat : 0;
+      return currentUserPlan(before) != 'VIP_PRO'
+        && after.userPlan == 'VIP_PRO'
+        && after.hasVipPass == true
+        && after.isVipLifetime == true
+        && after.proPanelActive == true
+        && after.manat is int
+        && after.manat == beforeManat - 30
+        && after.manat >= 0
+        && after.coins == after.manat;
+    }
+
+    function isValidProPanelToggle() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return after.proPanelActive is bool
+        && after.manat == before.manat
+        && currentUserPlan(after) == currentUserPlan(before)
+        && after.diff(before).affectedKeys().hasOnly(['proPanelActive', 'updatedAt']);
+    }
+
+    function isValidPlanWrite() {
+      return isValidVipProPurchase() || isValidProPanelToggle();
+    }
+
+    match /players/{playerId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['score', 'dailyScore', 'lifetimeScore'])
+          || isValidPlayerFinishScore(playerId)
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['userPlan', 'hasVipPass', 'isVipLifetime', 'proPanelActive'])
+          || isValidPlanWrite()
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['defenseLoadout'])
+          || isValidPlayerDefenseWrite()
+        );
+      allow delete: if false;
+    }
+
+    match /discover_boosts/{boostUserId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+        && request.resource.data.keys().hasOnly(['userId', 'until', 'updatedAt'])
+        && request.resource.data.userId == boostUserId
+        && request.resource.data.until is int
+        && request.resource.data.updatedAt is int;
+      allow delete: if false;
+    }
+
+    function arenaSlotEnergyOk(ids, i, side) {
+      return !(ids[i] is string)
+        || (
+          request.resource.data.players[ids[i]].energy == 30
+          && request.resource.data.players[ids[i]].maxEnergy == 30
+          && request.resource.data.players[ids[i]].side == side
+          && request.resource.data.players[ids[i]].slotIndex == i
+          && request.resource.data.players[ids[i]].playerId == ids[i]
+        );
+    }
+
+    function isValidArenaMatchCreate() {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.status == 'active'
+        && d.schemaVersion == 1
+        && d.energyStart == 30
+        && d.energyMax == 30
+        && d.turnDuration == 15000
+        && d.turnExpiresAt == d.turnStartedAt + 15000
+        && d.turnIndex == 0
+        && d.turnSeq == 0
+        && d.lastActionTurnSeq == -1
+        && d.phase == 'loadout'
+        && d.result == null
+        && d.participantIds is list
+        && d.homePlayerIds is list
+        && d.awayPlayerIds is list
+        && d.homePlayerIds.size() == 5
+        && d.awayPlayerIds.size() == 5
+        && d.players is map
+        && arenaSlotEnergyOk(d.homePlayerIds, 0, 'home')
+        && arenaSlotEnergyOk(d.homePlayerIds, 1, 'home')
+        && arenaSlotEnergyOk(d.homePlayerIds, 2, 'home')
+        && arenaSlotEnergyOk(d.homePlayerIds, 3, 'home')
+        && arenaSlotEnergyOk(d.homePlayerIds, 4, 'home')
+        && arenaSlotEnergyOk(d.awayPlayerIds, 0, 'away')
+        && arenaSlotEnergyOk(d.awayPlayerIds, 1, 'away')
+        && arenaSlotEnergyOk(d.awayPlayerIds, 2, 'away')
+        && arenaSlotEnergyOk(d.awayPlayerIds, 3, 'away')
+        && arenaSlotEnergyOk(d.awayPlayerIds, 4, 'away');
+    }
+
+    function isValidArenaTurnAdvance() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && after.players == before.players
+        && after.energyStart == 30
+        && after.energyMax == 30
+        && after.homePlayerIds == before.homePlayerIds
+        && after.awayPlayerIds == before.awayPlayerIds
+        && after.createdBy == before.createdBy
+        && after.matchId == before.matchId
+        && after.status == 'active'
+        && before.status == 'active'
+        && after.phase == 'combat'
+        && before.phase == 'combat'
+        && after.loadouts == before.loadouts
+        && after.usedActionIds == before.usedActionIds
+        && after.turnDuration == 15000
+        && after.turnExpiresAt == after.turnStartedAt + 15000
+        && after.turnIndex == before.turnIndex + 1
+        && after.turnSeq == before.turnSeq + 1
+        && after.lastActionId == null
+        && after.lastActionTurnSeq == -1
+        && after.diff(before).affectedKeys().hasOnly([
+          'currentTurn',
+          'turnSide',
+          'turnSlotIndex',
+          'turnIndex',
+          'turnSeq',
+          'turnStartedAt',
+          'turnExpiresAt',
+          'lastActionId',
+          'lastActionTurnSeq',
+          'updatedAt',
+          'effects'
+        ]);
+    }
+
+    function isValidArenaTimeout() {
+      return isValidArenaTurnAdvance()
+        && request.time.toMillis() >= resource.data.turnExpiresAt;
+    }
+
+    function isValidArenaAction() {
+      return isValidArenaTurnAdvance()
+        && request.time.toMillis() < resource.data.turnExpiresAt
+        && resource.data.lastActionTurnSeq != resource.data.turnSeq;
+    }
+
+    function arenaKnownCard(id) {
+      return id in ['sehrbaz', '2x', 'qaya', 'casus', 'duman', 'joker', 'guzgu', 'qul', 'tikanli', 'usyan', 'ogru', 'felaket', 'qutb'];
+    }
+
+    function arenaFreshCard(card) {
+      return card.keys().hasAll(['cardId', 'maxUses', 'used', 'remaining'])
+        && arenaKnownCard(card.cardId)
+        && card.maxUses == 3
+        && card.used == 0
+        && card.remaining == 3;
+    }
+
+    function isValidArenaLoadoutLock() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.phase == 'loadout'
+        && after.players == before.players
+        && after.energyStart == 30
+        && after.energyMax == 30
+        && after.status == 'active'
+        && after.homePlayerIds == before.homePlayerIds
+        && after.awayPlayerIds == before.awayPlayerIds
+        && after.createdBy == before.createdBy
+        && after.matchId == before.matchId
+        && after.displayNames == before.displayNames
+        && (
+          (
+            after.phase == 'loadout'
+            && after.turnStartedAt == before.turnStartedAt
+            && after.turnExpiresAt == before.turnExpiresAt
+          )
+          || (
+            after.phase == 'combat'
+            && after.turnDuration == 15000
+            && after.turnExpiresAt == after.turnStartedAt + 15000
+            && after.turnIndex == before.turnIndex
+          )
+        );
+    }
+
+    function isValidArenaClickerUsyanPlay() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.phase == 'combat'
+        && after.phase == 'combat'
+        && before.status == 'active'
+        && after.status == 'active'
+        && after.energyStart == 30
+        && after.energyMax == 30
+        && after.homePlayerIds == before.homePlayerIds
+        && after.awayPlayerIds == before.awayPlayerIds
+        && after.createdBy == before.createdBy
+        && after.matchId == before.matchId
+        && after.currentTurn == before.currentTurn
+        && after.turnIndex == before.turnIndex
+        && after.turnSeq == before.turnSeq
+        && after.turnStartedAt == before.turnStartedAt
+        && after.turnExpiresAt == before.turnExpiresAt
+        && after.diff(before).affectedKeys().hasOnly([
+          'updatedAt',
+          'players',
+          'loadouts',
+          'usedActionIds',
+          'lastActionId',
+          'effects',
+          'sideScores',
+          'scoreHistory',
+          'reaction'
+        ]);
+    }
+
+    function isValidArenaSeatJoin() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.status == 'active'
+        && after.status == 'active'
+        && after.phase == before.phase
+        && after.sideScores == before.sideScores
+        && after.turnIndex == before.turnIndex
+        && after.turnSeq == before.turnSeq
+        && after.currentTurn == before.currentTurn
+        && after.createdBy == before.createdBy
+        && after.matchId == before.matchId
+        && after.diff(before).affectedKeys().hasOnly([
+          'homePlayerIds',
+          'awayPlayerIds',
+          'participantIds',
+          'players',
+          'displayNames',
+          'loadouts',
+          'updatedAt'
+        ]);
+    }
+
+    function isValidArenaCardPlay() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let pid = before.currentTurn;
+      return request.auth != null
+        && before.phase == 'combat'
+        && after.phase == 'combat'
+        && before.status == 'active'
+        && after.status == 'active'
+        && after.energyStart == 30
+        && after.energyMax == 30
+        && after.homePlayerIds == before.homePlayerIds
+        && after.awayPlayerIds == before.awayPlayerIds
+        && after.createdBy == before.createdBy
+        && after.matchId == before.matchId
+        && after.turnDuration == 15000
+        && after.turnExpiresAt == after.turnStartedAt + 15000
+        && after.turnIndex == before.turnIndex + 1
+        && after.turnSeq == before.turnSeq + 1
+        && request.time.toMillis() < before.turnExpiresAt
+        && after.players[pid].energy < before.players[pid].energy
+        && after.players[pid].energy >= 0
+        && after.players[pid].energy <= 30
+        && after.players[pid].maxEnergy == 30
+        && after.diff(before).affectedKeys().hasOnly([
+          'currentTurn',
+          'turnSide',
+          'turnSlotIndex',
+          'turnIndex',
+          'turnSeq',
+          'turnStartedAt',
+          'turnExpiresAt',
+          'lastActionId',
+          'lastActionTurnSeq',
+          'updatedAt',
+          'players',
+          'loadouts',
+          'usedActionIds',
+          'effects',
+          'sideScores',
+          'scoreHistory',
+          'reaction'
+        ]);
+    }
+
+    function isValidArenaClickShare() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && after.players == before.players
+        && after.loadouts == before.loadouts
+        && after.turnIndex == before.turnIndex
+        && after.diff(before).affectedKeys().hasOnly(['effects', 'updatedAt', 'reaction']);
+    }
+
+    function isValidArenaReactionClick() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.gameMode == '5v5'
+        && after.gameMode == '5v5'
+        && before.reaction != null
+        && after.reaction != null
+        && before.reaction.status == 'ACTIVE'
+        && after.reaction.reactionId == before.reaction.reactionId
+        && after.reaction.requiredClicks == before.reaction.requiredClicks
+        && after.reaction.startedAt == before.reaction.startedAt
+        && after.reaction.expiresAt == before.reaction.expiresAt
+        && after.reaction.currentClicks == before.reaction.currentClicks + 1
+        && after.turnIndex == before.turnIndex
+        && after.turnSeq == before.turnSeq
+        && after.players == before.players
+        && after.loadouts == before.loadouts
+        && after.status == 'active'
+        && before.status == 'active'
+        && after.currentTurn == before.currentTurn
+        && request.time.toMillis() < before.reaction.expiresAt
+        && after.diff(before).affectedKeys().hasOnly([
+          'reaction',
+          'updatedAt',
+          'effects',
+          'sideScores',
+          'scoreHistory'
+        ]);
+    }
+
+    function isValidArenaReactionExpire() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return request.auth != null
+        && before.reaction != null
+        && after.reaction != null
+        && before.reaction.status == 'ACTIVE'
+        && after.reaction.status in ['EXPIRED', 'FAILED', 'SUCCESS']
+        && after.turnIndex == before.turnIndex
+        && after.players == before.players
+        && after.loadouts == before.loadouts
+        && after.status == 'active'
+        && before.status == 'active'
+        && request.time.toMillis() >= before.reaction.expiresAt
+        && after.diff(before).affectedKeys().hasOnly([
+          'reaction',
+          'updatedAt',
+          'effects',
+          'sideScores',
+          'scoreHistory'
+        ]);
+    }
+
+    function isValidArenaComplete() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let home = before.sideScores.home;
+      let away = before.sideScores.away;
+      let hi = home > away ? home : away;
+      let lo = home < away ? home : away;
+      return request.auth != null
+        && before.status == 'active'
+        && after.status == 'closed'
+        && after.phase == before.phase
+        && after.players == before.players
+        && after.loadouts == before.loadouts
+        && after.homePlayerIds == before.homePlayerIds
+        && after.awayPlayerIds == before.awayPlayerIds
+        && after.sideScores == before.sideScores
+        && after.scoreHistory == before.scoreHistory
+        && after.turnIndex == before.turnIndex
+        && after.turnSeq == before.turnSeq
+        && after.currentTurn == before.currentTurn
+        && after.reaction == before.reaction
+        && after.effects == before.effects
+        && after.usedActionIds == before.usedActionIds
+        && after.energyStart == before.energyStart
+        && after.energyMax == before.energyMax
+        && after.result != null
+        && after.result.status == 'COMPLETED'
+        && after.result.matchId == before.matchId
+        && after.result.resultId == before.matchId + '_final'
+        && after.result.gameMode == before.gameMode
+        && after.result.winnerScore == hi
+        && after.result.loserScore == lo
+        && after.result.finalDamage == home + away
+        && after.result.completedAt is int
+        && after.result.completedAt > 0
+        && (
+          (
+            before.gameMode == '5v5'
+            && after.result.winnerPlayerId == null
+            && after.result.loserPlayerId == null
+            && (
+              (home > away && after.result.winnerAllianceId == (before.homeAllianceId == '' ? null : before.homeAllianceId) && after.result.loserAllianceId == (before.awayAllianceId == '' ? null : before.awayAllianceId))
+              || (away > home && after.result.winnerAllianceId == (before.awayAllianceId == '' ? null : before.awayAllianceId) && after.result.loserAllianceId == (before.homeAllianceId == '' ? null : before.homeAllianceId))
+              || (home == away && after.result.winnerAllianceId == null && after.result.loserAllianceId == null)
+            )
+          )
+          || (
+            before.gameMode == '1v1'
+            && after.result.winnerAllianceId == null
+            && after.result.loserAllianceId == null
+            && (
+              (home > away && after.result.winnerPlayerId in before.homePlayerIds && after.result.loserPlayerId in before.awayPlayerIds)
+              || (away > home && after.result.winnerPlayerId in before.awayPlayerIds && after.result.loserPlayerId in before.homePlayerIds)
+              || (home == away && after.result.winnerPlayerId == null && after.result.loserPlayerId == null)
+            )
+          )
+        )
+        && after.diff(before).affectedKeys().hasOnly(['status', 'result', 'updatedAt']);
+    }
+
+    match /arena_matches/{matchId} {
+      allow read: if request.auth != null;
+      allow create: if isValidArenaMatchCreate()
+        && request.resource.data.matchId == matchId;
+      allow update: if isValidArenaTimeout()
+        || isValidArenaAction()
+        || isValidArenaLoadoutLock()
+        || isValidArenaCardPlay()
+        || isValidArenaClickerUsyanPlay()
+        || isValidArenaSeatJoin()
+        || isValidArenaClickShare()
+        || isValidArenaReactionClick()
+        || isValidArenaReactionExpire()
+        || isValidArenaComplete();
+      allow delete: if false;
+
+      match /result/{resultId} {
+        allow read: if request.auth != null
+          && (
+            request.auth.uid in get(/databases/$(database)/documents/arena_matches/$(matchId)).data.homePlayerIds
+            || request.auth.uid in get(/databases/$(database)/documents/arena_matches/$(matchId)).data.awayPlayerIds
+            || request.auth.uid == get(/databases/$(database)/documents/arena_matches/$(matchId)).data.createdBy
+          );
+        allow create: if request.auth != null
+          && resultId == 'final'
+          && request.resource.data.type == 'BATTLE_COMPLETED'
+          && request.resource.data.eventType == 'BATTLE_COMPLETED'
+          && request.resource.data.status == 'COMPLETED'
+          && request.resource.data.matchId == matchId
+          && request.resource.data.resultId == matchId + '_final'
+          && request.resource.data.gameMode == get(/databases/$(database)/documents/arena_matches/$(matchId)).data.gameMode
+          && request.resource.data.winnerScore == (
+            get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.home
+            > get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.away
+              ? get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.home
+              : get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.away
+          )
+          && request.resource.data.loserScore == (
+            get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.home
+            < get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.away
+              ? get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.home
+              : get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.away
+          )
+          && request.resource.data.finalDamage == get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.home
+            + get(/databases/$(database)/documents/arena_matches/$(matchId)).data.sideScores.away
+          && request.resource.data.completedAt is int
+          && request.resource.data.keys().hasAll([
+            'type', 'eventType', 'status', 'resultId', 'matchId', 'gameMode',
+            'winnerAllianceId', 'loserAllianceId', 'winnerPlayerId', 'loserPlayerId',
+            'winnerScore', 'loserScore', 'finalDamage', 'completedAt', 'timestamp'
+          ]);
+        allow update, delete: if false;
+      }
+
+      match /audit/{actionId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.actionId == actionId
+          && request.resource.data.matchId == matchId
+          && request.resource.data.keys().hasAll([
+            'matchId', 'playerId', 'cardId', 'timestamp', 'energyBefore', 'energyAfter',
+            'usesBefore', 'usesAfter', 'effectType', 'damage', 'actionId', 'result'
+          ]);
+        allow update, delete: if false;
+      }
+
+      match /reaction_events/{eventId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.matchId == matchId
+          && request.resource.data.keys().hasAll([
+            'type', 'matchId', 'reactionId', 'playerId', 'timestamp',
+            'cardId', 'currentClicks', 'requiredClicks', 'actionId'
+          ]);
+        allow update, delete: if false;
+      }
+
+      match /reaction_clicks/{actionId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.actionId == actionId
+          && request.resource.data.keys().hasOnly(['actionId', 'playerId', 'reactionId', 'timestamp']);
+        allow update, delete: if false;
+      }
+
+      match /presence/{playerId} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null
+          && request.resource.data.keys().hasOnly(['playerId', 'online', 'updatedAt'])
+          && request.resource.data.playerId == playerId
+          && request.resource.data.online is bool
+          && request.resource.data.updatedAt is int;
+        allow delete: if false;
+      }
+    }
+
+    match /arena_rewards/{rewardId} {
+      allow read: if request.auth != null
+        && (
+          request.auth.uid == resource.data.recipientId
+          || (resource.data.viewerIds is list && request.auth.uid in resource.data.viewerIds)
+        );
+      allow create: if request.auth != null
+        && request.resource.data.rewardId == rewardId
+        && request.resource.data.currency == 'AZN'
+        && request.resource.data.countryCode == 'AZ'
+        && request.resource.data.walletCredited == false
+        && request.resource.data.status in ['APPROVED', 'REJECTED']
+        && request.resource.data.recipientType in ['USER', 'ALLIANCE']
+        && request.resource.data.sourceId is string
+        && request.resource.data.matchId is string
+        && request.resource.data.periodId is string
+        && request.resource.data.payoutReady == false
+        && (
+          (
+            request.resource.data.sourceType == 'ARENA_MATCH'
+            && request.resource.data.rewardType == 'BATTLE_COMPLETION'
+            && request.resource.data.amount == null
+            && request.resource.data.rank == null
+            && exists(/databases/$(database)/documents/arena_matches/$(request.resource.data.matchId))
+            && get(/databases/$(database)/documents/arena_matches/$(request.resource.data.matchId)).data.status == 'closed'
+            && get(/databases/$(database)/documents/arena_matches/$(request.resource.data.matchId)).data.result != null
+            && get(/databases/$(database)/documents/arena_matches/$(request.resource.data.matchId)).data.result.status == 'COMPLETED'
+            && get(/databases/$(database)/documents/arena_matches/$(request.resource.data.matchId)).data.result.resultId == request.resource.data.sourceId
+          )
+          || (
+            request.resource.data.sourceType == 'WEEKLY_RANKING'
+            && request.resource.data.rewardType == 'WEEKLY_RANKING'
+            && request.resource.data.matchId == ''
+            && request.resource.data.sourceId == request.resource.data.periodId
+            && request.resource.data.recipientType == 'ALLIANCE'
+            && request.resource.data.rank is int
+            && request.resource.data.rank >= 1
+            && request.resource.data.amount is int
+            && request.resource.data.amount >= 0
+            && exists(/databases/$(database)/documents/leaderboard_weekly/$(request.resource.data.periodId))
+            && get(/databases/$(database)/documents/leaderboard_weekly/$(request.resource.data.periodId)).data.status == 'closed'
+            && exists(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + request.resource.data.periodId)))
+            && get(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + request.resource.data.periodId))).data.status == 'done'
+            && get(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + request.resource.data.periodId))).data.kind == 'weekly'
+          )
+        );
+      allow update: if request.auth != null
+        && resource.data.walletCredited == false
+        && request.resource.data.walletCredited == false
+        && request.resource.data.rewardId == resource.data.rewardId
+        && request.resource.data.periodId == resource.data.periodId
+        && request.resource.data.sourceType == resource.data.sourceType
+        && request.resource.data.sourceId == resource.data.sourceId
+        && request.resource.data.matchId == resource.data.matchId
+        && request.resource.data.rewardType == resource.data.rewardType
+        && request.resource.data.recipientType == resource.data.recipientType
+        && request.resource.data.recipientId == resource.data.recipientId
+        && request.resource.data.countryCode == resource.data.countryCode
+        && request.resource.data.rank == resource.data.rank
+        && request.resource.data.amount == resource.data.amount
+        && request.resource.data.currency == resource.data.currency
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.securityStatus == resource.data.securityStatus
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.payoutCheckStatus in ['APPROVED', 'BLOCKED', 'REVIEW']
+        && request.resource.data.payoutCheckedAt is int
+        && request.resource.data.payoutReady is bool
+        && (
+          request.resource.data.payoutCheckStatus == 'APPROVED'
+            ? request.resource.data.payoutReady == true
+            : request.resource.data.payoutReady == false
+        )
+        && (
+          !('payoutCheckStatus' in resource.data)
+          || resource.data.payoutCheckStatus == null
+          || request.resource.data.payoutCheckStatus == resource.data.payoutCheckStatus
+        )
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['payoutCheckStatus', 'payoutCheckedAt', 'payoutReady'])
+        && exists(/databases/$(database)/documents/leaderboard_weekly/$(resource.data.periodId))
+        && get(/databases/$(database)/documents/leaderboard_weekly/$(resource.data.periodId)).data.status == 'closed'
+        && exists(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + resource.data.periodId)))
+        && get(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + resource.data.periodId))).data.status == 'done';
+      allow delete: if false;
+
+      match /reward_events/{eventId} {
+        allow read: if request.auth != null
+          && (
+            request.auth.uid == get(/databases/$(database)/documents/arena_rewards/$(rewardId)).data.recipientId
+            || (get(/databases/$(database)/documents/arena_rewards/$(rewardId)).data.viewerIds is list
+              && request.auth.uid in get(/databases/$(database)/documents/arena_rewards/$(rewardId)).data.viewerIds)
+          );
+        allow create: if request.auth != null
+          && request.resource.data.rewardId == rewardId
+          && request.resource.data.type in [
+            'REWARD_ELIGIBILITY_CHECKED',
+            'REWARD_CREATED',
+            'REWARD_SECURITY_CHECKED',
+            'REWARD_APPROVED',
+            'REWARD_REJECTED',
+            'REWARD_ALLOCATION_CREATED',
+            'PAYOUT_CHECKED',
+            'PAYOUT_APPROVED',
+            'PAYOUT_BLOCKED',
+            'PAYOUT_REVIEW'
+          ]
+          && request.resource.data.keys().hasOnly([
+            'type', 'rewardId', 'matchId', 'sourceId', 'periodId', 'status', 'timestamp'
+          ]);
+        allow update, delete: if false;
+      }
+    }
+
+    match /arena_reward_settlements/{settlementId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.settlementId == settlementId
+        && request.resource.data.status == 'completed'
+        && request.resource.data.countryCode == 'AZ'
+        && request.resource.data.walletCredited == false
+        && request.resource.data.sourceType == 'WEEKLY_RANKING'
+        && request.resource.data.periodId is string
+        && exists(/databases/$(database)/documents/leaderboard_weekly/$(request.resource.data.periodId))
+        && get(/databases/$(database)/documents/leaderboard_weekly/$(request.resource.data.periodId)).data.status == 'closed'
+        && exists(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + request.resource.data.periodId)))
+        && get(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + request.resource.data.periodId))).data.status == 'done';
+      allow update, delete: if false;
+
+      match /reward_events/{eventId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.rewardId == settlementId
+          && request.resource.data.type in [
+            'REWARD_ALLOCATION_STARTED',
+            'REWARD_ALLOCATION_COMPLETED'
+          ]
+          && request.resource.data.keys().hasOnly([
+            'type', 'rewardId', 'matchId', 'sourceId', 'periodId', 'status', 'timestamp'
+          ]);
+        allow update, delete: if false;
+      }
+    }
+
+    match /reel_signal_events/{eventId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.eventType in ['watch', 'like', 'comment', 'share', 'skip']
+        && request.resource.data.watchDurationSeconds is number
+        && request.resource.data.watchDurationSeconds >= 0
+        && request.resource.data.watchDurationSeconds <= 3600
+        && request.resource.data.watchPercentage is number
+        && request.resource.data.watchPercentage >= 0
+        && request.resource.data.watchPercentage <= 100
+        && request.resource.data.loopCount is number
+        && request.resource.data.loopCount >= 0
+        && request.resource.data.keys().hasOnly([
+          'id', 'userId', 'videoId', 'eventType', 'watchDurationSeconds',
+          'watchPercentage', 'loopCount', 'categoryId', 'hashtags', 'requestId', 'createdAt', 'schemaVersion'
+        ]);
+      allow update, delete: if false;
+    }
+
+    match /user_profile_scores/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.keys().hasOnly([
+          'userId', 'schemaVersion', 'categoryScores', 'hashtagScores', 'totals', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read: if !isProtectedPath(document);
+      allow write: if !isProtectedPath(document);
+    }
+  }
+}

@@ -1,0 +1,118 @@
+@import "tailwindcss";
+@import "./apple-responsive.css";
+@import "./theme-pages.css";
+
+:root,
+[data-theme="dark"] {
+  --page-bg: #020617;
+  --page-bg-gradient: linear-gradient(160deg, #0a0f1e 0%, #111827 40%, #0f172a 100%);
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --surface-glass: rgba(10, 15, 30, 0.75);
+  --surface-card: rgba(30, 41, 59, 0.6);
+  --border-soft: rgba(148, 163, 184, 0.3);
+  --nav-bg: #ffffff;
+  --nav-text: #64748b;
+  --input-bg: rgba(30, 41, 59, 0.8);
+}
+
+[data-theme="light"] {
+  --page-bg: #f1f5f9;
+  --page-bg-gradient: linear-gradient(160deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --surface-glass: rgba(255, 255, 255, 0.92);
+  --surface-card: rgba(255, 255, 255, 0.95);
+  --border-soft: rgba(148, 163, 184, 0.45);
+  --nav-bg: #ffffff;
+  --nav-text: #475569;
+  --input-bg: #ffffff;
+}
+
+@layer base {
+  html {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--page-bg);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    overflow-x: hidden;
+    max-width: 100vw;
+    min-height: 100dvh;
+    min-height: 100svh;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  img,
+  video,
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+#call-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+
+#zego-call-stage {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 12px;
+  height: 12px;
+  opacity: 0.02;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#zego-call-stage > * {
+  pointer-events: auto;
+}
+
+#call-overlay-root > * {
+  pointer-events: auto;
+}
+
+@keyframes call-wave {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+@keyframes call-wave-delayed {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-call-wave {
+  animation: call-wave 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-call-wave-delayed {
+  animation: call-wave-delayed 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.55s;
+}

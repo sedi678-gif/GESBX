@@ -1,0 +1,30 @@
+{
+  "framework": "nextjs",
+  "rewrites": [
+    { "source": "/model/:path*", "destination": "/models/:path*" },
+    { "source": "/models/Mutant/:path*", "destination": "/models/mutant/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/models/(.*)\\.glb",
+      "headers": [
+        { "key": "Content-Type", "value": "model/gltf-binary" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/models/(.*)\\.gltf",
+      "headers": [
+        { "key": "Content-Type", "value": "model/gltf+json" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/models/(.*)\\.fbx",
+      "headers": [
+        { "key": "Content-Type", "value": "application/octet-stream" },
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ]
+}

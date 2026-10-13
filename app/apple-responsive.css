@@ -1,0 +1,230 @@
+/**
+ * Apple App Store / Human Interface Guidelines
+ * - viewport-fit: cover + safe-area insets (notch, Dynamic Island, Home Indicator)
+ * - Minimum 44×44pt touch targets
+ * - iPhone SE (320px) through Pro Max (430px+)
+ * - Landscape + short viewport (SE landscape)
+ */
+
+:root {
+  --app-touch-min: 44px;
+  --app-control-gap: 10px;
+  --app-header-top: max(12px, env(safe-area-inset-top, 0px));
+  --app-header-side: max(12px, env(safe-area-inset-left, 0px));
+  --app-header-side-end: max(12px, env(safe-area-inset-right, 0px));
+  --app-nav-bar: 56px;
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-left: env(safe-area-inset-left, 0px);
+  --app-safe-right: env(safe-area-inset-right, 0px);
+  --app-nav-total: calc(var(--app-nav-bar) + var(--app-safe-bottom));
+  --app-page-pad-bottom: calc(var(--app-nav-total) + 12px);
+  --app-fab-bottom: calc(var(--app-nav-total) + 16px);
+  --app-max-content: 100vw;
+}
+
+@supports (padding: max(0px)) {
+  :root {
+    --app-header-top: max(12px, env(safe-area-inset-top));
+    --app-header-side: max(12px, env(safe-area-inset-left));
+    --app-header-side-end: max(12px, env(safe-area-inset-right));
+  }
+}
+
+html {
+  height: -webkit-fill-available;
+}
+
+body {
+  min-height: 100dvh;
+  min-height: 100svh;
+  min-height: -webkit-fill-available;
+}
+
+.appViewport {
+  position: relative;
+  width: 100%;
+  max-width: var(--app-max-content);
+  min-height: 100dvh;
+  min-height: 100svh;
+  min-height: -webkit-fill-available;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Apple minimum 44pt touch targets — scoped controls only */
+.platform-ios .iconBtn,
+.platform-ios .msgHubIconBtn,
+.platform-ios .exploreSearchBtn,
+.platform-ios .actionBtnPremium,
+.platform-ios .navItem,
+.platform-ios .navItemCenter,
+.platform-ios .uploadFabPremium,
+.platform-ios .waCallCtrlBtn,
+.platform-ios .waCallEndBtn,
+.platform-ios .waCallAcceptCircle,
+.platform-ios .waCallRejectCircle,
+.platform-capacitor .iconBtn,
+.platform-capacitor .msgHubIconBtn,
+.platform-capacitor .exploreSearchBtn,
+.platform-capacitor .actionBtnPremium,
+.platform-capacitor .navItem,
+.platform-capacitor .navItemCenter,
+.platform-capacitor .uploadFabPremium,
+.platform-capacitor .waCallCtrlBtn,
+.platform-capacitor .waCallEndBtn,
+.platform-capacitor .waCallAcceptCircle,
+.platform-capacitor .waCallRejectCircle {
+  min-width: var(--app-touch-min);
+  min-height: var(--app-touch-min);
+}
+
+/* iPhone SE 1st gen / narrow (320px) */
+@media (max-width: 320px) {
+  :root {
+    --app-nav-bar: 52px;
+  }
+}
+
+/* iPhone mini / standard */
+@media (min-width: 321px) and (max-width: 390px) {
+  :root {
+    --app-nav-bar: 54px;
+  }
+}
+
+/* Landscape — short height (SE, mini horizontal) */
+@media (orientation: landscape) and (max-height: 430px) {
+  :root {
+    --app-nav-bar: 48px;
+    --app-page-pad-bottom: calc(var(--app-nav-total) + 8px);
+    --app-fab-bottom: calc(var(--app-nav-total) + 10px);
+  }
+}
+
+/* Prevent content under home indicator on iOS */
+.platform-ios .appViewport {
+  padding-bottom: 0;
+}
+
+/* Landscape — iPhone SE / mini horizontal */
+@media (orientation: landscape) and (max-height: 430px) {
+  .feedStagePremium {
+    height: calc(100svh - var(--app-nav-total) - 52px);
+    max-height: calc(100svh - var(--app-nav-total) - 52px);
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .mediaFramePremium {
+    max-height: calc(100svh - var(--app-nav-total) - 60px);
+    border-radius: 16px;
+  }
+
+  .sideActionsPremium {
+    bottom: clamp(48px, 12vh, 64px);
+    gap: 8px;
+  }
+
+  .heroBanner {
+    height: clamp(80px, 22vh, 120px);
+  }
+
+  .profileTopBar,
+  .msgHubHeader,
+  .exploreHeader,
+  .glassHeader {
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: 8px;
+  }
+}
+
+/* Prevent header icon rows from overlapping titles */
+.headerActions,
+.profileTopBar > div:last-child,
+.exploreHeader > button,
+.glassHeader {
+  flex-shrink: 0;
+}
+
+@media (max-width: 400px) {
+  .msgHubHeader .headerActions {
+    gap: 0;
+  }
+
+  .msgHubHeader .msgHubIconBtn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  .msgHubHeader .msgHubChatSub {
+    display: none;
+  }
+
+  .msgHubHeader .msgHubAvatarSm {
+    width: 34px;
+    height: 34px;
+  }
+
+  .msgHubHeader .headerActions .msgHubIconBtn:nth-child(2) {
+    display: none;
+  }
+
+  .composeBar .iconBtn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  .profileTopBar .iconBtn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .userChipPremium {
+    right: clamp(76px, 22vw, 92px);
+  }
+
+  .sideActionsPremium {
+    bottom: clamp(76px, 22vw, 96px);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 320px) {
+  .iconBtn,
+  .msgHubIconBtn,
+  .exploreSearchBtn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .uploadFabPremium,
+  .uploadFab {
+    width: 48px;
+    height: 48px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Alliance map mobil — əsas stillər alliance.module.css-də (CSS modules) */
+.worldAllianceMap .allianceMapLayout {
+  isolation: isolate;
+}

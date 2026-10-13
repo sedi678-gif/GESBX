@@ -1,0 +1,7043 @@
+.world {
+  position: relative;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow-x: hidden;
+  color: #f1f5f9;
+  font-family: 'Inter', sans-serif;
+  --alliance-fab: 52px;
+  --alliance-fab-gap: 12px;
+  --alliance-action-bar: 72px;
+  --alliance-dock-base: calc(var(--app-fab-bottom, 82px) + var(--alliance-action-bar));
+}
+
+.worldEp {
+  --alliance-action-bar: 0px;
+  --app-fab-bottom: 0px;
+}
+
+.worldCastleOnly {
+  --alliance-action-bar: 62px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.worldAllianceMap {
+  --alliance-action-bar: 0px;
+  --alliance-map-nav: var(
+    --app-nav-total,
+    calc(var(--app-nav-bar, 56px) + env(safe-area-inset-bottom, 0px))
+  );
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
+  height: 100dvh;
+  height: 100svh;
+  max-height: 100dvh;
+  max-height: 100svh;
+  padding-bottom: var(--alliance-map-nav);
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #0f172a;
+}
+
+.allianceMapShell {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.allianceMapShell .mapPixiOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.battleLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 650;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.battleTroopSprite {
+  position: absolute;
+  width: 84px;
+  height: auto;
+  transform: translate(-50%, -85%);
+  pointer-events: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
+}
+
+.battleTroopBlocked {
+  transform: translate(-50%, -85%) scale(0.92);
+  transition: opacity 0.15s linear;
+}
+
+.battleBlockFlash {
+  position: absolute;
+  transform: translate(-50%, -120%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(30, 58, 138, 0.92);
+  border: 1px solid rgba(147, 197, 253, 0.85);
+  color: #dbeafe;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 680;
+}
+
+.battleBlockHint {
+  color: #93c5fd;
+  font-size: 11px;
+}
+
+.defenderThreeLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 640;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+
+.clickRaidMapLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 680;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: transparent;
+}
+
+.clickRaidMarkerLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 680;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.clickRaidUnit {
+  position: absolute;
+  z-index: 685;
+  pointer-events: auto;
+  cursor: default;
+  transition: opacity 0.35s ease, transform 0.1s linear;
+}
+
+.clickRaidUnitClickable {
+  cursor: pointer;
+}
+
+.clickRaidUnitClickable:hover .clickRaidUnitSprite {
+  filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.85));
+  transform: scale(1.08);
+}
+
+.clickRaidUnitSprite {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.clickRaidUnitImg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 2px solid rgba(248, 113, 113, 0.55);
+  background: rgba(15, 23, 42, 0.75);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.clickRaidUnitEmoji {
+  position: absolute;
+  right: -4px;
+  top: -6px;
+  font-size: 18px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.clickRaidUnitRun .clickRaidUnitSprite {
+  animation: clickRaidBounce 0.45s ease-in-out infinite;
+}
+
+.clickRaidUnitArrived .clickRaidUnitSprite {
+  animation: clickRaidPulse 0.7s ease-in-out infinite;
+}
+
+.clickRaidUnitAttack .clickRaidUnitSprite {
+  animation: clickRaidStrike 0.35s ease-in-out 3;
+}
+
+.clickRaidUnitDeath {
+  pointer-events: none;
+  animation: clickRaidFadeOut 0.85s ease-out forwards;
+}
+
+.clickRaidUnit_mutant .clickRaidUnitImg {
+  border-color: rgba(74, 222, 128, 0.7);
+}
+
+.clickRaidUnit_standing .clickRaidUnitImg {
+  border-color: rgba(96, 165, 250, 0.7);
+}
+
+.clickRaidUnit_zombi .clickRaidUnitImg {
+  border-color: rgba(167, 243, 208, 0.7);
+}
+
+.clickRaidUnit_it .clickRaidUnitImg {
+  border-color: rgba(251, 191, 36, 0.7);
+}
+
+.clickRaidUnitHud {
+  position: absolute;
+  left: 50%;
+  top: -78px;
+  transform: translateX(-50%);
+  min-width: 108px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.fortressPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fortressPreviewRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.fortressPreviewImg {
+  width: 120px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #0f172a !important;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+}
+
+.fortressLevelTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.fortressLevelSub {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.fortressCheckList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.fortressCheckOk {
+  color: #86efac;
+}
+
+.fortressCheckBad {
+  color: #fca5a5;
+}
+
+.fortressHint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.fortressShopLink {
+  display: block;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.clickRaidClickHint {
+  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fca5a5;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  animation: clickRaidBlink 1s ease-in-out infinite;
+}
+
+@keyframes clickRaidBounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.04);
+  }
+}
+
+@keyframes clickRaidPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes clickRaidStrike {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.2) rotate(-8deg);
+  }
+  70% {
+    transform: scale(1.15) rotate(6deg);
+  }
+}
+
+@keyframes clickRaidFadeOut {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+}
+
+@keyframes clickRaidBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.clickRaidHud {
+  position: absolute;
+  z-index: 690;
+  transform: translate(-50%, -100%);
+  min-width: 108px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  pointer-events: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.clickRaidHudTitle {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fecaca;
+  margin-bottom: 4px;
+}
+
+.clickRaidHpTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.9);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.clickRaidHpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  transition: width 0.12s ease-out;
+}
+
+.clickRaidHudMeta {
+  font-size: 10px;
+  color: #e2e8f0;
+}
+
+.clickRaidHudHint {
+  font-size: 9px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.clickRaidFlash {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fbbf24;
+  animation: mutantScoreDrop 1.4s ease-out forwards;
+}
+
+.mutantRaidOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(69, 10, 10, 0.55) 100%);
+  pointer-events: auto;
+}
+
+.standingRaidOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(30, 27, 75, 0.58) 100%);
+  pointer-events: auto;
+}
+
+.standingRaidOverlay .mutantRaidTitle {
+  color: #c7d2fe;
+}
+
+.standingRaidOverlay .mutantRaidTarget {
+  color: #a5b4fc;
+}
+
+.standingRaidOverlay .mutantHpTrack {
+  border-color: rgba(129, 140, 248, 0.45);
+}
+
+.standingRaidOverlay .mutantHpFill {
+  background: linear-gradient(90deg, #6366f1, #818cf8);
+}
+
+.zombieRaidOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(20, 83, 45, 0.55) 100%);
+  pointer-events: auto;
+}
+
+.zombieRaidOverlay .mutantRaidTitle {
+  color: #bbf7d0;
+}
+
+.zombieRaidOverlay .mutantRaidTarget {
+  color: #86efac;
+}
+
+.zombieRaidOverlay .mutantHpTrack {
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+.zombieRaidOverlay .mutantHpFill {
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+}
+
+.dogRaidOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(120, 53, 15, 0.55) 100%);
+  pointer-events: auto;
+}
+
+.dogRaidOverlay .mutantRaidTitle {
+  color: #fde68a;
+}
+
+.dogRaidOverlay .mutantRaidTarget {
+  color: #fbbf24;
+}
+
+.dogRaidOverlay .mutantHpTrack {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.dogRaidOverlay .mutantHpFill {
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+}
+
+.raidTransferFlash {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  animation: raidTransferPulse 1.8s ease-out forwards;
+}
+
+.raidTransferLoss {
+  font-size: 36px;
+  font-weight: 900;
+  color: #ef4444;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.85);
+}
+
+.raidTransferGain {
+  font-size: 36px;
+  font-weight: 900;
+  color: #22c55e;
+  text-shadow: 0 0 20px rgba(34, 197, 94, 0.85);
+}
+
+.raidTransferArrow {
+  font-size: 28px;
+  color: #fde68a;
+  font-weight: 900;
+}
+
+.raidTransferLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes raidTransferPulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -55%) scale(0.7);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -42%) scale(1);
+  }
+}
+
+.mutantRaidHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  gap: 8px;
+}
+
+.mutantRaidTitle {
+  font-size: 14px;
+  font-weight: 900;
+  color: #fecaca;
+}
+
+.mutantRaidTarget {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fca5a5;
+}
+
+.mutantHpBarWrap {
+  padding: 0 14px 8px;
+}
+
+.mutantHpLabel {
+  font-size: 12px;
+  color: #e2e8f0;
+  margin-bottom: 6px;
+}
+
+.mutantHpTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  overflow: hidden;
+}
+
+.mutantHpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  transition: width 0.15s ease-out;
+}
+
+.mutantHpHint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.mutantCanvasWrap {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+}
+
+.mutantRaidCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.mutantScoreFlash {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  font-size: 42px;
+  font-weight: 900;
+  color: #ef4444;
+  text-shadow: 0 0 24px rgba(239, 68, 68, 0.9);
+  animation: mutantScoreDrop 1.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes mutantScoreDrop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(0.6);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(1);
+  }
+}
+
+.battleSiegeRing {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 3px solid rgba(239, 68, 68, 0.85);
+  box-shadow:
+    0 0 24px rgba(239, 68, 68, 0.55),
+    inset 0 0 18px rgba(239, 68, 68, 0.25);
+  pointer-events: none;
+  animation: battleSiegePulse 0.9s ease-in-out infinite;
+}
+
+.battleImpactLabel {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(127, 29, 29, 0.92);
+  border: 1px solid rgba(252, 165, 165, 0.8);
+  color: #fecaca;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 700;
+}
+
+@keyframes battleSiegePulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+.battleToast {
+  position: absolute;
+  left: 50%;
+  bottom: max(72px, calc(env(safe-area-inset-bottom, 0px) + 56px));
+  transform: translateX(-50%);
+  z-index: 900;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(248, 113, 113, 0.65);
+  color: #fecaca;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  max-width: min(92vw, 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  animation: battleToastIn 0.25s ease-out;
+}
+
+@keyframes battleToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.allianceViewToast {
+  position: fixed;
+  left: 50%;
+  top: max(16px, calc(env(safe-area-inset-top, 0px) + 12px));
+  transform: translateX(-50%);
+  z-index: 14000;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(251, 191, 36, 0.7);
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  max-width: min(92vw, 440px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  animation: battleToastIn 0.25s ease-out;
+}
+
+.buildLabel {
+  position: fixed;
+  left: 8px;
+  bottom: max(68px, calc(env(safe-area-inset-bottom, 0px) + 52px));
+  z-index: 9999;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(22, 163, 74, 0.92);
+  color: #ecfdf5;
+  font-size: 10px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.battleFallbackBurst {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(251, 191, 36, 0.7);
+  color: #fef3c7;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.allianceMapLayout {
+  position: relative;
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  grid-template-columns: minmax(0, min(260px, 36vw)) minmax(0, 1fr) minmax(0, min(260px, 36vw));
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.worldCastleHub {
+  --map-launch-size: 56px;
+  background: #1b4332;
+}
+
+.worldCastleHub .allianceMapLayout {
+  display: block;
+}
+
+.worldCastleHub .castlePixiWrap {
+  z-index: 1;
+  background-color: #1b4332;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.worldCastleHub .castleStaticImg {
+  object-fit: cover;
+}
+
+.worldCastleHub .allianceMapSidebar,
+.worldCastleHub .allianceMapRight {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: block;
+  padding: 0;
+  margin: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.worldCastleHub .allianceMapSidebarHead {
+  pointer-events: auto;
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  left: max(10px, env(safe-area-inset-left, 0px));
+  right: calc(max(8px, env(safe-area-inset-right, 0px)) + var(--map-launch-size) + 12px);
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  gap: 12px;
+  align-items: center;
+}
+
+.allianceFlagHeadBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 4px;
+  line-height: 0;
+  overflow: visible;
+}
+
+.allianceFlagHeadBtn:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.worldCastleHub .allianceMapSidebarTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #fff7ed;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.45);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.worldCastleHub .allianceMapSidebarMeta,
+.worldCastleHub .allianceMapSidebarLoc {
+  margin: 3px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.worldCastleHub .allianceMapSidebarLoc {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.worldCastleHub .allianceMapSidebar .allianceFlagPreview,
+.worldCastleHub .allianceFlagHeadBtn .allianceFlagPreview {
+  width: 78px;
+  height: 54px;
+  border-radius: 4px;
+}
+
+.worldCastleHub .allianceMapSidebar .mapRoundBtnRow,
+.worldCastleHub .allianceMapRight .mapRoundBtnRow {
+  pointer-events: auto;
+  position: absolute;
+  bottom: calc(var(--alliance-map-nav, 68px) + 8px);
+  flex-direction: column;
+  gap: 6px;
+  max-width: 60px;
+}
+
+.worldCastleHub .allianceMapSidebar .mapRoundBtnRow {
+  left: max(8px, env(safe-area-inset-left, 0px));
+}
+
+.worldCastleHub .allianceMapRight .mapRoundBtnRow {
+  right: max(8px, env(safe-area-inset-right, 0px));
+  align-items: center;
+}
+
+.allianceMapLaunchWrap {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  right: max(8px, env(safe-area-inset-right, 0px));
+  z-index: 16;
+  pointer-events: auto;
+}
+
+.allianceMapLaunchWrap .mapRoundBtn,
+.allianceMapLaunchWrap .mapAdXpBtn {
+  width: var(--map-launch-size, 56px);
+  min-width: var(--map-launch-size, 56px);
+  height: var(--map-launch-size, 56px);
+  min-height: var(--map-launch-size, 56px);
+}
+
+.allianceMapOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.allianceMapOverlayOpen {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.worldCastleHub .allianceMapOverlay .allianceMapShell {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  grid-column: unset;
+  grid-row: unset;
+}
+
+.worldCastleHub .allianceChatDock,
+.worldCastleHub .allianceChatStay {
+  z-index: 14;
+  bottom: 12px;
+}
+
+.allianceChatStay {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 14;
+  width: min(340px, calc(100% - 148px));
+  height: min(240px, 36dvh);
+  min-height: 168px;
+  display: flex;
+  pointer-events: auto;
+}
+
+.allianceChatStay.allianceChatStayCollapsed {
+  height: auto;
+  min-height: 0;
+}
+
+.allianceChatPeek {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: rgba(8, 12, 28, 0.9);
+  color: #e2e8f0;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.4);
+}
+
+.allianceChatPeekTitle {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #67e8f9;
+}
+
+.allianceChatPeekLine {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #e2e8f0;
+}
+
+.allianceChatStayHidden {
+  display: none;
+}
+
+.allianceChatStay .mapChatPanel {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.allianceChatStay .epChatMessages {
+  min-height: 0;
+  max-height: none;
+}
+
+.worldMapOpen .castlePixiWrap {
+  visibility: hidden;
+}
+
+.allianceMapSidebar {
+  grid-column: 1;
+  grid-row: 1;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-control-gap, 8px);
+  min-width: 0;
+  min-height: 0;
+  padding: max(10px, env(safe-area-inset-top, 0px)) 10px 10px max(10px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.82));
+  border-right: 1px solid rgba(148, 163, 184, 0.2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  pointer-events: auto;
+}
+
+.allianceMapSidebarHead {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.allianceMapSidebarTitleBlock {
+  min-width: 0;
+  flex: 1;
+}
+
+.allianceMapSidebarEyebrow {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #86efac;
+}
+
+.allianceMapSidebarTitle {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.15;
+  color: #fef3c7;
+  word-break: break-word;
+}
+
+.allianceRenameBtn {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  color: #fde68a;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.allianceRenameForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.allianceRenameInput {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(250, 204, 21, 0.28);
+  background: rgba(2, 6, 23, 0.72);
+  color: #f8fafc;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.allianceRenameHint {
+  margin: 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.allianceMapSidebarMeta,
+.allianceMapSidebarLoc {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.allianceStatusOnline {
+  color: #86efac;
+  font-weight: 700;
+}
+
+.allianceStatusOffline {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+.allianceFlagPreview {
+  position: relative;
+  width: 44px;
+  height: 32px;
+  border-radius: 4px;
+  border: 2px solid var(--flag-accent, #fbbf24);
+  background: var(--flag-bg, #991b1b);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.allianceFlagPreviewSm {
+  width: 36px;
+  height: 26px;
+}
+
+.allianceFlagPreviewHub {
+  width: 78px;
+  height: 54px;
+  border-radius: 4px;
+}
+
+.allianceFlagPreviewLg {
+  width: 168px;
+  height: 118px;
+  border-radius: 8px;
+  border-width: 3px;
+}
+
+.allianceFlagWaveMount {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  transform-origin: left center;
+  filter: drop-shadow(6px 10px 12px rgba(0, 0, 0, 0.55));
+  perspective: 420px;
+}
+
+.allianceFlagPole {
+  width: 5px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f4f4f5 0%, #a8a29e 38%, #57534e 100%);
+  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.45), inset -1px 0 1px rgba(255, 255, 255, 0.35);
+  z-index: 3;
+}
+
+.allianceFlagPreviewSm.allianceFlagWaveMount .allianceFlagPole,
+.allianceFlagPreview.allianceFlagWaveMount .allianceFlagPole {
+  width: 3px;
+}
+
+.allianceFlagPreviewHub.allianceFlagWaveMount .allianceFlagPole {
+  width: 4px;
+}
+
+.allianceFlagCloth {
+  position: relative;
+  display: flex;
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  transform-style: preserve-3d;
+  transform-origin: left center;
+  overflow: visible;
+}
+
+.allianceFlagCloth[data-shape='swallowtail'] {
+  clip-path: polygon(0 0, 100% 0, 78% 50%, 100% 100%, 0 100%);
+}
+
+.allianceFlagCloth[data-shape='banner'] {
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
+}
+
+.allianceFlagCloth[data-shape='shield'] {
+  clip-path: polygon(8% 0, 92% 0, 100% 18%, 100% 62%, 50% 100%, 0 62%, 0 18%);
+}
+
+.allianceFlagStrip {
+  position: relative;
+  flex: 1 0 0;
+  height: 118%;
+  margin-top: -4%;
+  overflow: hidden;
+  transform-origin: left center;
+  animation: allianceFlagRipple 2.35s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.09s);
+  will-change: transform;
+}
+
+.allianceFlagStripFace {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: calc(var(--n) * 100%);
+  left: calc(var(--i) * -100%);
+}
+
+.allianceFlagStripFlag {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.allianceFlagStripShade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  mix-blend-mode: overlay;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.42) 0%,
+    rgba(255, 255, 255, 0.38) 42%,
+    rgba(0, 0, 0, 0.28) 100%
+  );
+  opacity: 0.72;
+  animation: allianceFlagFold 2.35s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.09s);
+}
+
+@keyframes allianceFlagRipple {
+  0%,
+  100% {
+    transform: translateY(0) rotateY(-11deg) skewY(0.4deg) scaleY(1);
+  }
+  20% {
+    transform: translateY(-11%) rotateY(10deg) skewY(3.2deg) scaleY(1.045);
+  }
+  42% {
+    transform: translateY(6%) rotateY(-7deg) skewY(-2.4deg) scaleY(0.965);
+  }
+  64% {
+    transform: translateY(-7%) rotateY(8deg) skewY(2.1deg) scaleY(1.025);
+  }
+  82% {
+    transform: translateY(4%) rotateY(-5deg) skewY(-1.4deg) scaleY(0.98);
+  }
+}
+
+@keyframes allianceFlagFold {
+  0%,
+  100% {
+    opacity: 0.45;
+    filter: brightness(0.92);
+  }
+  25% {
+    opacity: 0.85;
+    filter: brightness(1.18);
+  }
+  50% {
+    opacity: 0.38;
+    filter: brightness(0.82);
+  }
+  75% {
+    opacity: 0.7;
+    filter: brightness(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .allianceFlagStrip,
+  .allianceFlagStripShade {
+    animation: none;
+  }
+}
+
+.allianceFlagPreview[data-pattern='stripes-h'] {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--flag-bg) 0 25%,
+    var(--flag-accent) 25% 50%,
+    var(--flag-bg) 50% 75%,
+    var(--flag-accent) 75% 100%
+  );
+}
+
+.allianceFlagPreview[data-pattern='stripes-v'] {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--flag-bg) 0 25%,
+    var(--flag-accent) 25% 50%,
+    var(--flag-bg) 50% 75%,
+    var(--flag-accent) 75% 100%
+  );
+}
+
+.allianceFlagPreview[data-pattern='diagonal'] {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--flag-bg) 0 20px,
+    var(--flag-accent) 20px 40px
+  );
+}
+
+.allianceFlagPreview[data-pattern='cross'] {
+  background:
+    linear-gradient(var(--flag-accent), var(--flag-accent)) center / 100% 28% no-repeat,
+    linear-gradient(var(--flag-accent), var(--flag-accent)) center / 22% 100% no-repeat,
+    var(--flag-bg);
+}
+
+.allianceFlagPreview[data-pattern='saltire'] {
+  background:
+    linear-gradient(45deg, transparent 42%, var(--flag-accent) 42% 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, var(--flag-accent) 42% 58%, transparent 58%),
+    var(--flag-bg);
+}
+
+.allianceFlagPreview[data-pattern='chevron'] {
+  background:
+    linear-gradient(105deg, var(--flag-accent) 32%, transparent 32.5%),
+    var(--flag-bg);
+}
+
+.allianceFlagPreview[data-pattern='canton'] {
+  background:
+    linear-gradient(var(--flag-accent), var(--flag-accent)) 0 0 / 38% 42% no-repeat,
+    var(--flag-bg);
+}
+
+.allianceFlagPreview[data-pattern='border'] {
+  background:
+    linear-gradient(var(--flag-bg), var(--flag-bg)) center / calc(100% - 10px) calc(100% - 10px) no-repeat,
+    var(--flag-accent);
+}
+
+.allianceFlagPreview[data-pattern='tricolor-h'] {
+  background: linear-gradient(
+    180deg,
+    var(--flag-bg) 0 33.3%,
+    var(--flag-accent) 33.3% 66.6%,
+    var(--flag-third) 66.6% 100%
+  );
+}
+
+.allianceFlagPreview[data-pattern='tricolor-v'] {
+  background: linear-gradient(
+    90deg,
+    var(--flag-bg) 0 33.3%,
+    var(--flag-accent) 33.3% 66.6%,
+    var(--flag-third) 66.6% 100%
+  );
+}
+
+.allianceFlagPreview[data-pattern='checkered'] {
+  background:
+    repeating-conic-gradient(var(--flag-bg) 0% 25%, var(--flag-accent) 0% 50%)
+    50% / 18px 18px;
+}
+
+.allianceFlagPreview[data-pattern='sunburst'] {
+  background: repeating-conic-gradient(
+    from 0deg,
+    var(--flag-bg) 0 12deg,
+    var(--flag-accent) 12deg 24deg
+  );
+}
+
+.allianceFlagPreview[data-pattern='gradient'] {
+  background: linear-gradient(135deg, var(--flag-bg), var(--flag-accent));
+}
+
+.allianceFlagPreview[data-pattern='split-h'] {
+  background: linear-gradient(180deg, var(--flag-bg) 50%, var(--flag-accent) 50%);
+}
+
+.allianceFlagPreview[data-pattern='split-v'] {
+  background: linear-gradient(90deg, var(--flag-bg) 50%, var(--flag-accent) 50%);
+}
+
+.allianceFlagPreview[data-pattern='triangle'] {
+  background:
+    linear-gradient(115deg, var(--flag-accent) 36%, transparent 36.5%),
+    var(--flag-bg);
+}
+
+.allianceFlagPreview[data-pattern='fess'] {
+  background:
+    linear-gradient(var(--flag-accent), var(--flag-accent)) center / 100% 34% no-repeat,
+    var(--flag-bg);
+}
+
+.allianceFlagPreview[data-pattern='pale'] {
+  background:
+    linear-gradient(var(--flag-accent), var(--flag-accent)) center / 34% 100% no-repeat,
+    var(--flag-bg);
+}
+
+.allianceFlagPreview[data-shape='swallowtail'] {
+  clip-path: polygon(0 0, 100% 0, 78% 50%, 100% 100%, 0 100%);
+}
+
+.allianceFlagPreview[data-shape='banner'] {
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
+}
+
+.allianceFlagPreview[data-shape='shield'] {
+  clip-path: polygon(8% 0, 92% 0, 100% 18%, 100% 62%, 50% 100%, 0 62%, 0 18%);
+  border-radius: 4px;
+}
+
+.allianceFlagPreviewImage {
+  background: transparent;
+}
+
+.allianceFlagPreviewImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.allianceFlagPreviewEmblem {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.allianceFlagPreviewLg .allianceFlagPreviewEmblem {
+  font-size: 34px;
+}
+
+.allianceFlagPreviewHub .allianceFlagPreviewEmblem {
+  font-size: 22px;
+}
+
+.allianceFlagEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.allianceFlagEditorHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.allianceFlagEditorHint {
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.allianceFlagEditorPreviewRow {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 12px;
+  overflow: visible;
+}
+
+.allianceFlagToolGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.allianceFlagToolLabel {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.allianceFlagSwatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.allianceFlagSwatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  padding: 0;
+}
+
+.allianceFlagSwatch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.allianceFlagSwatchActive {
+  border-color: #fde68a;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+}
+
+.allianceFlagEmblems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.allianceFlagEmblemBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.allianceFlagEmblemBtnActive {
+  border-color: rgba(251, 191, 36, 0.65);
+  background: rgba(202, 138, 4, 0.18);
+}
+
+.allianceFlagEmblemBtn:disabled,
+.allianceFlagPatternBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.allianceFlagPatterns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.allianceFlagPatternBtn {
+  padding: 7px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.allianceFlagPatternBtnActive {
+  border-color: rgba(251, 191, 36, 0.65);
+  color: #fef08a;
+  background: rgba(202, 138, 4, 0.18);
+}
+
+.allianceFlagSaveBtn {
+  margin-top: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  background: linear-gradient(180deg, rgba(202, 138, 4, 0.95), rgba(161, 98, 7, 0.98));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.allianceFlagSaveBtn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.allianceFlagUploadRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.allianceFlagUploadBtn,
+.allianceFlagRemoveImageBtn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.allianceFlagUploadBtn {
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  background: rgba(30, 64, 175, 0.35);
+  color: #dbeafe;
+}
+
+.allianceFlagUploadBtn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.allianceFlagRemoveImageBtn {
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+}
+
+.sidebarPanelStack {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebarPanelStack .rankTableScroll {
+  max-height: 160px;
+}
+
+.sidebarPopup {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.sidebarPopupToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: none;
+  background: rgba(30, 41, 59, 0.85);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebarPopupBody {
+  padding: 0 10px 10px;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.sidebarPopupBody .questListEmbedded {
+  max-height: 180px;
+  padding: 8px 2px 0;
+}
+
+.sidebarPopupEmpty {
+  margin: 0;
+  padding: 10px 4px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+/* Kiçik yumru düymələr + açılan səhifə (sheet) */
+.mapRoundBtnRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.mapRoundBtn {
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  gap: 2px;
+  width: clamp(48px, 14vw, 56px);
+  min-width: var(--app-touch-min, 44px);
+  min-height: var(--app-touch-min, 44px);
+  padding: 8px 6px;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e0f2fe;
+  font-size: clamp(7px, 2vw, 8px);
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  line-height: 1.1;
+  cursor: pointer;
+  box-shadow:
+    0 0 10px rgba(56, 189, 248, 0.35),
+    0 0 18px rgba(236, 72, 153, 0.22),
+    0 4px 14px rgba(0, 0, 0, 0.35);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.mapRoundBtn::before,
+.mapAdXpBtn::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, #38bdf8, #ec4899, #818cf8, #38bdf8);
+  animation: mapNeonSpin 3.2s linear infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.mapRoundBtn::after,
+.mapAdXpBtn::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: rgba(15, 23, 42, 0.92);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.mapRoundBtn:hover:not(:disabled) {
+  color: #fce7f3;
+  box-shadow:
+    0 0 14px rgba(56, 189, 248, 0.5),
+    0 0 22px rgba(236, 72, 153, 0.35),
+    0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.mapRoundBtnActive {
+  color: #fbcfe8;
+  box-shadow:
+    0 0 16px rgba(236, 72, 153, 0.55),
+    0 0 22px rgba(56, 189, 248, 0.35);
+}
+
+.mapRoundBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.mapRoundBtnIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(14px, 4vw, 18px);
+  line-height: 1;
+  z-index: 1;
+}
+
+.mapRoundBtnIcon svg,
+.mapAdXpBtn .epAdBtnIcon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.mapRoundBtnLabel {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes mapNeonSpin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.allianceChatDock {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 12;
+  width: min(220px, calc(100% - 148px));
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid rgba(186, 230, 253, 0.22);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.28);
+  color: #e2e8f0;
+  cursor: pointer;
+  text-align: left;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.allianceChatDockLine,
+.allianceChatDockLineMuted {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.allianceChatDockLine strong {
+  color: #7dd3fc;
+  font-weight: 800;
+}
+
+.allianceChatDockLineMuted {
+  color: rgba(226, 232, 240, 0.62);
+  font-weight: 500;
+}
+
+.mapSheetTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mapSheetTitleIcon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.mapSheetTitleIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mapSheetNeon {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(56, 189, 248, 0.28), transparent 52%),
+    radial-gradient(120% 90% at 100% 100%, rgba(236, 72, 153, 0.32), transparent 54%),
+    linear-gradient(180deg, #07111f 0%, #140617 100%);
+  border: 1px solid rgba(125, 211, 252, 0.38);
+  box-shadow:
+    0 0 28px rgba(56, 189, 248, 0.28),
+    0 0 48px rgba(236, 72, 153, 0.22);
+}
+
+.mapSheetNeon .mapSheetHeader {
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.32), rgba(236, 72, 153, 0.3));
+  color: #fff;
+  border-bottom: 1px solid rgba(244, 114, 182, 0.35);
+}
+
+.mapSheetNeon .mapSheetBody {
+  background: transparent;
+}
+
+.mapChatPanelNeon {
+  background: transparent;
+}
+
+.mapChatPanelNeon .epChatTabActive {
+  background: linear-gradient(90deg, #0ea5e9, #ec4899);
+  color: #fff;
+  border-color: transparent;
+}
+
+.mapChatPanelNeon .epChatSendBtn {
+  background: linear-gradient(135deg, #0ea5e9, #ec4899);
+  color: #fff;
+}
+
+.mapSheetOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  background: rgba(0, 0, 0, 0.58);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  padding-bottom: var(--alliance-map-nav, calc(var(--app-nav-bar, 56px) + env(safe-area-inset-bottom, 0px)));
+  pointer-events: auto;
+}
+
+.mapSheetPage {
+  width: 100%;
+  max-width: min(480px, 100vw);
+  max-height: min(88dvh, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px 20px 0 0;
+  animation: mapSheetIn 0.28s ease-out;
+}
+
+.mapSheetWide {
+  max-width: min(720px, 100vw);
+}
+
+.rankTablesSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.rankTablesSplitCol {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.rankTablesSplitTitle {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fde68a;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.rankTablesSplit .rankTableContent {
+  min-height: 0;
+}
+
+.rankTablesSplit .rankTableContentSheet .rankTableScroll {
+  max-height: min(52dvh, 380px);
+}
+
+@media (max-width: 720px) {
+  .mapSheetBody .rankTablesSplit {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rankingPage {
+  min-height: 100dvh;
+  background:
+    radial-gradient(1200px 480px at 50% -80px, rgba(251, 191, 36, 0.16), transparent 55%),
+    #0b1220;
+  color: #e2e8f0;
+  padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(20px, env(safe-area-inset-bottom, 0px));
+}
+
+.rankingPageHead {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+}
+
+.rankingPageEyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.rankingPageTitle {
+  margin: 4px 0 0;
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff7ed;
+}
+
+.rankingPage .rankTablesSplit {
+  max-width: 1100px;
+  margin: 0 auto;
+  gap: 12px;
+  min-height: calc(100dvh - 120px);
+}
+
+.rankingPage .rankTablesSplitCol {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.rankingPage .rankTablesSplitTitle {
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.rankingPage .rankTableScroll {
+  max-height: calc(100dvh - 200px);
+}
+
+@media (max-width: 720px) {
+  .rankingPage .rankTablesSplit {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .rankingPage .rankTableScroll {
+    max-height: min(58dvh, 520px);
+  }
+}
+
+.mapSheetHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+  flex-shrink: 0;
+}
+
+.mapSheetBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px 16px;
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.rankTableContentSheet .rankTableScroll {
+  max-height: min(52vh, 420px);
+}
+
+.mapOrduCardsBodySheet {
+  max-height: min(52vh, 420px);
+}
+
+.mapChatPanelSheet {
+  flex: 1 1 auto;
+  min-height: min(52vh, 420px);
+  display: flex;
+  flex-direction: column;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.mapChatPanelSheet .epChatMessages {
+  flex: 1 1 auto;
+  min-height: 200px;
+  max-height: min(44vh, 360px);
+}
+
+.allianceFlagEditorSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.allianceFlagTabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.allianceFlagTab {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  padding: 8px 4px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.allianceFlagTabActive {
+  background: linear-gradient(180deg, rgba(202, 138, 4, 0.35), rgba(161, 98, 7, 0.22));
+  color: #fef3c7;
+}
+
+.allianceFlagShapes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.allianceFlagPatternGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.allianceFlagPatternCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px 5px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.55);
+  color: #cbd5e1;
+  font-size: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.allianceFlagPatternCard span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allianceFlagPatternCardActive {
+  border-color: rgba(251, 191, 36, 0.7);
+  background: rgba(202, 138, 4, 0.18);
+  color: #fef08a;
+}
+
+.allianceFlagPhotoHint {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.allianceFlagImageDrop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 132px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(96, 165, 250, 0.55);
+  background: rgba(15, 23, 42, 0.55);
+  color: #dbeafe;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.allianceFlagImageDrop:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.allianceFlagImageDropImg {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.allianceFlagImageDropLabel {
+  font-size: 10px;
+  color: #93c5fd;
+}
+
+@keyframes mapSheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (min-width: 520px) {
+  .mapSheetOverlay {
+    align-items: center;
+    padding: 16px;
+    padding-bottom: calc(var(--alliance-map-nav, 72px) + 16px);
+  }
+
+  .mapSheetPage {
+    border-radius: 20px;
+    max-height: min(80dvh, 640px);
+  }
+}
+
+/* Sol panel — kiçik yumru düymələr */
+.allianceMapSidebar .rankTable,
+.allianceMapSidebar .sidebarPopup {
+  border-radius: 20px;
+}
+
+.allianceMapSidebar .rankTableToggle,
+.allianceMapSidebar .sidebarPopupToggle {
+  padding: 6px 10px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  border-radius: 999px;
+}
+
+.allianceMapSidebar .rankTableOpen .rankTableToggle {
+  border-radius: 16px 16px 0 0;
+}
+
+.allianceMapSidebar .rankTableChevron {
+  font-size: 8px;
+}
+
+.allianceMapSidebar .rankTableScroll {
+  padding: 6px;
+  max-height: 140px;
+}
+
+.allianceMapSidebar .rankTableRow {
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+
+.allianceMapSidebar .rankTableName {
+  font-size: 9px;
+}
+
+.allianceMapSidebar .rankTableSub,
+.allianceMapSidebar .rankTableScore {
+  font-size: 8px;
+}
+
+.allianceMapSidebar .sidebarPopupBody {
+  padding: 0 8px 8px;
+}
+
+.allianceMapSidebar .sidebarPopupBody .questListEmbedded {
+  max-height: 150px;
+  padding: 6px 2px 0;
+}
+
+.allianceMapSidebar .questTitle {
+  font-size: 9px;
+}
+
+.allianceMapSidebar .questDesc,
+.allianceMapSidebar .questProgress {
+  font-size: 8px;
+}
+
+.allianceMapSidebar .questClaimBtn {
+  padding: 3px 8px;
+  font-size: 8px;
+  border-radius: 999px;
+}
+
+.allianceMapSidebar .allianceFlagEditor {
+  padding: 8px;
+  gap: 6px;
+  border-radius: 16px;
+}
+
+.allianceMapSidebar .allianceFlagEditorPreviewRow {
+  padding: 2px 0;
+}
+
+.allianceMapSidebar .allianceFlagPreviewLg {
+  width: 72px;
+  height: 50px;
+  border-radius: 10px;
+}
+
+.allianceMapSidebar .allianceFlagPreviewLg .allianceFlagPreviewEmblem {
+  font-size: 22px;
+}
+
+.allianceMapSidebar .allianceFlagSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+}
+
+.allianceMapSidebar .allianceFlagEmblemBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.allianceMapSidebar .allianceFlagPatternBtn {
+  padding: 4px 8px;
+  font-size: 8px;
+  border-radius: 999px;
+}
+
+.allianceMapSidebar .allianceFlagSaveBtn {
+  padding: 6px 10px;
+  font-size: 9px;
+  border-radius: 999px;
+}
+
+.allianceMapSidebar .allianceFlagToolLabel {
+  font-size: 8px;
+}
+
+.allianceMapSidebar .allianceMapSidebarTitle {
+  font-size: 14px;
+}
+
+.allianceMapSidebar .allianceFlagPreview {
+  width: 36px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+.allianceMapRight {
+  grid-column: 3;
+  grid-row: 1;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: var(--app-control-gap, 8px);
+  min-width: 0;
+  min-height: 0;
+  padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) 10px 6px;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.allianceMapRight .mapRoundBtnRow {
+  justify-content: flex-end;
+}
+
+.allianceMapRightTop {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: var(--app-control-gap, 8px);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.allianceMapRightRank {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.mapAttackBtn {
+  flex-shrink: 0;
+  width: 100%;
+  min-height: var(--app-touch-min, 44px);
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 2px solid rgba(239, 68, 68, 0.65);
+  background: linear-gradient(180deg, #dc2626, #991b1b);
+  color: #fff;
+  font-size: clamp(9px, 2.4vw, 11px);
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.45);
+  touch-action: manipulation;
+}
+
+.mapAttackBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.mapChatPanel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  flex-shrink: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.72);
+  border: 2px solid rgba(59, 130, 246, 0.45);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.mapChatPanel .epChatMessages {
+  flex: 1;
+  min-height: 80px;
+  max-height: none;
+}
+
+.mapOrduCardsPanel {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: rgba(15, 23, 42, 0.75);
+}
+
+.mapOrduCardsTabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.mapOrduCardsTab {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: transparent;
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mapOrduCardsTabActive {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.55);
+  color: #e0e7ff;
+}
+
+.mapOrduCardsBody {
+  overflow-y: auto;
+  max-height: 160px;
+  padding: 6px;
+}
+
+.mapOrduStatsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.mapOrduStatsRow span {
+  background: rgba(248, 250, 252, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.mapOrduMemberList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mapOrduMemberRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.mapOrduMemberRow strong {
+  font-size: 10px;
+  color: #f8fafc;
+}
+
+.mapOrduMemberScore {
+  font-size: 9px;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.mapOrduCardsEmpty {
+  margin: 0;
+  padding: 10px;
+  text-align: center;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.mapCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mapCardItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.mapCardName {
+  font-size: 8px;
+  font-weight: 700;
+  color: #cbd5e1;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.modelCardArtWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(2, 6, 23, 0.55);
+}
+
+.modelCardImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modelCardFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--card-accent, #fbbf24) 45%, transparent), transparent 55%),
+    linear-gradient(160deg, #1e293b, #0f172a);
+}
+
+.modelCardFallbackEmoji {
+  font-size: 28px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));
+}
+
+.modelCardInfoBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(253, 230, 138, 0.85);
+  background: rgba(15, 23, 42, 0.88);
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 900;
+  font-style: italic;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.modelCardInfoOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(2, 6, 23, 0.72);
+  pointer-events: auto;
+}
+
+.modelCardInfoSheet {
+  width: min(420px, 100%);
+  max-height: min(80dvh, 560px);
+  overflow-y: auto;
+  border-radius: 16px;
+  padding: 14px 16px 18px;
+  background: rgba(15, 23, 42, 0.97);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modelCardInfoHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.modelCardInfoHead h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.modelCardInfoClose {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.modelCardInfoBody {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #e2e8f0;
+}
+
+.mapCardsShopLink {
+  display: block;
+  margin-top: 6px;
+  padding: 8px;
+  min-height: var(--app-touch-min, 44px);
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  color: #e0e7ff;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.allianceMapLayout button {
+  touch-action: manipulation;
+}
+
+.allianceMapSidebar .rankTableToggle,
+.allianceMapSidebar .sidebarPopupToggle,
+.allianceMapRight .rankTableToggle,
+.mapRoundBtn,
+.mapAttackBtn,
+.mapAdXpBtn {
+  min-height: var(--app-touch-min, 44px);
+}
+
+.mapOrduCardsTab {
+  min-height: 36px;
+}
+
+.mapChatPanel .epChatTab,
+.mapChatPanel .epChatTabActive {
+  min-height: 36px;
+}
+
+.mapChatPanel .epChatSendBtn {
+  min-width: var(--app-touch-min, 44px);
+  min-height: var(--app-touch-min, 44px);
+}
+
+.mapAdXpBtn {
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: clamp(48px, 14vw, 56px);
+  min-width: var(--app-touch-min, 44px);
+  min-height: var(--app-touch-min, 44px);
+  padding: 8px 6px;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: #fff;
+  font-size: clamp(7px, 2vw, 8px);
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  line-height: 1.1;
+  cursor: pointer;
+  box-shadow:
+    0 0 10px rgba(56, 189, 248, 0.35),
+    0 0 18px rgba(236, 72, 153, 0.22),
+    0 4px 14px rgba(0, 0, 0, 0.35);
+  touch-action: manipulation;
+}
+
+.mapAdXpBtn span {
+  position: relative;
+  z-index: 1;
+}
+
+.mapAdXpBtn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.mapAdXpBtn .epAdBtnIcon {
+  font-size: 14px;
+}
+
+.allianceMapRight .rankTable {
+  border-radius: 20px;
+}
+
+.allianceMapRight .rankTableToggle {
+  padding: 6px 10px;
+  font-size: 9px;
+  border-radius: 999px;
+}
+
+.allianceMapRight .rankTableOpen .rankTableToggle {
+  border-radius: 16px 16px 0 0;
+}
+
+.allianceMapRight .rankTableScroll {
+  max-height: 140px;
+  padding: 6px;
+}
+
+.allianceMapRight .rankTableRow {
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+
+.allianceMapRight .rankTableName {
+  font-size: 9px;
+}
+
+.allianceMapRight .rankTableSub,
+.allianceMapRight .rankTableScore {
+  font-size: 8px;
+}
+
+.allianceMapCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #e8eef4;
+  --castle-zoom-scale: 1;
+}
+
+.allianceMapCanvas :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+  font-family: inherit;
+  touch-action: none;
+}
+
+.allianceMapCanvas :global(.leaflet-div-icon) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.allianceMapCanvas :global(.leaflet-div-icon .alliance-castle-pin__img) {
+  height: auto !important;
+  background: transparent !important;
+  object-fit: contain !important;
+}
+
+.allianceMapCanvas :global(.leaflet-marker-icon.alliance-map-pin),
+.allianceMapCanvas :global(.leaflet-div-icon.alliance-map-pin) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin__art) {
+  display: none;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin__art-slot) {
+  overflow: visible;
+  pointer-events: none;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin__img) {
+  display: block;
+  width: 40px;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  opacity: 1;
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+  transform-origin: center bottom;
+}
+
+/* Lv.1 — şəffaf fon, yalnız qala silueti */
+.allianceMapCanvas :global(.alliance-castle-pin--lv1 .alliance-castle-pin__img) {
+  background: transparent !important;
+  mix-blend-mode: normal;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin__castle) {
+  display: none;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin__name) {
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #fde68a;
+  font-size: 9px;
+  font-weight: 800;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin__meta) {
+  display: none;
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin--mine .alliance-castle-pin__img) {
+  filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));
+}
+
+.allianceMapCanvas :global(.alliance-castle-pin--mine .alliance-castle-pin__name) {
+  border-color: rgba(251, 191, 36, 0.65);
+  color: #fef08a;
+}
+
+.allianceMapCanvas :global(.leaflet-popup-content-wrapper) {
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.allianceMapCanvas :global(.leaflet-popup-content) {
+  margin: 10px 12px;
+  line-height: 1.45;
+  font-size: 12px;
+}
+
+.allianceMapCanvas :global(.leaflet-popup-tip) {
+  box-shadow: none;
+}
+
+.allianceMapShell .mapCountryBadge {
+  top: max(12px, env(safe-area-inset-top, 0px));
+}
+
+/** Qala səhnəsi — nav barlar üçün yer buraxır */
+.castleSceneShell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  height: calc(
+    100dvh - var(--app-nav-total, 68px) - var(--alliance-action-bar, 62px)
+  );
+  height: calc(
+    100svh - var(--app-nav-total, 68px) - var(--alliance-action-bar, 62px)
+  );
+}
+
+.castlePixiWrap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(180deg, #8ecae6 0%, #6bbf59 55%, #2d6a4f 100%);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.castlePixiWrap picture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.castlePixiOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.castlePixiOverlay canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  /* Qara fonlu PNG sprite-lər HTML qala şəkli ilə qarışsın */
+  mix-blend-mode: screen;
+}
+
+.castlePixiCanvas {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  min-height: 100svh;
+}
+
+.castlePixiCanvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.castleStaticImg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+  object-position: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.castleStaticTitle {
+  position: absolute;
+  z-index: 3;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.82);
+  border: 2px solid rgba(251, 191, 36, 0.55);
+  color: #fef3c7;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.castleHudLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.castleHudLayer > * {
+  pointer-events: auto;
+}
+
+.castleHudLeft {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  left: max(8px, env(safe-area-inset-left, 0px));
+  width: min(260px, 46vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.castleHudRight {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  right: max(8px, env(safe-area-inset-right, 0px));
+  width: min(260px, 46vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.castleBrandTitle {
+  margin: 0;
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.82);
+  border: 2px solid rgba(251, 191, 36, 0.55);
+  color: #fef3c7;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  line-height: 1.2;
+}
+
+.castleHudRankStack {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.castleHudRight .epAdBtn {
+  width: 100%;
+}
+
+/* ——— Kəndli canvas sprite patrul (image_6.png) ——— */
+.peasantPatrolLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.peasantCanvasWrap {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  transform: translate(-50%, -100%);
+  will-change: left;
+}
+
+.peasantCanvas {
+  display: block;
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.uiFixed {
+  transform: none !important;
+  will-change: auto;
+}
+
+.mapLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  isolation: isolate;
+  contain: strict;
+  overflow: hidden;
+}
+
+.mapLayer .mapLayerInner,
+.mapLayer .mapPixiOverlay {
+  position: absolute;
+  inset: 0;
+}
+
+.mapLayerInner {
+  width: 100%;
+  height: 100%;
+}
+
+.mapPixiOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.mapCountryBadge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  pointer-events: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  color: #bbf7d0;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: calc(100% - 24px);
+}
+
+.mapCountryHint {
+  font-size: 10px;
+  font-weight: 600;
+  color: #86efac;
+  opacity: 0.85;
+}
+
+.mapRegionBadge {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  pointer-events: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+}
+
+.mapLayerInner :global(.leaflet-marker-icon.alliance-map-pin),
+.mapLayerInner :global(.leaflet-div-icon.alliance-map-pin) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+/* ——— Qala markerləri (Leaflet divIcon HTML) ——— */
+.mapLayerInner :global(.alliance-castle) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55));
+}
+
+.mapLayerInner :global(.alliance-castle__tower) {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.mapLayerInner :global(.alliance-castle__tower--lg) {
+  font-size: 32px;
+}
+
+.mapLayerInner :global(.alliance-castle__walls) {
+  display: none;
+}
+
+.mapLayerInner :global(.alliance-castle__name),
+.mapLayerInner :global(.alliance-castle__label) {
+  margin-top: 2px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #fde68a;
+  font-size: 9px;
+  font-weight: 800;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapLayerInner :global(.alliance-castle__label) {
+  font-size: 10px;
+  max-width: 100px;
+}
+
+.mapLayerInner :global(.alliance-castle__meta) {
+  font-size: 8px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.mapLayerInner :global(.alliance-castle--country .alliance-castle__name) {
+  font-size: 8px;
+  max-width: 72px;
+}
+
+.mapLayerInner :global(.alliance-castle__score) {
+  margin-top: 1px;
+  font-size: 7px;
+  font-weight: 800;
+  color: #fbbf24;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.mapLayerInner :global(.alliance-castle--mine .alliance-castle__tower) {
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8));
+}
+
+.mapLayerInner :global(.alliance-castle--mine .alliance-castle__name),
+.mapLayerInner :global(.alliance-castle--mine .alliance-castle__label) {
+  border-color: rgba(251, 191, 36, 0.6);
+  color: #fef08a;
+}
+
+.mapLayerInner :global(.alliance-castle--highlight) {
+  animation: castlePulse 1.2s ease-in-out infinite;
+}
+
+.mapLayerInner :global(.alliance-castle--target) {
+  animation: castleTarget 0.8s ease-in-out infinite;
+}
+
+.mapLayerInner :global(.alliance-castle--target .alliance-castle__target-ring) {
+  position: absolute;
+  inset: -6px;
+  border: 2px dashed #ef4444;
+  border-radius: 12px;
+  animation: castleTargetRing 1s linear infinite;
+}
+
+.mapLayerInner :global(.alliance-castle--siege) {
+  animation: castleSiege 0.5s ease-in-out infinite;
+}
+
+.mapLayerInner :global(.alliance-castle__siege-badge) {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+@keyframes castlePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes castleTarget {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6)); }
+  50% { filter: drop-shadow(0 0 14px rgba(239, 68, 68, 1)); }
+}
+
+@keyframes castleTargetRing {
+  0% { transform: rotate(0deg); opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 0.6; }
+}
+
+@keyframes castleSiege {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.castleHub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  max-width: 360px;
+  overflow: hidden;
+}
+
+.castleHubWalls {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(100, 116, 139, 0.35);
+  border-radius: 14px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.25) 0%, transparent 60%);
+}
+
+.castleHubIcon {
+  position: relative;
+  z-index: 1;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.castleHubInfo {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+}
+
+.castleHubName {
+  font-size: 13px;
+  font-weight: 900;
+  color: #fde68a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.castleHubMeta {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.castleHubBtn {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rankToggleBtn {
+  pointer-events: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.7);
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.countryViewFab {
+  position: fixed;
+  left: 14px;
+  bottom: calc(var(--alliance-dock-base) + var(--alliance-fab) + var(--alliance-fab-gap) + 8px);
+  z-index: 40;
+  width: var(--alliance-fab);
+  height: var(--alliance-fab);
+  border-radius: 50%;
+  border: 2px solid rgba(34, 197, 94, 0.5);
+  background: rgba(15, 23, 42, 0.9);
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.mapBackgroundFallback {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    url('/images/alliance-map-bg.svg') center / cover no-repeat,
+    linear-gradient(165deg, #1a3a2a 0%, #2d4a3e 45%, #0f172a 100%);
+}
+
+.mapOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(8, 12, 24, 0.12) 0%, transparent 12%, transparent 88%, rgba(8, 12, 24, 0.18) 100%);
+}
+
+.contentLayer {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  min-height: calc(100dvh - 72px);
+  padding: 10px 14px 88px;
+}
+
+.contentLayer > * {
+  pointer-events: auto;
+}
+
+.topHud {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+  animation: panelIn 0.45s ease-out both;
+}
+
+.topHudTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.topHudEyebrow {
+  font-size: clamp(9px, 2.5vw, 10px);
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #fbbf24;
+  margin-bottom: 2px;
+}
+
+.topHudHeading {
+  margin: 0;
+  font-size: clamp(16px, 3.5vw, 24px);
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topHudResources {
+  display: flex;
+  gap: clamp(4px, 1.5vw, 8px);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.resourcePill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: clamp(4px, 1.2vw, 6px) clamp(8px, 2.5vw, 12px);
+  border-radius: 999px;
+  background: rgba(12, 18, 32, 0.72);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  font-size: clamp(10px, 2.8vw, 12px);
+  font-weight: 800;
+  color: #fde68a;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panelScatter {
+  position: relative;
+  min-height: calc(100dvh - 130px);
+}
+
+.leftRankStack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(290px, 48vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 3;
+}
+
+.rankTable {
+  overflow: hidden;
+  animation: panelIn 0.45s ease-out both;
+}
+
+.rankTableOpen {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.rankTableToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px;
+  border: none;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rankTableChevron {
+  font-size: 10px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.rankTableContent {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.rankTableScroll {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rankTableScroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.rankTableScroll::-webkit-scrollbar-thumb {
+  background: rgba(251, 191, 36, 0.45);
+  border-radius: 999px;
+}
+
+.rankTableRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.rankTableRowTop {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.rankTableRowMe {
+  background: rgba(99, 102, 241, 0.22);
+  border-color: rgba(99, 102, 241, 0.55);
+}
+
+.rankTableRowClickable {
+  cursor: pointer;
+}
+
+.rankTableRowClickable:hover {
+  background: rgba(251, 191, 36, 0.16);
+}
+
+.rankTableRank {
+  width: 28px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.rankTableInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rankTableName {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rankTableSub {
+  font-size: 9px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rankTableScore {
+  font-size: 10px;
+  font-weight: 800;
+  color: #c7d2fe;
+  background: rgba(79, 70, 229, 0.35);
+  padding: 2px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.rankTableEmpty {
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 16px 8px;
+  margin: 0;
+}
+
+.rankTableFooter {
+  padding: 8px;
+  border-top: 1px solid rgba(251, 191, 36, 0.25);
+  background: rgba(15, 23, 42, 0.75);
+}
+
+.rankTableFooterLabel {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #fbbf24;
+  margin-bottom: 6px;
+}
+
+.rankTableFooterEmpty {
+  margin: 0;
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 6px 4px;
+}
+
+.rightActionDock {
+  position: fixed;
+  right: max(16px, var(--app-safe-right, 0px));
+  bottom: var(--alliance-dock-base);
+  z-index: 55;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: var(--alliance-fab-gap);
+  pointer-events: none;
+}
+
+.rightActionDock > * {
+  pointer-events: auto;
+}
+
+.battleFab {
+  position: static;
+  width: var(--alliance-fab);
+  height: var(--alliance-fab);
+  min-width: var(--alliance-fab);
+  min-height: var(--alliance-fab);
+  border-radius: 50%;
+  border: 2px solid rgba(251, 191, 36, 0.6);
+  background: rgba(15, 23, 42, 0.88);
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.battleFab:hover {
+  transform: scale(1.06);
+  box-shadow: 0 8px 24px rgba(251, 191, 36, 0.35);
+}
+
+.battleFabIcon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.battleFabBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(15, 23, 42, 0.9);
+}
+
+.battleCardsModal {
+  width: min(400px, 100%);
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.battleCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.battleCardItem,
+.battleCardPickWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.battleCardIcon {
+  font-size: 32px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.battleCardName {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f8fafc;
+  text-align: center;
+}
+
+.battleCardCount {
+  font-size: 14px;
+  font-weight: 900;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.battleCardsTotal {
+  padding: 10px 16px 14px;
+  border-top: 1px solid rgba(251, 191, 36, 0.2);
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.battleCardsTotal strong {
+  color: #fde68a;
+  font-size: 14px;
+}
+
+.searchFab {
+  position: fixed;
+  bottom: var(--alliance-dock-base);
+  left: max(16px, var(--app-safe-left, 0px));
+  z-index: 50;
+  width: var(--alliance-fab);
+  height: var(--alliance-fab);
+  min-width: var(--alliance-fab);
+  min-height: var(--alliance-fab);
+  border-radius: 50%;
+  border: 2px solid rgba(251, 191, 36, 0.6);
+  background: rgba(15, 23, 42, 0.88);
+  color: #fde68a;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.searchFab:hover {
+  transform: scale(1.06);
+  box-shadow: 0 8px 24px rgba(251, 191, 36, 0.35);
+}
+
+.orduFab {
+  position: fixed;
+  bottom: calc(var(--alliance-dock-base) + var(--alliance-fab) + var(--alliance-fab-gap));
+  left: max(16px, var(--app-safe-left, 0px));
+  z-index: 50;
+  width: var(--alliance-fab);
+  height: var(--alliance-fab);
+  min-width: var(--alliance-fab);
+  min-height: var(--alliance-fab);
+  border-radius: 50%;
+  border: 2px solid rgba(99, 102, 241, 0.65);
+  background: rgba(15, 23, 42, 0.88);
+  color: #c7d2fe;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.orduFab:hover {
+  transform: scale(1.06);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
+}
+
+.orduCardsModal {
+  max-height: 80vh;
+}
+
+.orduCardsTabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.15);
+}
+
+.orduCardsTab {
+  flex: 1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 10px 8px;
+  background: rgba(15, 23, 42, 0.5);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.orduCardsTab:hover {
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #e2e8f0;
+}
+
+.orduCardsTabActive {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.55);
+  color: #e0e7ff;
+}
+
+.orduPanelBody {
+  overflow-y: auto;
+  max-height: min(52vh, 420px);
+}
+
+.orduPanelIntro {
+  margin: 0;
+  padding: 12px 16px 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.orduStatsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.orduStatsRow span {
+  background: rgba(248, 250, 252, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.orduMemberList {
+  padding: 0 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orduMemberRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.orduMemberRow strong {
+  display: block;
+  font-size: 13px;
+  color: #f8fafc;
+}
+
+.orduMemberMeta {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.orduMemberScore {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.orduEmpty {
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.activeHudBadge {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fde68a;
+  background: rgba(15, 23, 42, 0.65);
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.searchModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: calc(var(--app-page-pad-bottom, 80px) + 12px);
+  pointer-events: auto;
+}
+
+.searchModal {
+  width: min(480px, 100%);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.searchModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.searchModalClose {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.searchModalBody {
+  padding: 14px 16px 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.searchModalInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchModalInputs input,
+.searchModalInputs select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.95);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.searchResults {
+  overflow-y: auto;
+  max-height: 42vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchEmpty {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+  margin: 12px 0;
+}
+
+.searchResultItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(248, 250, 252, 0.92);
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  overflow: hidden;
+}
+
+.searchResultMain {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.searchResultMain strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.searchResultMain span {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.searchJoinBtn {
+  flex-shrink: 0;
+  margin-right: 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: #10b981;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.panelChat {
+  position: fixed;
+  bottom: 72px;
+  right: 12px;
+  width: min(340px, calc(100vw - 24px));
+  z-index: 4;
+  pointer-events: auto;
+  animation: panelIn 0.55s ease-out 0.1s both;
+}
+
+/* ——— Canlı söhbət: mərkəz preview düyməsi ——— */
+.chatCompactBtn {
+  position: fixed;
+  top: max(48px, calc(env(safe-area-inset-top, 0px) + 42px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: auto;
+  left: auto;
+  transform: none;
+  z-index: 45;
+  width: min(200px, calc(100vw - 24px));
+  max-width: 200px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(12, 18, 32, 0.42);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  text-align: left;
+  pointer-events: auto;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.chatCompactBtn:hover {
+  background: rgba(12, 18, 32, 0.58);
+  border-color: rgba(251, 191, 36, 0.45);
+  transform: translateY(-2px);
+}
+
+.chatCompactLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #fde68a;
+  margin-bottom: 6px;
+}
+
+.chatLiveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+  animation: chatPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes chatPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.chatCompactPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 2.6em;
+}
+
+.chatPreviewLine {
+  display: block;
+  font-size: 11px;
+  color: rgba(241, 245, 249, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.chatPreviewLine strong {
+  color: #c7d2fe;
+  font-weight: 700;
+}
+
+.chatModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: var(--app-page-pad-bottom, 80px);
+  pointer-events: auto;
+}
+
+.chatModal {
+  width: min(420px, 100%);
+  max-height: min(65vh, 520px);
+  display: flex;
+  flex-direction: column;
+  animation: panelIn 0.3s ease-out both;
+}
+
+.chatModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.chatChannelTabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px 0;
+}
+
+.chatChannelTab {
+  flex: 1;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 8px 6px;
+  background: rgba(15, 23, 42, 0.5);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.chatChannelTab:hover:not(:disabled) {
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #e2e8f0;
+}
+
+.chatChannelTab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chatChannelTabActive {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.55);
+  color: #e0e7ff;
+}
+
+.chatChannelHint {
+  margin: 0;
+  padding: 8px 16px 0;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.chatModalMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 200px;
+  max-height: 340px;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(32, 44, 51, 0.35), transparent 55%),
+    linear-gradient(180deg, #0b141a 0%, #0d171d 50%, #0b141a 100%);
+}
+
+.chatBubbleWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.chatBubbleWrapMine {
+  align-items: flex-end;
+}
+
+.chatBubbleMeta {
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 3px;
+}
+
+.chatBubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  background: rgba(248, 250, 252, 0.92);
+  color: #0f172a;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.chatBubbleMine {
+  background: rgba(99, 102, 241, 0.9);
+  color: #ffffff;
+  border: none;
+}
+
+.chatModalForm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: #1a252d;
+}
+
+.chatModalForm input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #111b21;
+  color: #e9edef;
+  font-size: 14px;
+}
+
+.chatModalForm input::placeholder {
+  color: #667781;
+}
+
+.chatModalSendBtn {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 50%;
+  border: none;
+  background: #00a884;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.chatModalSendBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chatModalSendBtn:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.glass {
+  background: rgba(12, 18, 32, 0.58);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.glassHeader {
+  background: rgba(15, 23, 42, 0.85);
+  color: #fde68a;
+  padding: 10px 16px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+.glassBody {
+  padding: 14px 16px;
+}
+
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.createForm input,
+.createForm select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.createForm button,
+.leaveBtn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.createForm button {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #ffffff;
+}
+
+.activeAllianceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activeAllianceName {
+  font-size: 15px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.activeAllianceMeta {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.leaveBtn {
+  align-self: flex-start;
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.notification {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.92);
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 2px solid #fbbf24;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  font-weight: 700;
+  font-size: 13px;
+  pointer-events: auto;
+}
+
+.mapWidget {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 3px solid #b45309;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.mapWidget .mapWidgetInner,
+.mapWidget .mapPixiOverlay,
+.mapWidget .mapCountryBadge,
+.mapWidget .mapRegionBadge {
+  position: absolute;
+  inset: 0;
+}
+
+.mapWidget .mapCountryBadge,
+.mapWidget .mapRegionBadge {
+  inset: auto;
+  top: 8px;
+}
+
+.mapWidgetInner {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .contentLayer {
+    padding-bottom: 12px;
+  }
+
+  .topHud {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topHudResources {
+    flex-wrap: wrap;
+  }
+
+  .panelScatter {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: auto;
+  }
+
+  .leftRankStack {
+    position: relative;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .rankTableScroll {
+    max-height: 280px;
+  }
+
+  .searchFab {
+    left: max(14px, var(--app-safe-left, 0px));
+  }
+
+  .rightActionDock {
+    right: max(14px, var(--app-safe-right, 0px));
+  }
+
+  .chatCompactBtn {
+    width: min(220px, calc(100vw - 28px));
+  }
+
+  .chatModalOverlay {
+    padding-bottom: var(--app-page-pad-bottom, 76px);
+  }
+}
+
+@media (max-width: 380px) {
+  .world {
+    --alliance-fab: 48px;
+    --alliance-fab-gap: 10px;
+  }
+
+  .questPanel {
+    max-width: calc(100vw - var(--alliance-fab) - 28px);
+  }
+
+  .chatCompactBtn {
+    width: min(200px, calc(100vw - 24px));
+  }
+
+  .chatCompactPreview {
+    display: none;
+  }
+
+  .chatCompactBtn {
+    padding: 10px 14px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .world {
+    --alliance-fab: 44px;
+    --alliance-fab-gap: 8px;
+  }
+
+  .rightActionDock {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .questPanel {
+    bottom: var(--alliance-dock-base);
+    max-width: 180px;
+  }
+
+  .chatCompactBtn {
+    bottom: calc(var(--alliance-dock-base) + 8px);
+    width: min(180px, 40vw);
+  }
+}
+
+/* Canlı döyüş kartı ikonları */
+.liveCardIcon {
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.liveCardEye {
+  animation: liveBlink 2.5s ease-in-out infinite;
+}
+
+.liveCardSword {
+  animation: livePulse 1.8s ease-in-out infinite;
+}
+
+.liveCardWing {
+  animation: liveFlap 1.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.liveCardSmoke1 {
+  animation: liveDrift 3s ease-in-out infinite;
+}
+
+.liveCardSmoke2 {
+  animation: liveDrift 3.5s ease-in-out infinite 0.4s;
+}
+
+.liveCardSmoke3 {
+  animation: liveDrift 2.8s ease-in-out infinite 0.8s;
+}
+
+.liveCardTail {
+  animation: liveWag 0.6s ease-in-out infinite alternate;
+  transform-origin: 14px 20px;
+}
+
+.liveCardEar {
+  animation: liveWag 0.5s ease-in-out infinite alternate-reverse;
+}
+
+.liveCardZombi {
+  animation: liveFloat 2s ease-in-out infinite;
+}
+
+@keyframes liveBlink {
+  0%, 45%, 55%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+@keyframes liveFlap {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.88); }
+}
+
+@keyframes liveDrift {
+  0%, 100% { transform: translateX(0); opacity: 0.6; }
+  50% { transform: translateX(4px); opacity: 0.9; }
+}
+
+@keyframes liveWag {
+  from { transform: rotate(-8deg); }
+  to { transform: rotate(8deg); }
+}
+
+@keyframes liveFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* 3D döyüş kartları */
+.card3dScene {
+  perspective: 600px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.card3dInner {
+  transform-style: preserve-3d;
+  animation: card3dTilt 4s ease-in-out infinite;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.55));
+}
+
+.card3dWrap {
+  perspective: 500px;
+}
+
+@keyframes card3dTilt {
+  0%, 100% { transform: rotateY(-12deg) rotateX(8deg) translateZ(8px); }
+  50% { transform: rotateY(12deg) rotateX(-6deg) translateZ(16px); }
+}
+
+.battleCardSelected {
+  outline: 2px solid #fbbf24;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.45);
+}
+
+.attackFab {
+  position: static;
+  width: var(--alliance-fab);
+  height: var(--alliance-fab);
+  min-width: var(--alliance-fab);
+  min-height: var(--alliance-fab);
+  border-radius: 50%;
+  border: 2px solid #ef4444;
+  background: linear-gradient(145deg, #dc2626, #991b1b);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.questPanel {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: 1;
+  max-width: min(260px, calc(100vw - 24px));
+  border-radius: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.questPanelToggle {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  font-weight: 800;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.questList {
+  margin-top: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.questItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.questTitle {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.questDesc {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.questProgress {
+  font-size: 9px;
+  color: #fbbf24;
+  margin-top: 2px;
+}
+
+.questClaimBtn {
+  border: none;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  background: #6366f1;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ——— Qala ana səhifə (Empires of Puzzle stili) ——— */
+.castleHome {
+  position: relative;
+  min-height: 100dvh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px calc(var(--app-page-pad-bottom, 80px) + var(--alliance-action-bar) + 8px);
+  z-index: 2;
+}
+
+.castleHomeBg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 40%, rgba(251, 191, 36, 0.12) 0%, transparent 55%),
+    url('/images/alliance-map-bg.svg') center / cover no-repeat,
+    linear-gradient(165deg, #1a2e24 0%, #243d32 35%, #0f172a 100%);
+  pointer-events: none;
+}
+
+.castleHomeTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-right: 210px;
+}
+
+.castleHomeEyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.castleHomeTitle {
+  margin: 4px 0 0;
+  font-size: clamp(18px, 4vw, 26px);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.castleHomeStats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fde68a;
+  text-align: right;
+}
+
+.castleHomeMain {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(110px, 130px) 1fr;
+  gap: 10px;
+  min-height: 0;
+}
+
+.castleRivals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  backdrop-filter: blur(8px);
+  max-height: calc(100dvh - 220px);
+}
+
+.castleRivalsTitle {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.castleRivalsList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.castleRivalsEmpty {
+  margin: 0;
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.castleRivalBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(30, 41, 59, 0.6);
+  color: #e2e8f0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.castleRivalBtn:hover {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.castleRivalIcon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.castleRivalName {
+  font-size: 10px;
+  font-weight: 800;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.castleRivalScore {
+  font-size: 9px;
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.castleMapLinkBtn {
+  width: 100%;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  background: rgba(22, 101, 52, 0.35);
+  color: #bbf7d0;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.castleCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px 12px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 2px solid rgba(251, 191, 36, 0.25);
+  backdrop-filter: blur(10px);
+  position: relative;
+  min-height: 280px;
+}
+
+.castleHeroWalls {
+  position: absolute;
+  width: min(200px, 70vw);
+  height: min(200px, 70vw);
+  border: 4px solid #64748b;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.5);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -58%);
+  z-index: 0;
+}
+
+.castleHeroTower {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(56px, 16vw, 80px);
+  line-height: 1;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
+  animation: castlePulse 2.5s ease-in-out infinite;
+}
+
+.castleHeroName {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: 900;
+  color: #fef08a;
+}
+
+.castleHeroMeta,
+.castleHeroLeader {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.castleCardStrip {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.castleHeroActions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.castlePrimaryBtn,
+.castleSecondaryBtn {
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+}
+
+.castlePrimaryBtn {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+}
+
+.castleSecondaryBtn {
+  background: rgba(30, 41, 59, 0.9);
+  color: #fde68a;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.castleEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.castleEmptyIcon {
+  font-size: 64px;
+  opacity: 0.85;
+}
+
+.castleEmptyState p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.castleActionBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--app-nav-total, calc(var(--app-nav-bar, 56px) + env(safe-area-inset-bottom, 0px)));
+  z-index: 90;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px max(10px, env(safe-area-inset-left, 0px))
+    8px max(10px, env(safe-area-inset-right, 0px));
+  min-height: var(--alliance-action-bar, 62px);
+  box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.92);
+  border-top: 1px solid rgba(251, 191, 36, 0.25);
+  backdrop-filter: blur(12px);
+}
+
+.castleActionBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--app-touch-min, 44px);
+  padding: 4px 2px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(30, 41, 59, 0.65);
+  color: #e2e8f0;
+  font-size: clamp(7px, 2vw, 9px);
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.castleActionBtn span:first-child {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.castleActionBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.castleActionBtnAttack {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(127, 29, 29, 0.55);
+  color: #fecaca;
+}
+
+.mapOverlayFull {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #0f172a;
+}
+
+.mapOverlayControls {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100vw - 24px);
+}
+
+.mapControlBtn,
+.mapCloseBtn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(15, 23, 42, 0.88);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.mapCloseBtn {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fecaca;
+}
+
+.questPanelDock {
+  position: fixed;
+  top: max(48px, calc(env(safe-area-inset-top, 0px) + 42px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  z-index: 40;
+  max-width: min(240px, calc(100vw - 230px));
+}
+
+.attackModal {
+  width: min(420px, 100%);
+  max-height: min(88vh, calc(100dvh - var(--app-page-pad-bottom, 80px) - 24px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.attackModalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+
+.attackModalHint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0 0 12px;
+}
+
+.attackModalLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+
+.attackModalSelect {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  background: #1e293b;
+  color: #fff;
+  border: 1px solid #475569;
+  box-sizing: border-box;
+}
+
+.attackModalTargetHint {
+  font-size: 11px;
+  color: #fbbf24;
+  margin: 0 0 10px;
+}
+
+.attackModalMutantPreview {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  font-size: 12px;
+  color: #d1fae5;
+  line-height: 1.45;
+}
+
+.attackModalMutantPreview p {
+  margin: 0 0 6px;
+}
+
+.attackModalMutantPreview p:last-child {
+  margin-bottom: 0;
+}
+
+.attackCardCountRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.attackCardCountBtn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.attackCardCountBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.attackCardCountVal {
+  min-width: 18px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.attackModalCountRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.attackModalCountInput {
+  width: 64px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #475569;
+  background: #1e293b;
+  color: #fff;
+}
+
+.attackModalPower {
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+.attackModalOwned {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.battleCardPower {
+  font-size: 9px;
+  color: #fbbf24;
+  text-align: center;
+}
+
+.attackModalFooter {
+  flex-shrink: 0;
+  padding: 12px 16px 16px;
+  border-top: 1px solid rgba(251, 191, 36, 0.2);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.attackModalWarn {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: #f87171;
+  text-align: center;
+}
+
+.attackModalSubmitBtn {
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.45);
+}
+
+.attackModalSubmitBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (max-width: 520px) {
+  .castleHomeTop {
+    padding-right: 0;
+    flex-direction: column;
+  }
+
+  .castleHomeMain {
+    grid-template-columns: 1fr;
+  }
+
+  .castleRivals {
+    max-height: 140px;
+  }
+
+  .castleRivalsList {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .castleRivalBtn {
+    min-width: 100px;
+    flex-shrink: 0;
+  }
+
+  .castleSceneShell {
+    height: calc(
+      100dvh - var(--app-nav-total, 68px) - var(--alliance-action-bar, 58px)
+    );
+    height: calc(
+      100svh - var(--app-nav-total, 68px) - var(--alliance-action-bar, 58px)
+    );
+  }
+
+  .worldCastleOnly {
+    --alliance-action-bar: 58px;
+  }
+
+  .castleActionBar {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .castleActionBtn span:last-child {
+    font-size: 8px;
+  }
+
+  .questPanelDock {
+    max-width: calc(100vw - 220px);
+  }
+}
+
+/* ——— Animasiyalı ittifaq qala səhnəsi ——— */
+.castleScene {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.castleSceneBg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-color: #1a2e24;
+}
+
+.castleSceneBg::before {
+  content: '';
+  position: absolute;
+  inset: -2%;
+  background-image: url('/images/image_0.png'), url('/images/alliance-castle-hub.png');
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  animation: castleBgBreath 16s ease-in-out infinite;
+}
+
+.castleSceneVignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, transparent 40%, rgba(0, 0, 0, 0.35) 100%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0%, transparent 20%, transparent 85%, rgba(0, 0, 0, 0.45) 100%);
+  pointer-events: none;
+}
+
+@keyframes castleBgBreath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
+
+.castleSceneLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.castleFlagMount {
+  position: absolute;
+  left: 50%;
+  top: 19%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+}
+
+.castleFlagPole {
+  width: 3px;
+  height: clamp(36px, 8vw, 52px);
+  background: linear-gradient(180deg, #78716c, #44403c);
+  border-radius: 2px;
+  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.castleFlag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: clamp(52px, 14vw, 88px);
+  height: clamp(22px, 5vw, 32px);
+  margin-top: 2px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 55%, #7f1d1d 100%);
+  border: 1.5px solid rgba(251, 191, 36, 0.85);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.45);
+  transform-origin: left center;
+}
+
+.castleFlagWave {
+  animation: castleFlagWave 2.6s ease-in-out infinite;
+}
+
+.castleFlagCrest {
+  font-size: clamp(10px, 2.8vw, 14px);
+  line-height: 1;
+}
+
+.castleFlagName {
+  font-size: clamp(7px, 1.8vw, 9px);
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  color: #fef3c7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 56px;
+}
+
+@keyframes castleFlagWave {
+  0%, 100% {
+    transform: perspective(120px) rotateY(0deg) skewY(0deg);
+  }
+  25% {
+    transform: perspective(120px) rotateY(8deg) skewY(2deg);
+  }
+  50% {
+    transform: perspective(120px) rotateY(-4deg) skewY(-1deg);
+  }
+  75% {
+    transform: perspective(120px) rotateY(6deg) skewY(1.5deg);
+  }
+}
+
+.castleDogZone {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(4px, 1.2vw, 12px);
+  width: clamp(120px, 32vw, 280px);
+}
+
+.castleDog {
+  width: clamp(32px, 9vw, 58px);
+  height: auto;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+}
+
+.castleDogRoam {
+  animation: castleDogRoam 4.5s ease-in-out infinite;
+}
+
+@keyframes castleDogRoam {
+  0%, 100% { transform: translateX(-14px) translateY(0) scale(1); }
+  50% { transform: translateX(14px) translateY(-3px) scale(1.05); }
+}
+
+.castleGuardZoneLeft {
+  position: absolute;
+  left: 18%;
+  top: 52%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2vw, 16px);
+}
+
+.castleGuard {
+  width: clamp(28px, 7vw, 48px);
+  height: auto;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+}
+
+.castleGuardPatrol {
+  animation: castleGuardPatrol 4s ease-in-out infinite;
+}
+
+@keyframes castleGuardPatrol {
+  0%, 100% { transform: translateX(0) scaleX(1); }
+  45% { transform: translateX(28px) scaleX(1); }
+  50% { transform: translateX(28px) scaleX(-1); }
+  95% { transform: translateX(0) scaleX(-1); }
+}
+
+.castleWorkerZoneRight {
+  position: absolute;
+  right: 16%;
+  top: 54%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 2.5vw, 18px);
+}
+
+.castleWorker {
+  width: clamp(26px, 6.5vw, 44px);
+  height: auto;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+}
+
+.castleWorkerWalk {
+  animation: castleWorkerWalk 5s ease-in-out infinite;
+}
+
+@keyframes castleWorkerWalk {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-4px) translateX(-12px); }
+  50% { transform: translateY(0) translateX(-22px); }
+  75% { transform: translateY(-3px) translateX(-10px); }
+}
+
+.castleAnimPaused {
+  animation-play-state: paused !important;
+}
+
+@media (max-width: 480px) {
+  .castleFlagMount { top: 17%; }
+  .castleDogZone { top: 48%; }
+  .castleGuardZoneLeft { left: 12%; top: 54%; }
+  .castleWorkerZoneRight { right: 10%; top: 56%; }
+}
+
+/* ——— Köhnə EP hub (digər komponentlər üçün) ——— */
+.epHub {
+  position: relative;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  padding-bottom: 76px;
+}
+
+.epHubBg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background-color: #1e3a2f;
+}
+
+.epHubBg::before {
+  content: '';
+  position: absolute;
+  inset: -3%;
+  background-image: url('/images/image_0.png'), url('/images/alliance-castle-hub.png');
+  background-size: cover;
+  background-position: center 32%;
+  background-repeat: no-repeat;
+  animation: epBgBreath 14s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* image_0.png üzərindəki it qrupu — mərkəzi beyin idarə edir */
+.epDogPack {
+  position: fixed;
+  left: 50%;
+  top: 44%;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(2px, 1vw, 8px);
+  width: clamp(100px, 26vw, 240px);
+  height: clamp(70px, 16vw, 130px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.epDogPackMember {
+  width: clamp(28px, 8vw, 52px);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55));
+}
+
+.animateBreathe {
+  animation: animate-breathe 5.5s ease-in-out infinite;
+}
+
+.animateBreathePaused {
+  animation-play-state: paused;
+}
+
+@keyframes animate-breathe {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    transform: translate(-50%, calc(-50% - 6px)) scale(1.04);
+  }
+}
+
+.epCastleImg {
+  object-fit: cover;
+  object-position: center 32%;
+}
+
+.epHubVignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, transparent 18%, transparent 72%, rgba(0, 0, 0, 0.55) 100%);
+  pointer-events: none;
+}
+
+@keyframes epBgBreath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.epAdBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 2px solid rgba(234, 179, 8, 0.65);
+  background: linear-gradient(180deg, rgba(202, 138, 4, 0.95), rgba(161, 98, 7, 0.98));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(202, 138, 4, 0.45);
+  animation: epAdPulse 2.4s ease-in-out infinite;
+}
+
+.epAdBtnNav {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 0;
+  border: none;
+  background: linear-gradient(180deg, rgba(202, 138, 4, 0.92), rgba(161, 98, 7, 0.95));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  font-size: 9px;
+}
+
+@keyframes epAdPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(202, 138, 4, 0.4); }
+  50% { box-shadow: 0 4px 22px rgba(250, 204, 21, 0.75); }
+}
+
+.epAdBtnIcon {
+  font-size: 16px;
+}
+
+.adModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.adModal {
+  width: min(400px, 100%);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid rgba(234, 179, 8, 0.45);
+}
+
+.adModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(161, 98, 7, 0.85);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.adModalHint {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.adPlaceholder {
+  margin: 0 14px 14px;
+  padding: 40px 16px;
+  border-radius: 10px;
+  border: 2px dashed rgba(148, 163, 184, 0.35);
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+
+.adBoostConfirmBtn {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 0 14px 14px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.adBoltBtn {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(250, 204, 21, 0.55);
+  background: radial-gradient(circle at 30% 20%, rgba(253, 224, 71, 0.95), rgba(245, 158, 11, 0.92) 55%, rgba(217, 119, 6, 0.95));
+  color: #1c1917;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.adBoltBtn .epAdBtnIcon {
+  display: flex;
+  line-height: 0;
+}
+
+.adBoltBtn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.epMapPreviewBtn {
+  position: relative;
+  width: 100px;
+  height: 70px;
+  padding: 0;
+  border: 2px solid rgba(34, 197, 94, 0.65);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  background:
+    url('/images/alliance-castle-hub.png') center / cover no-repeat,
+    linear-gradient(135deg, #166534, #14532d);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.epMapPreviewImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.85;
+}
+
+.epMapPreviewLabel {
+  position: absolute;
+  bottom: 2px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 900;
+  color: #bbf7d0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.epHud {
+  position: relative;
+  z-index: 2;
+  min-height: calc(100dvh - var(--app-fab-bottom, 82px));
+  pointer-events: none;
+}
+
+.epHud > * {
+  pointer-events: auto;
+}
+
+.epTopLeft {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  left: max(10px, env(safe-area-inset-left, 0px));
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(240px, 55vw);
+}
+
+.epAllianceBadge {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.88), rgba(69, 10, 10, 0.82));
+  border: 2px solid rgba(251, 191, 36, 0.55);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.epCrest {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+.epAllianceName {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: #fef08a;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.epAllianceLevel {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fde68a;
+  margin-top: 2px;
+}
+
+.epAllianceMeta {
+  font-size: 9px;
+  color: #fca5a5;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.epDailyQuestBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 2px solid rgba(59, 130, 246, 0.6);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.9), rgba(29, 78, 216, 0.95));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
+  animation: epQuestPulse 3s ease-in-out infinite;
+}
+
+.epDailyQuestIcon {
+  font-size: 18px;
+}
+
+@keyframes epQuestPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(37, 99, 246, 0.35); }
+  50% { box-shadow: 0 4px 24px rgba(59, 130, 246, 0.65); }
+}
+
+.epJoinCastleBtn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  background: rgba(15, 23, 42, 0.85);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.epTopRight {
+  position: absolute;
+  top: max(48px, calc(env(safe-area-inset-top, 0px) + 42px));
+  right: max(10px, env(safe-area-inset-right, 0px));
+  z-index: 5;
+  width: min(280px, calc(100vw - 20px));
+}
+
+.epChatPanel {
+  display: flex;
+  flex-direction: column;
+  height: min(340px, 42vh);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.72);
+  border: 2px solid rgba(59, 130, 246, 0.45);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.epChatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(30, 58, 138, 0.85);
+  color: #bfdbfe;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.epChatClose {
+  background: rgba(220, 38, 38, 0.85);
+  border: none;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.epChatTabs {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.epChatTab,
+.epChatTabActive {
+  flex: 1;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: transparent;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.epChatTabActive {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: rgba(96, 165, 250, 0.5);
+  color: #dbeafe;
+}
+
+.epChatMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background:
+    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(32, 44, 51, 0.35), transparent 55%),
+    linear-gradient(180deg, #0b141a 0%, #0d171d 50%, #0b141a 100%);
+}
+
+.epChatEmpty {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  padding: 12px;
+}
+
+.epChatRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.epChatAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.epChatBubble {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 10px;
+  color: #e2e8f0;
+  line-height: 1.35;
+}
+
+.epChatBubble strong {
+  display: block;
+  color: #93c5fd;
+  font-size: 9px;
+  margin-bottom: 2px;
+}
+
+.epChatForm {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.epChatForm input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(30, 41, 59, 0.9);
+  color: #fff;
+  font-size: 11px;
+}
+
+.epChatSendBtn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: #00a884;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.epChatSendBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.epChatReopen {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  background: rgba(15, 23, 42, 0.88);
+  color: #bfdbfe;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.epMapFab {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--app-fab-bottom, 82px) + 78px);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+
+.epMapOpenBtn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid rgba(74, 222, 128, 0.6);
+  background: linear-gradient(180deg, #16a34a, #15803d);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.5);
+  animation: epMapBtnGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes epMapBtnGlow {
+  0%, 100% { box-shadow: 0 4px 16px rgba(22, 163, 74, 0.4); }
+  50% { box-shadow: 0 4px 24px rgba(74, 222, 128, 0.65); }
+}
+
+.epBottomNav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px 10px max(8px, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.98));
+  border-top: 2px solid rgba(251, 191, 36, 0.35);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+}
+
+.epNavItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 58px;
+  padding: 4px 2px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(30, 41, 59, 0.65);
+  color: #e2e8f0;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.epNavItem:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: rgba(51, 65, 85, 0.85);
+}
+
+.epNavItem:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.epNavIcon {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.epNavItemAttack {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.75), rgba(69, 10, 10, 0.85));
+  color: #fecaca;
+}
+
+.questModal {
+  width: min(420px, 100%);
+  max-height: min(80vh, calc(100dvh - 100px));
+  overflow-y: auto;
+}
+
+.questListEmbedded {
+  padding: 12px 16px 16px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 360px) {
+  .allianceMapSidebarTitle {
+    font-size: 14px;
+  }
+
+  .allianceMapSidebar .rankTableToggle,
+  .allianceMapSidebar .sidebarPopupToggle,
+  .allianceMapRight .rankTableToggle {
+    font-size: 8px;
+    padding: 8px;
+    min-height: var(--app-touch-min, 44px);
+  }
+
+  .mapOrduCardsTab {
+    font-size: 8px;
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 520px) {
+  .castleHudLeft,
+  .castleHudRight {
+    width: min(240px, calc(100vw - 16px));
+  }
+
+  .castleBrandTitle {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+
+  .castleHudRight .rankTableScroll {
+    max-height: 180px;
+  }
+
+  .castleHudLeft .rankTableScroll {
+    max-height: 180px;
+  }
+
+  .epTopRight {
+    width: min(260px, calc(100vw - 16px));
+  }
+
+  .epChatPanel {
+    height: min(280px, 38vh);
+  }
+
+  .epMapFab {
+    bottom: calc(var(--app-fab-bottom, 82px) + 72px);
+  }
+
+  .epMapPreview {
+    width: 80px;
+    height: 56px;
+  }
+
+  .epNavItem span:last-child {
+    font-size: 8px;
+  }
+
+  .epBottomNav {
+    padding: 6px 6px;
+  }
+}
+
+/* ——— Mobil telefon: tam ekran xəritə, üzən düymələr, qara fon yox ——— */
+@media (max-width: 768px), (orientation: landscape) and (max-height: 430px) {
+  .worldAllianceMap {
+    --map-btn-size: 44px;
+    --map-btn-gap: 6px;
+    --map-dock-pad: max(8px, env(safe-area-inset-left, 0px));
+    --map-dock-pad-end: max(8px, env(safe-area-inset-right, 0px));
+    --map-dock-bottom: calc(var(--alliance-map-nav, 68px) + 8px);
+    background: transparent;
+  }
+
+  .allianceMapLayout {
+    display: block;
+    position: relative;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .allianceMapShell {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    grid-column: unset;
+    grid-row: unset;
+    z-index: 1;
+  }
+
+  .allianceMapSidebar,
+  .allianceMapRight {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: block;
+    padding: 0;
+    margin: 0;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .worldCastleHub {
+    --map-launch-size: var(--map-btn-size, 44px);
+  }
+
+  .allianceMapSidebarHead {
+    pointer-events: auto;
+    position: absolute;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    left: var(--map-dock-pad);
+    right: calc(var(--map-dock-pad-end) + var(--map-launch-size, 56px) + 10px);
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .allianceMapSidebarEyebrow {
+    display: none;
+  }
+
+  .allianceMapSidebarTitle {
+    font-size: 13px;
+    white-space: normal;
+  }
+
+  .allianceMapSidebarMeta,
+  .allianceMapSidebarLoc {
+    font-size: 10px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .allianceMapSidebar .allianceFlagPreview,
+  .allianceFlagHeadBtn .allianceFlagPreview {
+    width: 64px;
+    height: 44px;
+    border-radius: 4px;
+  }
+
+  .allianceChatDock,
+  .allianceChatStay {
+    bottom: var(--map-dock-bottom);
+    width: min(280px, calc(100vw - 124px));
+    z-index: 9;
+  }
+
+  .allianceChatDock {
+    padding: 7px 10px;
+    min-height: 40px;
+  }
+
+  .allianceChatStay {
+    height: min(200px, 32dvh);
+    min-height: 148px;
+  }
+
+  .allianceMapSidebar .mapRoundBtnRow {
+    pointer-events: auto;
+    position: absolute;
+    left: var(--map-dock-pad);
+    bottom: var(--map-dock-bottom);
+    flex-direction: column;
+    gap: var(--map-btn-gap);
+    max-width: calc(var(--map-btn-size) + 4px);
+  }
+
+  .allianceMapRight .mapRoundBtnRow {
+    pointer-events: auto;
+    position: absolute;
+    right: var(--map-dock-pad-end);
+    bottom: var(--map-dock-bottom);
+    flex-direction: column;
+    align-items: center;
+    gap: var(--map-btn-gap);
+    max-width: calc(var(--map-btn-size) + 4px);
+  }
+
+  .mapRoundBtn,
+  .mapAdXpBtn {
+    width: var(--map-btn-size);
+    min-width: var(--map-btn-size);
+    height: var(--map-btn-size);
+    min-height: var(--map-btn-size);
+    padding: 0;
+    border-radius: 999px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+  }
+
+  .mapRoundBtnLabel,
+  .mapAdXpBtn span:last-child {
+    display: none;
+  }
+
+  .mapRoundBtnIcon,
+  .mapAdXpBtn .epAdBtnIcon {
+    font-size: 18px;
+  }
+
+  .allianceMapShell .mapCountryBadge {
+    top: max(calc(env(safe-area-inset-top, 0px) + 44px), 52px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    max-width: min(calc(100vw - 120px), 280px);
+    padding: 5px 12px;
+    font-size: 10px;
+  }
+
+  .mapCountryHint {
+    display: none;
+  }
+
+  .mapSheetOverlay {
+    align-items: flex-end;
+    padding: 0;
+    padding-bottom: var(--alliance-map-nav);
+  }
+
+  .mapSheetPage {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 24px));
+    border-radius: 16px 16px 0 0;
+  }
+
+  .mapSheetBody {
+    padding: 10px 12px max(16px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .rankTableContentSheet .rankTableScroll,
+  .mapOrduCardsBodySheet {
+    max-height: min(58dvh, 420px);
+  }
+
+  .mapChatPanelSheet {
+    min-height: min(58dvh, 420px);
+  }
+
+  .mapChatPanelSheet .epChatMessages {
+    max-height: min(48dvh, 360px);
+  }
+
+  .allianceMapCanvas :global(.leaflet-popup-content-wrapper) {
+    border-radius: 12px;
+    max-width: min(200px, 52vw);
+  }
+
+  .allianceMapCanvas :global(.leaflet-popup-content) {
+    margin: 8px 10px;
+    font-size: 11px;
+  }
+
+  .allianceMapCanvas :global(.alliance-castle-pin__img) {
+    height: auto;
+  }
+
+  .allianceMapCanvas :global(.alliance-castle-pin__name) {
+    font-size: 8px;
+    max-width: 72px;
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape),
+  (orientation: landscape) and (max-height: 430px) {
+  .worldAllianceMap {
+    --map-dock-bottom: calc(var(--alliance-map-nav, 56px) + 4px);
+    --alliance-map-nav: calc(var(--app-nav-bar, 48px) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .allianceMapSidebarHead {
+    top: max(4px, env(safe-area-inset-top, 0px));
+    max-width: min(52vw, 280px);
+    padding: 0;
+  }
+
+  .allianceMapSidebar .allianceFlagPreview,
+  .allianceFlagHeadBtn .allianceFlagPreview {
+    width: 52px;
+    height: 36px;
+  }
+
+  .allianceMapSidebar .mapRoundBtnRow,
+  .allianceMapRight .mapRoundBtnRow {
+    flex-direction: row;
+    max-width: none;
+    bottom: var(--map-dock-bottom);
+  }
+
+  .allianceMapSidebar .mapRoundBtnRow {
+    left: var(--map-dock-pad);
+  }
+
+  .allianceMapRight .mapRoundBtnRow {
+    right: var(--map-dock-pad-end);
+  }
+
+  .allianceChatDock,
+  .allianceChatStay {
+    bottom: calc(var(--map-dock-bottom) + var(--map-btn-size) + 8px);
+  }
+
+  .allianceChatStay {
+    height: min(140px, 38dvh);
+    min-height: 112px;
+  }
+
+  .allianceMapShell .mapCountryBadge {
+    top: max(calc(env(safe-area-inset-top, 0px) + 36px), 40px);
+    font-size: 9px;
+    padding: 4px 10px;
+  }
+
+  .mapSheetPage {
+    max-height: min(88dvh, calc(100dvh - 8px));
+  }
+}
+
+@media (max-width: 360px) {
+  .worldAllianceMap {
+    --map-btn-gap: 5px;
+  }
+
+  .allianceMapSidebarTitle {
+    font-size: 11px;
+  }
+
+  .allianceMapSidebarHead {
+    right: calc(var(--map-dock-pad-end) + var(--map-launch-size, 44px) + 8px);
+  }
+
+  .allianceMapSidebar .allianceFlagPreview,
+  .allianceFlagHeadBtn .allianceFlagPreview {
+    width: 56px;
+    height: 38px;
+  }
+}
+
+.battleTargetInfo {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.battleAttackBtn {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f43f5e, #9f1239);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.battleAttackBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.battleJoinTimer {
+  margin-bottom: 12px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.battleJoinTimer[data-phase='locked'] {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+}
+
+.battleJoinTimer[data-phase='finished'] {
+  background: rgba(244, 63, 94, 0.14);
+  color: #fecdd3;
+}
+
+.battleJoinGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.battleJoinSide {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 8px;
+  background: rgba(2, 6, 23, 0.35);
+}
+
+.battleJoinSideHead {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.battleJoinRow,
+.battleJoinEmpty {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.battleJoinEmpty,
+.battleJoinHint {
+  color: #94a3b8;
+}
+
+.battleJoinWarn {
+  color: #fecdd3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.battleJoinHint,
+.battleJoinWarn,
+.battleReconnectNote {
+  margin: 0 0 12px;
+}
+
+.battleReconnectNote {
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.loadoutBox {
+  margin-top: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(2, 6, 23, 0.4);
+}
+
+.loadoutHead {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.loadoutHint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.loadoutGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.loadoutCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 86px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  padding: 6px 4px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.loadoutCard[data-on='1'] {
+  border-color: var(--card-accent, #f59e0b);
+  box-shadow: 0 0 0 1px var(--card-accent, #f59e0b);
+}
+
+.loadoutCard:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.loadoutCardImg {
+  width: 100%;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.loadoutCardEmoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.loadoutCardTitle {
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.loadoutCardQty {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.loadoutTeam {
+  margin-top: 12px;
+}
+
+.loadoutTeamHead {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.loadoutTeamRow {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.energyBox {
+  margin-top: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(8, 47, 73, 0.35);
+}
+
+.energyHead {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #7dd3fc;
+}
+
+.energyTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.energyFill {
+  height: 100%;
+  background: linear-gradient(90deg, #0ea5e9, #67e8f9);
+}
+
+.energyHint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.energyHand {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.energyPlayBtn {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #e0f2fe;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.energyPlayBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.turnTimer {
+  margin: 0 0 10px;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #bae6fd;
+}
+
+.turnTimer[data-expired='1'] {
+  background: rgba(244, 63, 94, 0.14);
+  color: #fecdd3;
+}
+
+.turnTimer strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.turnTimer span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.turnTimerTrack {
+  height: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.turnTimerFill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #e0f2fe);
+}
+
+.scoreBox {
+  margin-top: 10px;
+  border: 1px solid rgba(250, 204, 21, 0.28);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(69, 26, 3, 0.28);
+}
+
+.scoreHead {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.scoreGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.scoreGrid div {
+  border: 1px solid rgba(253, 230, 138, 0.16);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.scoreGrid small {
+  display: block;
+  margin-bottom: 4px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.scoreGrid strong {
+  color: #fef3c7;
+  font-size: 18px;
+}
+
+.scoreHint {
+  margin: 8px 0 0;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.scoreResult {
+  margin: 8px 0 0;
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.clickBox {
+  margin-top: 10px;
+  border: 1px solid rgba(251, 113, 133, 0.28);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(76, 5, 25, 0.28);
+}
+
+.clickHead {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fda4af;
+}
+
+.clickCard {
+  margin-bottom: 8px;
+}
+
+.clickCard p {
+  margin: 0 0 6px;
+  color: #fecdd3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.clickHint {
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+}
+
+.eventLogBox {
+  margin-top: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.eventLogHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.eventLogHead span[data-ok='1'] {
+  color: #86efac;
+}
+
+.eventLogHead span[data-ok='0'] {
+  color: #fda4af;
+}
+
+.eventLogHint,
+.eventLogEmpty {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.eventLogList {
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.eventLogRow {
+  padding: 6px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.eventLogMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.eventLogSeq {
+  color: #fde68a;
+}
+
+.eventLogType {
+  color: #e2e8f0;
+}
+
+.eventLogDetail {
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+@media (max-width: 320px) {
+  .worldAllianceMap {
+    --map-btn-gap: 4px;
+    --map-dock-bottom: calc(var(--alliance-map-nav, 52px) + 6px);
+  }
+
+  .allianceMapShell .mapCountryBadge {
+    max-width: calc(100vw - 100px);
+    font-size: 9px;
+    padding: 4px 8px;
+  }
+}
