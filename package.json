@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "dev": "next dev",
@@ -59,7 +59,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@tailwindcss/postfix": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
