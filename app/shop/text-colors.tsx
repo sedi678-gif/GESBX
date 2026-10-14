@@ -1,7 +1,17 @@
 // Shop - Text Colors
 // Cosmetic only - no gameplay impact
 
-export const TEXT_COLORS = {
+export interface TextColorOption {
+  id: string;
+  name: string;
+  hex: string;
+  description: string;
+  cosmetic: boolean;
+  affects: string[];
+  doesNotAffect: string[];
+}
+
+export const TEXT_COLORS: Record<string, TextColorOption> = {
   default: {
     id: 'default',
     name: 'Default',
@@ -76,8 +86,13 @@ export const TEXT_COLORS = {
   }
 };
 
-export const getTextColorById = (id: string) => {
-  return TEXT_COLORS[id] || TEXT_COLORS.default;
+/**
+ * ✅ FIXED: əvvəl `TEXT_COLORS[id]` indeksləməsi `Record<string, ...>` tipi olmadığı üçün
+ * TS7053 xətası verirdi (`string` ilə obyekt indekslənməsi). İndi `TEXT_COLORS`
+ * `Record<string, TextColorOption>` kimi tiplənib və axtarış təhlükəsizdir.
+ */
+export const getTextColorById = (id: string): TextColorOption => {
+  return TEXT_COLORS[id] ?? TEXT_COLORS.default;
 };
 
 export const getAllTextColors = () => {

@@ -1,10 +1,80 @@
 /**
  * PeerJS pulsuz cloud server — Vercel üçün (xüsusi host/port yoxdur).
  * peer.call(peerId, stream) / peer.on('call')
+ *
+ * DÜZƏLİŞLƏR (TypeScript):
+ *  1. `peerjs` paketi layihədə QURAŞDIRILMAYIB (`package.json`-da yoxdur) və heç bir
+ *     fayl bu modividən import etmir — köhnə `Cannot find module 'peerjs'` xətası
+ *     buradan gəlirdi. Tip yalnız `peerjs` varsa yüklənir, əks halda minimal
+ *     lokal interfeys işlədilir; beləliklə build paket quraşdırmadan keçir.
+ *  2. Geri çağırış parametrləri (`id`, `err`, `connection`, `remoteStream`)
+ *     `implicitly has an 'any' type` xətası verirdi — hamısı tiplənib.
  */
-import Peer, { MediaConnection } from 'peerjs';
 import { CallType } from './callService';
 import { isActiveVideoTrack } from './callVideoUtils';
+
+/** PeerJS `error` hadisəsinin istifadə etdiyimiz hissəsi. */
+interface PeerErrorLike {
+  type?: string;
+  message?: string;
+}
+
+/** PeerJS `MediaConnection` — yalnız istifadə etdiyimiz metodlar. */
+export interface PeerMediaConnectionLike {
+  peer: string;
+  metadata?: unknown;
+  answer(stream: MediaStream): void;
+  close(): void;
+  on(event: 'stream', handler: (stream: MediaStream) => void): void;
+  on(event: 'close', handler: () => void): void;
+  on(event: 'error', handler: (err: PeerErrorLike) => void): void;
+}
+
+/** PeerJS `Peer` — yalnız istifadə etdiyimiz sahə/metodlar. */
+interface PeerInstanceLike {
+  open: boolean;
+  destroyed: boolean;
+  call(peerId: string, stream: MediaStream, options?: { metadata?: unknown }): PeerMediaConnectionLike | undefined;
+  reconnect(): void;
+  destroy(): void;
+  on(event: 'open', handler: (id: string) => void): void;
+  on(event: 'error', handler: (err: PeerErrorLike) => void): void;
+  on(event: 'disconnected', handler: () => void): void;
+  on(event: 'close', handler: () => void): void;
+  on(event: 'call', handler: (connection: PeerMediaConnectionLike) => void): void;
+}
+
+type PeerConstructor = new (id: string) => PeerInstanceLike;
+
+/**
+ * `peerjs` quraşdırılıbsa onun real konstruktorunu, əks halda stub qaytarır.
+ * Import `await import` ilə edilir ki, paket olmadıqda build sınmasın.
+ */
+let peerCtor: PeerConstructor | null = null;
+let peerCtorPromise: Promise<PeerConstructor | null> | null = null;
+
+async function resolvePeerConstructor(): Promise<PeerConstructor | null> {
+  if (peerCtor) return peerCtor;
+  if (!peerCtorPromise) {
+    peerCtorPromise = import('peerjs')
+      .then((mod) => {
+        const candidate = (mod as { default?: unknown }).default ?? mod;
+        return typeof candidate === 'function' ? (candidate as PeerConstructor) : null;
+      })
+      .catch(() => {
+        console.warn(
+          '[PeerJS] `peerjs` paketi tapılmadı — zəng üçün `npm i peerjs` lazımdır. ' +
+          'Tətbiq Zego (zegoCallKit) ilə işləyir; bu modul ehtiyat variantdır.'
+        );
+        return null;
+      });
+  }
+  peerCtor = await peerCtorPromise;
+  return peerCtor;
+}
+
+/** Geriyə uyğunluq üçün köhnə ad. */
+export type MediaConnection = PeerMediaConnectionLike;
 
 export type PeerCallStatus = 'connecting' | 'active' | 'ended';
 
@@ -25,7 +95,7 @@ function mediaConstraints(callType: CallType): MediaStreamConstraints {
 }
 
 export class PeerCallManager {
-  private peer: Peer | null = null;
+  private peer: PeerInstanceLike | null = null;
   private userId: string | null = null;
   private localStream: MediaStream | null = null;
   private activeConnection: MediaConnection | null = null;
@@ -64,6 +134,11 @@ export class PeerCallManager {
     this.destroyPeerOnly();
     this.userId = uid;
 
+    const PeerCtor = await resolvePeerConstructor();
+    if (!PeerCtor) {
+      throw new Error('Zəng modulu hazır deyil: `peerjs` paketi quraşdırılmayıb.');
+    }
+
     await new Promise<void>((resolve, reject) => {
       let settled = false;
       const finish = (fn: () => void) => {
@@ -72,17 +147,17 @@ export class PeerCallManager {
         fn();
       };
 
-      const peer = new Peer(uid);
+      const peer = new PeerCtor(uid);
       this.peer = peer;
 
-      peer.on('open', (id) => {
+      peer.on('open', (id: string) => {
         console.log('[PeerJS] ✅ cloud open', id);
         this.onPeerOpen?.(id);
         this.onPeerConnectionChange?.(true);
         finish(() => resolve());
       });
 
-      peer.on('error', (err) => {
+      peer.on('error', (err: PeerErrorLike) => {
         console.error('[PeerJS] error', err.type, err.message);
         this.onPeerConnectionChange?.(false);
 
@@ -110,7 +185,7 @@ export class PeerCallManager {
         this.onPeerConnectionChange?.(false);
       });
 
-      peer.on('call', (connection) => {
+      peer.on('call', (connection: PeerMediaConnectionLike) => {
         const meta = connection.metadata as { callType?: CallType } | undefined;
         const callType: CallType = meta?.callType === 'video' ? 'video' : 'voice';
         console.log('[PeerJS] ◀ incoming', connection.peer, callType);
@@ -134,7 +209,7 @@ export class PeerCallManager {
           this.peer.reconnect();
         }
       } catch (err) {
-        console.warn('[PeerJS] reconnect failed', err);
+        console.warn('[PeerJS] reconnect failed', err as Error);
       }
     }, 2000);
   }
@@ -189,13 +264,13 @@ export class PeerCallManager {
   }
 
   private wireConnection(connection: MediaConnection): void {
-    connection.on('stream', (remoteStream) => {
+    connection.on('stream', (remoteStream: MediaStream) => {
       this.onRemoteStream?.(remoteStream);
       this.onRemoteVideoEnabled?.(isActiveVideoTrack(remoteStream));
       this.onStatus?.('active');
     });
     connection.on('close', () => this.onEnded?.());
-    connection.on('error', (err) => this.onError?.(err.message || 'Zəng kəsildi'));
+    connection.on('error', (err: PeerErrorLike) => this.onError?.(err.message || 'Zəng kəsildi'));
   }
 
   setMicMuted(muted: boolean): void {
