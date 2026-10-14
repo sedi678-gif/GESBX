@@ -1,6 +1,10 @@
 /**
  * Build zamanı Zego açarlarını public/zego-runtime-config.json faylına yazır.
- * .env.local, process.env və ya Firestore seed-dən oxuya bilir.
+ * .env.local və ya process.env-dən oxuyur.
+ *
+ * TƏHLÜKƏSİZLİK: bu fayl statik hostinqdən hər kəsə açıq verilir, ona görə burada
+ * YALNIZ public açarlar (appId, appSign) yazılır. `serverSecret` HEÇ VAXT bura düşməməlidir —
+ * o, token imzalama açarıdır və yalnız serverdə (server.js / Cloud Function) qalmalıdır.
  */
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -35,19 +39,25 @@ function pick(...keys) {
 
 const appIdRaw = pick('NEXT_PUBLIC_ZEGO_APP_ID', 'ZEGO_APP_ID');
 const appSign = pick('NEXT_PUBLIC_ZEGO_APP_SIGN', 'ZEGO_APP_SIGN');
-const serverSecret = pick('ZEGO_SERVER_SECRET', 'NEXT_PUBLIC_ZEGO_SERVER_SECRET');
 
+// serverSecret qəsdən oxunmur və yazılmır — klient bundle-ına düşməməlidir.
 const payload = {
   appId: appIdRaw ? Number(appIdRaw) : 0,
   appSign,
-  serverSecret: serverSecret || appSign,
 };
 
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, JSON.stringify(payload, null, 2), 'utf8');
 
-if (payload.appId > 0 && payload.serverSecret) {
-  console.log('[zego] runtime config embedded → public/zego-runtime-config.json');
+if (payload.appId > 0) {
+  console.log('[zego] public config embedded → public/zego-runtime-config.json (serverSecret daxil edilmədi)');
 } else {
-  console.warn('[zego] credentials missing — runtime will use Firestore fallback');
+  console.warn('[zego] appId yoxdur — runtime Firestore fallback işlədəcək');
+}
+
+if (pick('ZEGO_SERVER_SECRET', 'NEXT_PUBLIC_ZEGO_SERVER_SECRET')) {
+  console.warn(
+    '[zego] ⚠️  ZEGO_SERVER_SECRET .env-də var — bu düzgündür, YALNIZ serverdə qalmalıdır.\n' +
+    '        Klientə heç vaxt ötürülməsin: token imzalama serverdə edilməlidir.'
+  );
 }

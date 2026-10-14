@@ -54,20 +54,65 @@ import { runArenaRewardPayoutChecks } from '@/app/game/arena/match/reward/payout
 
 export type { BattleLeaderboardAward } from './leaderboardService';
 
-async function settleClosedWeeklyPeriod(weekKey: string): Promise<void> {
+/**
+ * Həftəlik mükafat paylanması və payout yoxlaması.
+ *
+ * ƏVVƏL: `await ... .catch(() => {})` — xəta tamamilə udulurdu, istifadəçi pulunu
+ * almırdı və heç bir iz qalmırdı. İndi xəta loglanır və nəticə qaytarılır ki, çağıran
+ * tərəf (məs. UI) istifadəçiyə məlumat verə bilsin.
+ */
+export type WeeklySettlementReport = {
+  periodId: string;
+  settlementOk: boolean;
+  payoutOk: boolean;
+  errors: string[];
+};
+
+async function settleClosedWeeklyPeriod(weekKey: string): Promise<WeeklySettlementReport> {
   const periodId = previousWeekFromKey(weekKey);
-  await settleWeeklyRankingRewards({ periodId }).catch(() => {});
-  await runArenaRewardPayoutChecks({ periodId }).catch(() => {});
+  const report: WeeklySettlementReport = {
+    periodId,
+    settlementOk: true,
+    payoutOk: true,
+    errors: [],
+  };
+
+  try {
+    await settleWeeklyRankingRewards({ periodId });
+  } catch (err) {
+    report.settlementOk = false;
+    const message = err instanceof Error ? err.message : String(err);
+    report.errors.push(`settlement: ${message}`);
+    console.error(`[Leaderboard] Həftəlik mükafat paylanmadı (${periodId}):`, err);
+  }
+
+  try {
+    await runArenaRewardPayoutChecks({ periodId });
+  } catch (err) {
+    report.payoutOk = false;
+    const message = err instanceof Error ? err.message : String(err);
+    report.errors.push(`payout: ${message}`);
+    console.error(`[Leaderboard] Payout yoxlaması alınmadı (${periodId}):`, err);
+  }
+
+  return report;
+}
+
+/** Son həftəlik hesablaşmanın nəticəsi — UI xəbərdarlıq göstərə bilsin. */
+let lastWeeklySettlement: WeeklySettlementReport | null = null;
+
+export function getLastWeeklySettlement(): WeeklySettlementReport | null {
+  return lastWeeklySettlement;
 }
 
 export async function requireLeaderboardPeriod() {
   const period = await requireLeaderboardPeriodWork();
-  await settleClosedWeeklyPeriod(period.weekKey);
+  lastWeeklySettlement = await settleClosedWeeklyPeriod(period.weekKey);
   return period;
 }
 
 export async function rollLeaderboardIfNeeded() {
   const period = await rollLeaderboardIfNeededWork();
-  await settleClosedWeeklyPeriod(period.weekKey);
+  lastWeeklySettlement = await settleClosedWeeklyPeriod(period.weekKey);
   return period;
 }

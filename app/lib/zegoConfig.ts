@@ -1,11 +1,23 @@
 'use client';
 
-/** ZegoCloud UIKit — çoxqatlı konfiqurasiya (env, JSON, Firestore, cache) */
+/**
+ * ZegoCloud UIKit — çoxqatlı konfiqurasiya (env, JSON, Firestore, cache).
+ *
+ * TƏHLÜKƏSİZLİK: serverSecret bu faylda YALNIZ serverdə işləyən yollarla alına bilər.
+ * Klientə (bundle, public/*.json, Firestore) heç vaxt secret yazılmamalıdır — o,
+ * token imzalama açarıdır. Token serverdə imzalanmalı və klientə hazır token verilməlidir.
+ */
 
 export interface ZegoRuntimeConfig {
   appId: number;
   appSign: string;
   serverSecret: string;
+}
+
+/** Klientdə icazə verilən maksimum: yalnız public açarlar. */
+export interface ZegoPublicConfig {
+  appId: number;
+  appSign: string;
 }
 
 const CACHE_KEY = 'yolustu_zego_config_v3';
@@ -19,14 +31,24 @@ function pickServerSecret(appSign: string, serverSecret?: string): string {
   return '';
 }
 
+/**
+ * Klient heç bir halda serverSecret qəbul etmir. Brauzerdə yalnız public açarlar saxlanılır;
+ * secret lazımdırsa, token serverdə imzalanıb klientə verilməlidir.
+ */
+function isServerRuntime(): boolean {
+  return typeof window === 'undefined';
+}
+
 let resolved: ZegoRuntimeConfig | null = null;
 let loadPromise: Promise<boolean> | null = null;
 let lastLoadError: string | null = null;
 
 function applyConfig(appId: number, appSign: string, serverSecret?: string): boolean {
   const sign = (appSign ?? '').trim();
-  const secret = pickServerSecret(sign, serverSecret);
-  if (!Number.isFinite(appId) || appId <= 0 || !secret) return false;
+  // Brauzerdə secret qəbul edilmir: yalnız server runtime-ında oxunur.
+  const secret = isServerRuntime() ? pickServerSecret(sign, serverSecret) : '';
+  if (!Number.isFinite(appId) || appId <= 0) return false;
+  if (isServerRuntime() && !secret) return false;
   resolved = { appId, appSign: sign, serverSecret: secret };
   if (typeof window !== 'undefined') {
     try {
@@ -69,11 +91,11 @@ async function fetchJsonConfig(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return false;
-    const data = (await res.json()) as Partial<ZegoRuntimeConfig>;
+    const data = (await res.json()) as Partial<ZegoPublicConfig>;
     const id = Number(data.appId);
     const sign = (data.appSign ?? '').trim();
-    const secret = (data.serverSecret ?? '').trim();
-    return applyConfig(id, sign, secret);
+    // public/*.json yalnız public açarları daşıyır — serverSecret qəsdən oxunmur.
+    return applyConfig(id, sign, '');
   } catch {
     return false;
   }
@@ -106,12 +128,11 @@ async function loadFromFirestore(): Promise<boolean> {
     const data = snap.data() as {
       appId?: number;
       appSign?: string;
-      serverSecret?: string;
     };
     const id = Number(data.appId);
     const sign = (data.appSign ?? '').trim();
-    const secret = (data.serverSecret ?? '').trim();
-    return applyConfig(id, sign, secret);
+    // Firestore-daki app_config yalnız public açarları saxlayır; secret ora da yazılmamalıdır.
+    return applyConfig(id, sign, '');
   } catch (err) {
     lastLoadError = err instanceof Error ? err.message : 'Firestore xətası';
     console.warn('[Zego] Firestore config:', err);
@@ -172,7 +193,10 @@ export function getZegoServerSecret(): string {
 }
 
 export function isZegoConfigured(): boolean {
-  return getZegoAppId() > 0 && getZegoServerSecret().length > 0;
+  if (getZegoAppId() <= 0) return false;
+  // Brauzerdə token serverdə imzalanır — secret tələb olunmur.
+  if (!isServerRuntime()) return true;
+  return getZegoServerSecret().length > 0;
 }
 
 export function getZegoConfigErrorMessage(): string {

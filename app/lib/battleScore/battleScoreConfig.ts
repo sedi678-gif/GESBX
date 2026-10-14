@@ -62,9 +62,22 @@ export const BATTLE_CARD_EFFECTS = Object.fromEntries(
   BATTLE_LOADOUT_POOL.map((id) => [id, officialCardEffect(id)])
 ) as Record<BattleLoadoutCardId, OfficialCardEffect>;
 
+/**
+ * Sərhəddən kənar xal.
+ *
+ * ƏVVƏL: `value > BATTLE_SCORE_MAX` olduqda funksiya səssizcə 0 qaytarırdı — matç
+ * nəticəsi səhv hesablanır, səbəb isə heç yerdə görünmürdü. İndi belə hal loglanır,
+ * ki, korrupsiya/anomaliya dərhal görünsün (dəyər geriyə uyğunluq üçün yenə 0-dır).
+ */
 export function readBoundedScore(value: unknown): number {
   if (!isSafeInt(value)) return 0;
-  if (value < BATTLE_SCORE_MIN || value > BATTLE_SCORE_MAX) return 0;
+  if (value < BATTLE_SCORE_MIN || value > BATTLE_SCORE_MAX) {
+    console.warn(
+      `[battleScore] Sərhəddən kənar xal sıfıra endirildi: ${String(value)} ` +
+      `(icazəli aralıq ${BATTLE_SCORE_MIN}–${BATTLE_SCORE_MAX})`
+    );
+    return 0;
+  }
   return value;
 }
 

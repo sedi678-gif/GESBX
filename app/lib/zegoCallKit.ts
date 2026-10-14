@@ -85,21 +85,24 @@ type InvitePayload = {
   peerAvatar?: string;
 };
 
-function generateTestKitToken(
+/**
+ * Zəng tokeni.
+ *
+ * TƏHLÜKƏSİZLİK: token YALNIZ serverdə imzalanır. Brauzerdə serverSecret saxlanılmır,
+ * ona görə bu funksiya əvvəlcə serverdən hazır token istəyir; server əlçatan deyilsə
+ * xəta atılır (sessiyaya secret yazmaq qadağandır).
+ */
+async function generateTestKitToken(
   ZegoUIKitPrebuilt: ZegoUIKitModule['ZegoUIKitPrebuilt'],
   roomID: string,
   userID: string,
   userName: string
-): string {
+): Promise<string> {
   const appID = Number(getZegoAppId());
-  const serverSecret = String(getZegoServerSecret() ?? '').trim();
   const rid = String(roomID ?? '');
   const uid = String(userID ?? '');
   if (!Number.isFinite(appID) || appID <= 0) {
     throw new Error('Zego appID etibarsızdır.');
-  }
-  if (!serverSecret) {
-    throw new Error('Zego serverSecret yüklənməyib.');
   }
   if (!rid) {
     throw new Error('Zego roomID boşdur.');
@@ -107,14 +110,85 @@ function generateTestKitToken(
   if (!uid) {
     throw new Error('Zego userID boşdur.');
   }
-  return ZegoUIKitPrebuilt.generateKitTokenForTest(
-    appID,
-    serverSecret,
-    rid,
-    uid,
-    String(userName || uid),
-    TEST_TOKEN_TTL_SEC
-  );
+
+  const fromServer = await fetchZegoTokenFromServer({ roomId: rid, userId: uid, userName: userName || uid });
+  if (fromServer) return fromServer;
+
+  // Yalnız server runtime-ında (SSR / node) secret mövcuddur — orada imzalamaq olar.
+  const serverSecret = String(getZegoServerSecret() ?? '').trim();
+  if (serverSecret && typeof window === 'undefined') {
+    return ZegoUIKitPrebuilt.generateKitTokenForTest(
+      appID,
+      serverSecret,
+      rid,
+      uid,
+      String(userName || uid),
+      TEST_TOKEN_TTL_SEC
+    );
+  }
+
+  throw new Error('Zəng tokeni alınmadı: token serverdə imzalanmalıdır.');
+}
+
+/** Serverdən hazır Zego tokeni — uğursuz olsa null. */
+async function fetchZegoTokenFromServer(input: {
+  roomId: string;
+  userId: string;
+  userName: string;
+}): Promise<string | null> {
+  const base = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SOCKET_URL?.trim() : '';
+  const origin = base || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (!origin) return null;
+  try {
+    const res = await fetch(`${origin.replace(/\/$/, '')}/api/zego/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { token?: string };
+    const token = String(data?.token ?? '').trim();
+    return token || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Token serveri işləyirmi?
+ *
+ * Bu yoxlama vacibdir: brauzerdə `serverSecret` saxlanılmadığı üçün token yalnız
+ * serverdə imzalana bilər. Server yoxdursa zəng başlamaz — istifadəçi səbəbi görsün,
+ * "sonsuz yüklənir" vəziyyətinə düşməsin.
+ */
+let tokenServiceState: boolean | null = null;
+
+async function isZegoTokenServiceAvailable(): Promise<boolean> {
+  if (tokenServiceState != null) return tokenServiceState;
+  const base = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SOCKET_URL?.trim() : '';
+  const origin = base || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (!origin) {
+    tokenServiceState = false;
+    return false;
+  }
+  try {
+    const res = await fetch(`${origin.replace(/\/$/, '')}/api/zego/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 'health_check', roomId: 'health_check' }),
+    });
+    // 400/500 də "server var" deməkdir; yalnız şəbəkə xətası/404 yox sayılır.
+    tokenServiceState = res.status !== 404 && res.status < 500 ? true : res.status === 500;
+    return tokenServiceState;
+  } catch {
+    tokenServiceState = false;
+    return false;
+  }
+}
+
+/** Server yenidən işə düşdükdən sonra yoxlamanı sıfırlamaq üçün. */
+export function resetZegoTokenServiceState(): void {
+  tokenServiceState = null;
 }
 
 function destroyPrebuilt(instance: ZegoInstance | null): void {
@@ -484,7 +558,7 @@ async function joinMediaRoom(roomId: string, callType: CallType): Promise<void> 
   }
 
   const { ZegoUIKitPrebuilt } = await loadZegoUIKit();
-  const kitToken = generateTestKitToken(
+  const kitToken = await generateTestKitToken(
     ZegoUIKitPrebuilt,
     rid,
     uid,
@@ -584,6 +658,12 @@ export async function initZegoCallKit(
     return null;
   }
 
+  // Token serverdə imzalanır — server əlçatan deyilsə zəng başlamaz.
+  if (!(await isZegoTokenServiceAvailable())) {
+    lastInitError = 'Zəng tokeni serveri əlçatmazdır. Serveri işə salın (npm run server).';
+    return null;
+  }
+
   if (tableVoiceActive) {
     activeUserId = zegoUserId;
     activeUserName = zegoName;
@@ -618,7 +698,7 @@ export async function initZegoCallKit(
       await requestCallNotificationPermission();
 
       const inviteRoomId = toZegoRoomId(zegoUserId, 'sig_');
-      const kitToken = generateTestKitToken(
+      const kitToken = await generateTestKitToken(
         ZegoUIKitPrebuilt,
         inviteRoomId,
         zegoUserId,
@@ -930,6 +1010,7 @@ export async function joinArenaVoiceRoom(input: {
 }): Promise<boolean> {
   const configured = await ensureZegoConfig();
   if (!configured) return false;
+  if (!(await isZegoTokenServiceAvailable())) return false;
   const primed = await primeCallMedia(false);
   releaseMediaStream(primed.stream);
   if (!primed.audio) return false;
@@ -961,7 +1042,7 @@ export async function joinArenaVoiceRoom(input: {
 
   try {
     const { ZegoUIKitPrebuilt } = await loadZegoUIKit();
-    const kitToken = generateTestKitToken(
+    const kitToken = await generateTestKitToken(
       ZegoUIKitPrebuilt,
       roomId,
       zegoUserId,

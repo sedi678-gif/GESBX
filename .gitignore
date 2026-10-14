@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# build-time secrets must never be committed
+/public/zego-runtime-config.json
+/.audit-backup/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
