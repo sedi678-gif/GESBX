@@ -1,4 +1,13 @@
-import type { Application } from 'pixi.js';
+/**
+ * PixiJS v7 + Pixi3D — click-raid 3D layer.
+ *
+ * ⚠️ VACİB: bu fayl Pixi **v7** (`pixi7` alias) ilə işləyir, çünki `pixi3d` yalnız v7-ni
+ * dəstəkləyir. Ona görə `pixi.js` (v8) tiplərini burada işlətmək OLMAZ — v7 və v8-in
+ * `Application`, `Ticker`, `Renderer` tipləri bir-birinə uyğun deyil və TS2739 / TS2322
+ * xətaları verir. Bütün tiplər `pixi7`-dən gəlir.
+ */
+
+import type * as PIXI7 from 'pixi7';
 
 import type { Animation, Camera, Container3D, Model } from 'pixi3d/pixi7';
 
@@ -43,11 +52,11 @@ const ISO_PITCH_DEG = 35.264;
 const ISO_YAW_DEG = 45;
 
 export class ClickRaidMapEngine {
-  private app: Application | null = null;
+  private app: PIXI7.Application | null = null;
   private pixi3d: typeof import('pixi3d/pixi7') | null = null;
   private stage3d: Container3D | null = null;
   private camera: Camera | null = null;
-  private ticker: Application['ticker'] | null = null;
+  private ticker: PIXI7.Ticker | null = null;
   private raids = new Map<string, RaidInstance>();
   private pendingCreates = new Set<string>();
   private width = 1;
