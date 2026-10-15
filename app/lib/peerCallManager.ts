@@ -3,13 +3,13 @@
  * peer.call(peerId, stream) / peer.on('call')
  *
  * DÜZƏLİŞLƏR (TypeScript):
- *  1. `peerjs` paketi layihədə QURAŞDIRILMAYIB (`package.json`-da yoxdur) və heç bir
- *     fayl bu modividən import etmir — köhnə `Cannot find module 'peerjs'` xətası
- *     buradan gəlirdi. Tip yalnız `peerjs` varsa yüklənir, əks halda minimal
- *     lokal interfeys işlədilir; beləliklə build paket quraşdırmadan keçir.
- *  2. Geri çağırış parametrləri (`id`, `err`, `connection`, `remoteStream`)
+ *  1. `peerjs` `package.json`-dan ÇIXARILMIŞDI (package-lock.json-da var idi) — buna görə
+ *     `Cannot find module 'peerjs'` xətası gəlirdi. Paket geri əlavə edildi.
+ *  2. Tip yalnız `peerjs` quraşdırılıbsa yüklənir; paket olmadıqda da build sınmır.
+ *  3. Geri çağırış parametrləri (`id`, `err`, `connection`, `remoteStream`)
  *     `implicitly has an 'any' type` xətası verirdi — hamısı tiplənib.
  */
+import type PeerDefault from 'peerjs';
 import { CallType } from './callService';
 import { isActiveVideoTrack } from './callVideoUtils';
 
@@ -47,11 +47,14 @@ interface PeerInstanceLike {
 type PeerConstructor = new (id: string) => PeerInstanceLike;
 
 /**
- * `peerjs` quraşdırılıbsa onun real konstruktorunu, əks halda stub qaytarır.
- * Import `await import` ilə edilir ki, paket olmadıqda build sınmasın.
+ * `peerjs` quraşdırılıbsa onun real konstruktorunu, əks halda `null` qaytarır.
+ * Dinamik import sayəsində paket olmadıqda da build sınmır.
  */
 let peerCtor: PeerConstructor | null = null;
 let peerCtorPromise: Promise<PeerConstructor | null> | null = null;
+
+/** Real `peerjs` tipini yoxlamaq üçün istifadə olunur (yalnız tip səviyyəsində). */
+export type PeerModuleShape = typeof PeerDefault;
 
 async function resolvePeerConstructor(): Promise<PeerConstructor | null> {
   if (peerCtor) return peerCtor;
