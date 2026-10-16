@@ -1176,6 +1176,14 @@
   perspective: 360px;
 }
 
+.allianceFlagFilterDefs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .allianceFlagPole {
   position: relative;
   width: 5px;
@@ -1240,7 +1248,6 @@
   border-radius: 0 !important;
   box-shadow: none !important;
   overflow: hidden;
-  filter: saturate(1.12) contrast(1.04);
 }
 
 .allianceFlagClothShade {
@@ -1298,6 +1305,14 @@
   .allianceFlagCloth,
   .allianceFlagClothShade {
     animation: none;
+  }
+
+  .allianceFlagFilterDefs animate {
+    display: none;
+  }
+
+  .allianceFlagClothFace {
+    filter: saturate(1.12) contrast(1.04) !important;
   }
 }
 
