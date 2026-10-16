@@ -1218,6 +1218,7 @@
   transform-style: preserve-3d;
   transform-origin: left center;
   overflow: visible;
+  animation: allianceFlagRipple 2.6s ease-in-out infinite;
 }
 
 .allianceFlagCloth[data-shape='swallowtail'] {
@@ -1232,98 +1233,70 @@
   clip-path: polygon(8% 0, 92% 0, 100% 18%, 100% 62%, 50% 100%, 0 62%, 0 18%);
 }
 
-.allianceFlagStrip {
-  position: relative;
-  flex: 1 0 0;
-  height: 120%;
-  margin-top: -10%;
-  overflow: hidden;
-  transform-origin: left center;
-  backface-visibility: hidden;
-  animation: allianceFlagRipple 2.6s ease-in-out infinite;
-  animation-delay: calc(var(--i) * -0.09s);
-  will-change: transform;
-}
-
-.allianceFlagStripFace {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  width: calc(var(--n) * 100%);
-  left: calc(var(--i) * -100%);
-}
-
-.allianceFlagStripFlag {
+.allianceFlagClothFace {
   width: 100% !important;
   height: 100% !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   overflow: hidden;
-  filter: saturate(1.18) contrast(1.06);
+  filter: saturate(1.12) contrast(1.04);
 }
 
-.allianceFlagStripShade {
+.allianceFlagClothShade {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  mix-blend-mode: overlay;
+  mix-blend-mode: soft-light;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 32%, rgba(0, 0, 0, 0.25)),
-    linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.48) 0%,
-      rgba(255, 255, 255, 0.5) 43%,
-      rgba(0, 0, 0, 0.34) 100%
-    );
-  opacity: 0.62;
-  animation: allianceFlagFold 2.6s ease-in-out infinite;
-  animation-delay: calc(var(--i) * -0.09s);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 48%, rgba(0, 0, 0, 0.12)),
+    radial-gradient(ellipse at 35% 50%, rgba(255, 255, 255, 0.18), transparent 68%);
+  background-size: 100% 100%, 180% 100%;
+  background-position: 0 0, 35% 50%;
+  background-repeat: no-repeat;
+  opacity: 0.78;
+  animation: allianceFlagLight 2.6s ease-in-out infinite;
 }
 
 @keyframes allianceFlagRipple {
   0%,
   100% {
-    transform: translateY(0) rotateY(-16deg) skewY(0.6deg) scaleY(1);
+    transform: translateY(0) rotateY(-12deg) skewY(0.4deg) scaleY(1);
   }
   22% {
-    transform: translateY(-8%) rotateY(21deg) skewY(4deg) scaleY(1.04);
+    transform: translateY(-2%) rotateY(15deg) skewY(2.2deg) scaleY(1.025);
   }
   46% {
-    transform: translateY(7%) rotateY(-18deg) skewY(-3deg) scaleY(0.97);
+    transform: translateY(2%) rotateY(-13deg) skewY(-1.8deg) scaleY(0.98);
   }
   70% {
-    transform: translateY(-5%) rotateY(14deg) skewY(2.4deg) scaleY(1.025);
+    transform: translateY(-1%) rotateY(10deg) skewY(1.5deg) scaleY(1.015);
   }
   86% {
-    transform: translateY(4%) rotateY(-10deg) skewY(-1.8deg) scaleY(0.985);
+    transform: translateY(1%) rotateY(-7deg) skewY(-1deg) scaleY(0.99);
   }
 }
 
-@keyframes allianceFlagFold {
+@keyframes allianceFlagLight {
   0%,
   100% {
-    opacity: 0.46;
-    filter: brightness(0.9);
+    background-position: 0 0, 32% 50%;
+    opacity: 0.68;
   }
-  28% {
+  50% {
+    background-position: 0 0, 68% 50%;
     opacity: 0.9;
-    filter: brightness(1.2);
   }
-  54% {
-    opacity: 0.4;
-    filter: brightness(0.82);
-  }
-  78% {
+  75% {
+    background-position: 0 0, 54% 50%;
     opacity: 0.76;
-    filter: brightness(1.1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .allianceFlagStrip,
-  .allianceFlagStripShade {
+  .allianceFlagCloth,
+  .allianceFlagClothShade {
     animation: none;
   }
 }

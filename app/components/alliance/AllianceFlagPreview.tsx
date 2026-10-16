@@ -10,8 +10,6 @@ interface AllianceFlagPreviewProps {
   wave?: boolean;
 }
 
-const WAVE_STRIPS = 16;
-
 function FlagFace({
   flag,
   sizeClass,
@@ -65,19 +63,9 @@ export default function AllianceFlagPreview({ flag, size = 'md', wave = false }:
   return (
     <div className={`${styles.allianceFlagWaveMount} ${sizeClass}`} data-shape={shape}>
       <span className={styles.allianceFlagPole} aria-hidden />
-      <div className={styles.allianceFlagCloth} data-shape={shape} style={{ '--n': WAVE_STRIPS } as React.CSSProperties}>
-        {Array.from({ length: WAVE_STRIPS }, (_, i) => (
-          <div
-            key={i}
-            className={styles.allianceFlagStrip}
-            style={{ '--i': i, '--n': WAVE_STRIPS } as React.CSSProperties}
-          >
-            <div className={styles.allianceFlagStripFace}>
-              <FlagFace flag={flag} sizeClass={sizeClass} extraClass={styles.allianceFlagStripFlag} />
-            </div>
-            <span className={styles.allianceFlagStripShade} />
-          </div>
-        ))}
+      <div className={styles.allianceFlagCloth} data-shape={shape}>
+        <FlagFace flag={flag} sizeClass={sizeClass} extraClass={styles.allianceFlagClothFace} />
+        <span className={styles.allianceFlagClothShade} aria-hidden />
       </div>
     </div>
   );
