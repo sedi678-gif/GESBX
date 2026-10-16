@@ -213,8 +213,7 @@ export default function ExplorePageClient() {
       <div className={styles.exploreGlow} aria-hidden />
       <header className={styles.exploreHeader}>
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-          <h1 className={styles.exploreTitle}>✨ {t.explore.title}</h1>
-          <p className={styles.exploreSub}>{t.explore.emptyHint}</p>
+          <h1 className={styles.exploreTitle}>GESBX</h1>
         </div>
         <button type="button" className={styles.exploreSearchBtn} onClick={() => setShowSearch(true)} aria-label={t.explore.searchTitle}>
           🔍
@@ -225,7 +224,7 @@ export default function ExplorePageClient() {
         {!current || !media ? (
           <div className={styles.emptyFeed}>
             <div className={styles.emptyFeedTitle}>{feedError || t.explore.empty}</div>
-            <p>{feedError ? 'İnternet bağlantısını yoxlayın və yenidən cəhd edin.' : t.explore.emptyHint}</p>
+            {feedError ? <p>İnternet bağlantısını yoxlayın və yenidən cəhd edin.</p> : null}
             <AppLink href="/profile" className={styles.primaryBtn} style={{ display: 'inline-block', marginTop: 16, textDecoration: 'none', width: 'auto', padding: '12px 24px' }}>
               {t.explore.goProfile}
             </AppLink>
