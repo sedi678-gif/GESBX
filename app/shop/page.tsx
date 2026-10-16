@@ -11,6 +11,7 @@
 
 'use client';
 
+import AppBottomNav from '@/app/components/AppBottomNav';
 import { PROFILE_ACCESSORIES } from './accessories';
 import { TEXT_COLORS } from './text-colors';
 import { CHAT_HISTORY_FEATURE, CHAT_MESSAGE_TYPES } from './chat-history';
@@ -102,6 +103,8 @@ const ShopPage = () => {
           </div>
         </div>
       </section>
+
+      <AppBottomNav activeTab="shop" />
     </div>
   );
 };
