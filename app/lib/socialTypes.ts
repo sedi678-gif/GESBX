@@ -21,6 +21,7 @@ export interface SocialPost {
   mediaUrl: string;
   mediaType: 'video' | 'image';
   likes: number;
+  views: number;
   commentsCount: number;
   giftCount: number;
   createdAt: number;
@@ -73,6 +74,7 @@ export interface AppUserProfile {
   frozen?: boolean;
   banned?: boolean;
   likesReceived?: number;
+  viewsReceived?: number;
 }
 
 export interface UserReport {

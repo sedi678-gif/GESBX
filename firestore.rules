@@ -2674,13 +2674,17 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'id', 'name', 'surname', 'handle', 'gender', 'birthDate', 'role', 'avatar',
           'bannerImage', 'bannerGradient', 'bio', 'allianceName', 'createdAt',
-          'likesReceived', 'banned', 'frozen', 'isModerator', 'punishedUntil',
+          'likesReceived', 'viewsReceived', 'banned', 'frozen', 'isModerator', 'punishedUntil',
           'firebaseUid', 'email', 'updatedAt', 'equippedCosmetics', 'vipTier',
           'vipExpiresAt', 'frozenAt', 'frozenBy', 'unfrozenAt', 'bannedBy',
           'punishReason', 'punishedBy', 'region', 'manat', 'coins'
         ]);
       allow update: if isSignedIn()
         && request.resource.data.id == userId
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['likesReceived'])
+            || request.resource.data.likesReceived >= resource.data.get('likesReceived', 0))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['viewsReceived'])
+            || request.resource.data.viewsReceived == resource.data.get('viewsReceived', 0) + 1)
         // Yetki sahələrini yalnız admin/server dəyişir.
         && (!request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['banned', 'frozen', 'isModerator', 'punishedUntil', 'bannedBy', 'punishedBy'])
@@ -2794,6 +2798,14 @@ service cloud.firestore {
         && request.resource.data.mediaUrl is string;
       allow update: if isSignedIn()
         && request.resource.data.userId == resource.data.userId
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['views', 'lastViewMarker'])
+            || (request.resource.data.views == resource.data.get('views', 0) + 1
+              && request.resource.data.lastViewMarker is string
+              && !exists(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker))
+              && existsAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker))
+              && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.postId == postId
+              && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.ownerId == resource.data.userId
+              && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.viewerAuthUid == request.auth.uid))
         && (!request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['likes', 'commentsCount', 'giftCount'])
             || request.resource.data.likes == resource.data.likes + 1
@@ -2805,6 +2817,22 @@ service cloud.firestore {
       allow read: if true;
       allow create, delete: if isSignedIn();
       allow update: if false;
+    }
+
+    match /post_views/{viewerAuthUid}/views/{viewId} {
+      allow read: if isSignedIn() && request.auth.uid == viewerAuthUid;
+      allow create: if isSignedIn()
+        && request.auth.uid == viewerAuthUid
+        && request.resource.data.viewerAuthUid == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.ownerId is string
+        && request.resource.data.viewerId is string
+        && request.resource.data.viewedAt is int
+        && get(/databases/$(database)/documents/posts/$(request.resource.data.postId)).data.userId
+          == request.resource.data.ownerId
+        && get(/databases/$(database)/documents/users/$(request.resource.data.viewerId)).data.id
+          == request.resource.data.viewerId;
+      allow update, delete: if false;
     }
 
     match /post_comments/{commentId} {

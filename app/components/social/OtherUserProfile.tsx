@@ -1,9 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppBottomNav from '@/app/components/AppBottomNav';
-import { listenUserPosts, listenUserLikesReceived, readCachedLikesReceived, writeCachedLikesReceived, ensureMinLikesReceived } from '@/app/lib/postsService';
+import {
+  listenUserPosts,
+  listenUserLikesReceived,
+  listenUserViewsReceived,
+  readCachedLikesReceived,
+  readCachedViewsReceived,
+  writeCachedLikesReceived,
+  writeCachedViewsReceived,
+  ensureMinLikesReceived,
+  recordPostView,
+} from '@/app/lib/postsService';
 import {
   getUserProfile,
   followUser,
@@ -46,11 +56,13 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   const [followers, setFollowers] = useState(0);
   const [following, setFollowing] = useState(0);
   const [likesReceived, setLikesReceived] = useState(0);
+  const [viewsReceived, setViewsReceived] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [followListMode, setFollowListMode] = useState<'followers' | 'following' | null>(null);
+  const postGridRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -76,6 +88,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
           readCachedLikesReceived(targetUserId)
         );
         setLikesReceived(initialLikes);
+        setViewsReceived(Math.max(Number(u.viewsReceived) || 0, readCachedViewsReceived(targetUserId)));
       }
       setLoading(false);
     })();
@@ -95,6 +108,49 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
       setLikesReceived((prev) => Math.max(prev, likes));
     });
   }, [targetUserId]);
+
+  useEffect(() => {
+    const cached = readCachedViewsReceived(targetUserId);
+    if (cached > 0) setViewsReceived(cached);
+    return listenUserViewsReceived(targetUserId, (views) => {
+      writeCachedViewsReceived(targetUserId, views);
+      setViewsReceived(views);
+    });
+  }, [targetUserId]);
+
+  useEffect(() => {
+    const grid = postGridRef.current;
+    if (
+      !grid || !myId || myId === targetUserId || myId === 'anonim_user_id' ||
+      myId === 'guest' || posts.length === 0
+    ) return;
+
+    const nodes = grid.querySelectorAll<HTMLElement>('[data-post-view-id]');
+    const trackVisiblePost = (postId: string) => {
+      void recordPostView(postId, myId, targetUserId).catch(() => undefined);
+    };
+
+    if (typeof IntersectionObserver === 'undefined') {
+      nodes.forEach((node) => {
+        if (node.dataset.postViewId) trackVisiblePost(node.dataset.postViewId);
+      });
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting || entry.intersectionRatio < 0.5) return;
+          const postId = (entry.target as HTMLElement).dataset.postViewId;
+          if (postId) trackVisiblePost(postId);
+          observer.unobserve(entry.target);
+        });
+      },
+      { threshold: [0.5] }
+    );
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [myId, posts, targetUserId]);
 
   useEffect(() => {
     const live = posts.reduce((sum, post) => sum + (Number(post.likes) || 0), 0);
@@ -196,7 +252,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
             İzlənən: <strong>{following}</strong>
           </button>
           <span>Bəyənmə: <strong>{likesReceived}</strong></span>
-          <span>Paylaşım: <strong>{posts.length}</strong></span>
+          <span>İzlənmə sayı: <strong>{viewsReceived}</strong></span>
         </div>
 
         <div className={styles.profileActionRow}>
@@ -219,9 +275,9 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
         {posts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13 }}>Paylaşım yoxdur</div>
         ) : (
-          <div className={styles.postGrid} style={{ padding: 0 }}>
+          <div ref={postGridRef} className={styles.postGrid} style={{ padding: 0 }}>
             {posts.map((post) => (
-              <div key={post.id} className={styles.postThumb}>
+              <div key={post.id} className={styles.postThumb} data-post-view-id={post.id}>
                 {post.mediaType === 'video' ? (
                   <video src={post.mediaUrl} muted />
                 ) : (

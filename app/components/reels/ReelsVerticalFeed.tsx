@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PostCommentsSheet from '@/app/components/social/PostCommentsSheet';
-import { listenUserLikedPostIds, toggleLikePost } from '@/app/lib/postsService';
+import { listenUserLikedPostIds, recordPostView, toggleLikePost } from '@/app/lib/postsService';
 import { getReelsForYou, trackReelSignal, type ForYouFeedItem } from '@/app/lib/reelsForYou';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
 import ReelsSlide, { type ReelsWatchFlush } from './ReelsSlide';
@@ -28,6 +28,8 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   const loadingMore = useRef(false);
 
   const canTrack = Boolean(userId && userId !== 'anonim_user_id' && userId !== 'guest');
+  const activeVideoId = items[activeIndex]?.videoId;
+  const activeAuthorId = items[activeIndex]?.authorId;
 
   const loadPage = useCallback(
     async (nextCursor: string | null, replace: boolean) => {
@@ -64,6 +66,11 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
     if (!canTrack) return;
     return listenUserLikedPostIds(userId, setLikedIds);
   }, [canTrack, userId]);
+
+  useEffect(() => {
+    if (!activeVideoId || !activeAuthorId || !canTrack) return;
+    void recordPostView(activeVideoId, userId, activeAuthorId).catch(() => undefined);
+  }, [activeAuthorId, activeVideoId, canTrack, userId]);
 
   useEffect(() => {
     const root = scrollerRef.current;

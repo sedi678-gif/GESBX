@@ -71,6 +71,7 @@ function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null
     mediaUrl: String(raw.mediaUrl),
     mediaType: raw.mediaType === 'video' ? 'video' : 'image',
     likes: Number(raw.likes) || 0,
+    views: Number(raw.views) || 0,
     commentsCount: Number(raw.commentsCount) || 0,
     giftCount: Number(raw.giftCount) || 0,
     createdAt,
@@ -173,6 +174,7 @@ async function createPostInternal(
     mediaUrl,
     mediaType,
     likes: 0,
+    views: 0,
     commentsCount: 0,
     giftCount: 0,
     createdAt: now,
@@ -385,6 +387,95 @@ export function listenUserLikesReceived(
     },
     () => callback(readCachedLikesReceived(userId))
   );
+}
+
+export function listenUserViewsReceived(
+  userId: string,
+  callback: (views: number) => void
+): Unsubscribe {
+  if (!userId) {
+    callback(0);
+    return () => {};
+  }
+
+  return onSnapshot(
+    doc(db, 'users', userId),
+    (snap) => {
+      const views = Number(snap.data()?.viewsReceived) || 0;
+      callback(views > 0 ? Math.floor(views) : 0);
+    },
+    () => callback(readCachedViewsReceived(userId))
+  );
+}
+
+export function viewsReceivedStorageKey(userId: string): string {
+  return `profile_views_received_${userId}`;
+}
+
+export function readCachedViewsReceived(userId: string): number {
+  if (typeof window === 'undefined' || !userId) return 0;
+  try {
+    const views = Number(localStorage.getItem(viewsReceivedStorageKey(userId)));
+    return Number.isFinite(views) && views > 0 ? Math.floor(views) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function writeCachedViewsReceived(userId: string, views: number): void {
+  if (typeof window === 'undefined' || !userId) return;
+  const count = Math.max(0, Math.floor(Number(views) || 0));
+  try {
+    localStorage.setItem(viewsReceivedStorageKey(userId), String(count));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Post baxışını gündə bir dəfə qeyd edir; ümumi profil sayğacı post silinsə də qalır. */
+export async function recordPostView(
+  postId: string,
+  viewerId: string,
+  ownerId?: string
+): Promise<boolean> {
+  if (!postId || !viewerId || viewerId === ownerId) return false;
+
+  const authUser = await ensureFirebaseAuth();
+  if (!authUser) return false;
+
+  const day = new Date().toISOString().slice(0, 10);
+  const viewId = [postId, viewerId, day].map(encodeURIComponent).join('_');
+  const viewRef = doc(db, 'post_views', authUser.uid, 'views', viewId);
+  const postRef = doc(db, 'posts', postId);
+
+  return runTransaction(db, async (tx) => {
+    const viewSnap = await tx.get(viewRef);
+    if (viewSnap.exists()) return false;
+
+    const postSnap = await tx.get(postRef);
+    if (!postSnap.exists()) return false;
+
+    const postOwnerId = String(postSnap.data()?.userId || '');
+    if (!postOwnerId || postOwnerId === viewerId || (ownerId && ownerId !== postOwnerId)) {
+      return false;
+    }
+
+    const ownerRef = doc(db, 'users', postOwnerId);
+    const ownerSnap = await tx.get(ownerRef);
+    if (!ownerSnap.exists()) return false;
+
+    const viewedAt = Date.now();
+    tx.set(viewRef, {
+      postId,
+      ownerId: postOwnerId,
+      viewerId,
+      viewerAuthUid: authUser.uid,
+      viewedAt,
+    });
+    tx.update(postRef, { views: increment(1), lastViewMarker: viewId });
+    tx.update(ownerRef, { viewsReceived: increment(1) });
+    return true;
+  });
 }
 
 /** Mövcud post bəyənmələrini profil cəminə yazır (azaltmır). */

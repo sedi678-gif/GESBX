@@ -3,7 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import AppLink from '@/app/components/AppLink';
 import AppBottomNav from '@/app/components/AppBottomNav';
-import { listenExploreFeed, toggleLikePost, listenUserLikedPostIds } from '@/app/lib/postsService';
+import {
+  listenExploreFeed,
+  toggleLikePost,
+  listenUserLikedPostIds,
+  recordPostView,
+} from '@/app/lib/postsService';
 import { reportContent, searchUsers, listenBlockedUsers } from '@/app/lib/socialService';
 import { UserFeedItem, AppUserProfile } from '@/app/lib/socialTypes';
 import { useUser } from '@/context/UserContext';
@@ -72,6 +77,18 @@ export default function ExplorePageClient() {
 
   const current = filtered[userIndex];
   const media = current?.mediaList[mediaIndex];
+  const currentUserId = current?.userId;
+  const mediaId = media?.id;
+
+  useEffect(() => {
+    if (
+      !currentUserId || !mediaId || !myId ||
+      myId === 'anonim_user_id' || myId === 'guest' ||
+      currentUserId === myId
+    ) return;
+
+    void recordPostView(mediaId, myId, currentUserId).catch(() => undefined);
+  }, [currentUserId, mediaId, myId]);
 
   const applyFilters = () => {
     const q = searchQuery.trim().toLowerCase();

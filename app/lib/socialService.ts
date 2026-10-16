@@ -80,6 +80,7 @@ export async function getUserProfile(userId: string): Promise<AppUserProfile | n
     frozen: Boolean(data.frozen),
     banned: Boolean(data.banned),
     likesReceived: Math.max(0, Math.floor(Number(data.likesReceived) || 0)),
+    viewsReceived: Math.max(0, Math.floor(Number(data.viewsReceived) || 0)),
   };
 }
 

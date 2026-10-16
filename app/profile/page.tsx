@@ -14,6 +14,9 @@ import {
   toggleLikePost,
   listenUserLikedPostIds,
   listenUserLikesReceived,
+  listenUserViewsReceived,
+  readCachedViewsReceived,
+  writeCachedViewsReceived,
   ensureMinLikesReceived,
   readCachedLikesReceived,
   writeCachedLikesReceived,
@@ -78,6 +81,7 @@ interface Stats {
   followers: number;
   following: number;
   likes: number;
+  viewsReceived: number;
   activeSeasonScore: number;
 }
 
@@ -133,6 +137,7 @@ const translations = {
     emptyFollowing: "Heç kimi izləmir.",
     gifts: "Hədiyyələr",
     likes: "Bəyənmə",
+    views: "İzlənmə sayı",
     allianceTitle: "İTTİFAQ (ALLIANCE)",
     noAllianceTitle: "Aktiv İttifaq yoxdur",
     noAllianceDesc: "Hələ heç bir ittifaqa qoşulmamısan",
@@ -194,6 +199,7 @@ const translations = {
     emptyFollowing: "Никого не отслеживает.",
     gifts: "Подарки",
     likes: "Лайки",
+    views: "Просмотры",
     allianceTitle: "АЛЬЯНС",
     noAllianceTitle: "Нет альянса",
     noAllianceDesc: "Вы не состоите в альянсе",
@@ -255,6 +261,7 @@ const translations = {
     emptyFollowing: "Not following anyone yet.",
     gifts: "Gifts",
     likes: "Likes",
+    views: "Views",
     allianceTitle: "ALLIANCE",
     noAllianceTitle: "No Alliance",
     noAllianceDesc: "No active alliance",
@@ -316,6 +323,7 @@ const translations = {
     emptyFollowing: "Kimseyi takip etmiyor.",
     gifts: "Hediyeler",
     likes: "Beğeni",
+    views: "Görüntülenme",
     allianceTitle: "İTTİFAK",
     noAllianceTitle: "Aktif ittifak yok",
     noAllianceDesc: "Henüz bir ittifaka katılmadın",
@@ -387,7 +395,7 @@ function ProfilePageContent() {
   const { language: settingsLang, setLanguage: setSettingsLang } = useSettings();
   const language = settingsLang;
   const t = translations[language] ?? translations.az;
-  const [stats, setStats] = useState<Stats>({ followers: 0, following: 0, likes: 0, activeSeasonScore: 0 });
+  const [stats, setStats] = useState<Stats>({ followers: 0, following: 0, likes: 0, viewsReceived: 0, activeSeasonScore: 0 });
   const [followListMode, setFollowListMode] = useState<'followers' | 'following' | null>(null);
 
   const [currentUser, setCurrentUser] = useState(DEFAULT_PROFILE_USER);
@@ -443,6 +451,18 @@ function ProfilePageContent() {
     return listenUserLikesReceived(currentUser.id, (likes) => {
       writeCachedLikesReceived(currentUser.id, likes);
       setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, likes) }));
+    });
+  }, [currentUser.id, isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    const cached = readCachedViewsReceived(currentUser.id);
+    if (cached > 0) {
+      setStats((prev) => ({ ...prev, viewsReceived: cached }));
+    }
+    return listenUserViewsReceived(currentUser.id, (viewsReceived) => {
+      writeCachedViewsReceived(currentUser.id, viewsReceived);
+      setStats((prev) => ({ ...prev, viewsReceived }));
     });
   }, [currentUser.id, isRegistered]);
 
@@ -577,6 +597,7 @@ function ProfilePageContent() {
         allianceName: savedAlliance,
         createdAt: Date.now(),
         likesReceived: 0,
+        viewsReceived: 0,
       };
 
       await setDoc(doc(db, "users", generatedId), newUser);
@@ -617,6 +638,7 @@ function ProfilePageContent() {
         allianceName: savedAlliance,
         createdAt: Date.now(),
         likesReceived: 0,
+        viewsReceived: 0,
       };
 
       localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
@@ -710,7 +732,7 @@ function ProfilePageContent() {
           mediaUrl: p.mediaUrl,
           thumbnail: p.mediaUrl,
           mediaType: p.mediaType,
-          views: 0,
+          views: p.views,
           likes: p.likes,
           isLiked: likedPostIdsRef.current.has(p.id),
           isSaved: false,
@@ -1175,8 +1197,8 @@ function ProfilePageContent() {
             <span className={profileStyles.statPillLabel}>{t.likes}</span>
           </div>
           <div className={profileStyles.statPill}>
-            <span className={profileStyles.statPillValue}>{posts.length}</span>
-            <span className={profileStyles.statPillLabel}>Paylaşım</span>
+            <span className={profileStyles.statPillValue}>{stats.viewsReceived}</span>
+            <span className={profileStyles.statPillLabel}>{t.views}</span>
           </div>
         </div>
       </ProfileHeroDisplay>
