@@ -1171,17 +1171,33 @@
   align-items: stretch;
   flex-shrink: 0;
   transform-origin: left center;
-  filter: drop-shadow(6px 10px 12px rgba(0, 0, 0, 0.55));
-  perspective: 420px;
+  transform-style: preserve-3d;
+  filter: drop-shadow(5px 8px 8px rgba(0, 0, 0, 0.42));
+  perspective: 360px;
 }
 
 .allianceFlagPole {
+  position: relative;
   width: 5px;
   flex-shrink: 0;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #f4f4f5 0%, #a8a29e 38%, #57534e 100%);
-  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.45), inset -1px 0 1px rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+  background: linear-gradient(90deg, #57534e 0%, #d6d3d1 28%, #fafaf9 48%, #a8a29e 72%, #44403c 100%);
+  box-shadow: 1px 0 3px rgba(0, 0, 0, 0.48), inset 1px 0 1px rgba(255, 255, 255, 0.55);
   z-index: 3;
+}
+
+.allianceFlagPole::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -5px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle at 32% 28%, #fff7cc 0 12%, #fbbf24 38%, #b45309 82%);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5), inset -1px -1px 2px rgba(120, 53, 15, 0.55);
 }
 
 .allianceFlagPreviewSm.allianceFlagWaveMount .allianceFlagPole,
@@ -1219,11 +1235,12 @@
 .allianceFlagStrip {
   position: relative;
   flex: 1 0 0;
-  height: 118%;
-  margin-top: -4%;
+  height: 120%;
+  margin-top: -10%;
   overflow: hidden;
   transform-origin: left center;
-  animation: allianceFlagRipple 2.35s ease-in-out infinite;
+  backface-visibility: hidden;
+  animation: allianceFlagRipple 2.6s ease-in-out infinite;
   animation-delay: calc(var(--i) * -0.09s);
   will-change: transform;
 }
@@ -1243,6 +1260,7 @@
   border-radius: 0 !important;
   box-shadow: none !important;
   overflow: hidden;
+  filter: saturate(1.18) contrast(1.06);
 }
 
 .allianceFlagStripShade {
@@ -1251,53 +1269,55 @@
   pointer-events: none;
   z-index: 2;
   mix-blend-mode: overlay;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.42) 0%,
-    rgba(255, 255, 255, 0.38) 42%,
-    rgba(0, 0, 0, 0.28) 100%
-  );
-  opacity: 0.72;
-  animation: allianceFlagFold 2.35s ease-in-out infinite;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 32%, rgba(0, 0, 0, 0.25)),
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.48) 0%,
+      rgba(255, 255, 255, 0.5) 43%,
+      rgba(0, 0, 0, 0.34) 100%
+    );
+  opacity: 0.62;
+  animation: allianceFlagFold 2.6s ease-in-out infinite;
   animation-delay: calc(var(--i) * -0.09s);
 }
 
 @keyframes allianceFlagRipple {
   0%,
   100% {
-    transform: translateY(0) rotateY(-11deg) skewY(0.4deg) scaleY(1);
+    transform: translateY(0) rotateY(-16deg) skewY(0.6deg) scaleY(1);
   }
-  20% {
-    transform: translateY(-11%) rotateY(10deg) skewY(3.2deg) scaleY(1.045);
+  22% {
+    transform: translateY(-8%) rotateY(21deg) skewY(4deg) scaleY(1.04);
   }
-  42% {
-    transform: translateY(6%) rotateY(-7deg) skewY(-2.4deg) scaleY(0.965);
+  46% {
+    transform: translateY(7%) rotateY(-18deg) skewY(-3deg) scaleY(0.97);
   }
-  64% {
-    transform: translateY(-7%) rotateY(8deg) skewY(2.1deg) scaleY(1.025);
+  70% {
+    transform: translateY(-5%) rotateY(14deg) skewY(2.4deg) scaleY(1.025);
   }
-  82% {
-    transform: translateY(4%) rotateY(-5deg) skewY(-1.4deg) scaleY(0.98);
+  86% {
+    transform: translateY(4%) rotateY(-10deg) skewY(-1.8deg) scaleY(0.985);
   }
 }
 
 @keyframes allianceFlagFold {
   0%,
   100% {
-    opacity: 0.45;
-    filter: brightness(0.92);
+    opacity: 0.46;
+    filter: brightness(0.9);
   }
-  25% {
-    opacity: 0.85;
-    filter: brightness(1.18);
+  28% {
+    opacity: 0.9;
+    filter: brightness(1.2);
   }
-  50% {
-    opacity: 0.38;
+  54% {
+    opacity: 0.4;
     filter: brightness(0.82);
   }
-  75% {
-    opacity: 0.7;
-    filter: brightness(1.08);
+  78% {
+    opacity: 0.76;
+    filter: brightness(1.1);
   }
 }
 
