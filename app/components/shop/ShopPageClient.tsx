@@ -1,37 +1,85 @@
-"use client";
+'use client';
 
+import { useState } from 'react';
 import AppBottomNav from '@/app/components/AppBottomNav';
-import { useAppStrings } from '@/app/lib/useAppStrings';
-import styles from './shop.module.css';
+import AppLink from '@/app/components/AppLink';
+import VipShopPanel from '@/app/components/shop/VipShopPanel';
+import { useUser } from '@/context/UserContext';
+import styles from './shopPage.module.css';
 
 export default function ShopPageClient() {
-  const t = useAppStrings();
-  const sections = [
-    { id: 'frames', title: t.shop.frames, hint: t.shop.framesHint, tone: styles.toneFrames },
-    { id: 'vip', title: t.shop.vip, hint: t.shop.vipHint, tone: styles.toneVip },
-    { id: 'vip-plus', title: t.shop.vipPlus, hint: t.shop.vipPlusHint, tone: styles.toneVipPlus },
-  ] as const;
+  const { userId, manat, manatReady, playerProfile, applyManatDelta } = useUser();
+  const [notice, setNotice] = useState<string | null>(null);
+  const canUseShop = Boolean(userId && userId !== 'anonim_user_id');
 
   return (
-    <div className={styles.shopWorld}>
-      <header className={styles.shopBar}>
-        <p className={styles.eyebrow}>{t.shop.eyebrow}</p>
-        <h1 className={styles.shopTitle}>{t.shop.title}</h1>
-      </header>
+    <div className={styles.page}>
+      <main className={styles.main}>
+        <header className={styles.hero}>
+          <div className={styles.heroCopy}>
+            <p className={styles.eyebrow}>YOLÜSTÜ · MAĞAZA</p>
+            <h1 className={styles.title}>Öz üslubunu yarat</h1>
+            <p className={styles.intro}>
+              Profil çərçivələri, bannerlər, nişanlar və VIP görünüşləri seç. Alışlar hesabındakı manat balansından çıxılır.
+            </p>
+          </div>
 
-      <div className={styles.shopContent}>
-        {sections.map((section) => (
-          <section key={section.id} className={`${styles.frame} ${section.tone}`} aria-labelledby={`${section.id}-title`}>
-            <div className={styles.frameHead}>
-              <h2 id={`${section.id}-title`} className={styles.frameTitle}>
-                {section.title}
-              </h2>
-              <p className={styles.frameHint}>{section.hint}</p>
+          <aside className={styles.wallet} aria-label="Manat balansı">
+            <span className={styles.walletIcon} aria-hidden="true">₼</span>
+            <div className={styles.walletCopy}>
+              <span className={styles.walletLabel}>Balansın</span>
+              <strong className={styles.walletAmount}>
+                {manatReady ? `₼ ${manat.toLocaleString('az-AZ')}` : 'Yüklənir…'}
+              </strong>
+              <span className={styles.walletHint}>Qiymətlər manatladır</span>
             </div>
-            <div className={styles.frameBody} />
-          </section>
-        ))}
-      </div>
+          </aside>
+        </header>
+
+        {notice && (
+          <div className={styles.notice} role="status" aria-live="polite">
+            <span>{notice}</span>
+            <button
+              type="button"
+              className={styles.noticeClose}
+              aria-label="Bildirişi bağla"
+              onClick={() => setNotice(null)}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        <section className={styles.store} aria-labelledby="shop-cosmetics-title">
+          <div className={styles.sectionHeading}>
+            <div>
+              <p className={styles.sectionEyebrow}>MAĞAZA KATALOQU</p>
+              <h2 id="shop-cosmetics-title" className={styles.sectionTitle}>VIP və profil kosmetikası</h2>
+            </div>
+            <p className={styles.sectionDescription}>
+              Məhsulları kateqoriyaya görə seç, manatla al və sahib olduqlarını profilində geyin.
+            </p>
+          </div>
+
+          {!manatReady ? (
+            <div className={styles.loading} role="status">Balans və məhsullar yüklənir…</div>
+          ) : !canUseShop ? (
+            <div className={styles.loginCard}>
+              <p>Alış etmək və məhsulları saxlamaq üçün hesabına daxil ol.</p>
+              <AppLink href="/login" className={styles.loginLink}>Daxil ol</AppLink>
+            </div>
+          ) : (
+            <VipShopPanel
+              userId={userId}
+              manat={manat}
+              cosmetics={playerProfile?.cosmetics}
+              onNotify={setNotice}
+              onSpend={(amount) => applyManatDelta(-amount)}
+              onRefund={(amount) => applyManatDelta(amount)}
+            />
+          )}
+        </section>
+      </main>
 
       <AppBottomNav activeTab="shop" />
     </div>
