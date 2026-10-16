@@ -660,9 +660,9 @@ function ProfilePageContent() {
   const [showAllianceModal, setShowAllianceModal] = useState(false);
   const [showRankModal, setShowRankModal] = useState(false);
   const [showGiftsModal, setShowGiftsModal] = useState(false);
-  const [socialNotice, setSocialNotice] = useState<string | null>(null);
-  const [socialToggling, setSocialToggling] = useState(false);
-  const [socialOn, setSocialOn] = useState(false);
+  const [xpModeNotice, setXpModeNotice] = useState<string | null>(null);
+  const [xpModeToggling, setXpModeToggling] = useState(false);
+  const [xpModeOn, setXpModeOn] = useState(true);
   const [discoverBoostUntil, setDiscoverBoostUntil] = useState(0);
   const [boostNow, setBoostNow] = useState(() => Date.now());
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -679,13 +679,13 @@ function ProfilePageContent() {
   }, [discoverBoostUntil]);
 
   useEffect(() => {
-    if (!socialNotice) return;
-    const timer = window.setTimeout(() => setSocialNotice(null), 2400);
+    if (!xpModeNotice) return;
+    const timer = window.setTimeout(() => setXpModeNotice(null), 2400);
     return () => window.clearTimeout(timer);
-  }, [socialNotice]);
+  }, [xpModeNotice]);
 
   useEffect(() => {
-    setSocialOn(playerProfile?.proPanelActive === true);
+    setXpModeOn(playerProfile?.proPanelActive !== true);
   }, [playerProfile?.proPanelActive]);
   const [newCommentText, setNewCommentText] = useState('');
   const [viewerComments, setViewerComments] = useState<PostComment[]>([]);
@@ -1138,38 +1138,38 @@ function ProfilePageContent() {
         onEditAvatar={() => avatarInputRef.current?.click()}
         onEditBanner={() => bannerInputRef.current?.click()}
         bannerActions={
-          <div className={profileStyles.socialModeControl}>
+          <div className={profileStyles.xpModeControl}>
             <button
               type="button"
-              className={`${profileStyles.socialModeBtn} ${socialOn ? profileStyles.socialModeBtnOn : profileStyles.socialModeBtnOff}`}
-              aria-pressed={socialOn}
-              disabled={socialToggling || !userId}
-              aria-label={socialOn ? 'Sosial rejim açıq' : 'Sosial rejim bağlı'}
+              className={`${profileStyles.xpModeBtn} ${xpModeOn ? profileStyles.xpModeBtnOn : profileStyles.xpModeBtnOff}`}
+              aria-pressed={xpModeOn}
+              disabled={xpModeToggling || !userId}
+              aria-label={xpModeOn ? 'XP rejimi aktivdir' : 'XP rejimi sönülüdür'}
               onClick={() => {
-                if (!userId || socialToggling) return;
-                const next = !socialOn;
-                setSocialOn(next);
-                setSocialToggling(true);
-                setSocialNotice(next ? 'XP rejimini söndürdünüz' : 'XP rejimini yandırdınız');
-                void setProPanelActive(userId, next)
+                if (!userId || xpModeToggling) return;
+                const next = !xpModeOn;
+                setXpModeOn(next);
+                setXpModeToggling(true);
+                setXpModeNotice(next ? 'XP rejimi aktivləşdirildi' : 'XP rejimini söndürdünüz');
+                void setProPanelActive(userId, !next)
                   .catch((err) => {
-                    setSocialOn(!next);
-                    setSocialNotice(null);
-                    alert(err instanceof Error ? err.message : 'Sosial rejim dəyişmədi');
+                    setXpModeOn(!next);
+                    setXpModeNotice(null);
+                    alert(err instanceof Error ? err.message : 'XP rejimi dəyişmədi');
                   })
-                  .finally(() => setSocialToggling(false));
+                  .finally(() => setXpModeToggling(false));
               }}
             >
-              <svg className={profileStyles.socialModeIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg className={profileStyles.xpModeIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
             </button>
-            {socialNotice ? (
-              <p className={`${profileStyles.socialModeHint} text-[11px]`} role="status" aria-live="polite">
-                {socialNotice}
+            {xpModeNotice ? (
+              <p className={`${profileStyles.xpModeHint} text-[11px]`} role="status" aria-live="polite">
+                {xpModeNotice}
               </p>
             ) : null}
           </div>
