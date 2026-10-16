@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Gift, ShieldCheck, Trophy } from 'lucide-react';
 import AllianceProfileCard from '@/app/components/alliance/AllianceProfileCard';
 import { useUser } from '@/context/UserContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -1084,15 +1085,8 @@ function ProfilePageContent() {
               </span>
             ) : null}
           </div>
-          <div>
-            <p className={profileStyles.profileEyebrow}>Hesabım</p>
-            <h1 className={profileStyles.profileTopTitle}>Profil</h1>
-          </div>
         </div>
         <div className={profileStyles.profileTopActions}>
-          <AppLink href="/shop" className={profileStyles.shopLinkBtn}>
-            Mağaza
-          </AppLink>
           <button
             type="button"
             className={profileStyles.walletPill}
@@ -1215,16 +1209,16 @@ function ProfilePageContent() {
 
       <div className={profileStyles.profileQuickRow}>
         <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickAlliance}`} onClick={() => setShowAllianceModal(true)}>
-          <span className={profileStyles.actionIcon}>🛡️</span>
-          İttifaq
+          <span className={profileStyles.actionIcon} aria-hidden="true"><ShieldCheck size={21} strokeWidth={2.2} /></span>
+          <span className={profileStyles.actionLabel}>İttifaq</span>
         </button>
         <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickRank}`} onClick={() => setShowRankModal(true)}>
-          <span className={profileStyles.actionIcon}>🏆</span>
-          Reytinq
+          <span className={profileStyles.actionIcon} aria-hidden="true"><Trophy size={21} strokeWidth={2.2} /></span>
+          <span className={profileStyles.actionLabel}>Reytinq</span>
         </button>
         <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickGifts}`} onClick={() => setShowGiftsModal(true)}>
-          <span className={profileStyles.actionIcon}>🎁</span>
-          Hədiyyələr
+          <span className={profileStyles.actionIcon} aria-hidden="true"><Gift size={21} strokeWidth={2.2} /></span>
+          <span className={profileStyles.actionLabel}>Hədiyyələr</span>
         </button>
       </div>
 
