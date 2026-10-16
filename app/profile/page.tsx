@@ -1095,7 +1095,7 @@ function ProfilePageContent() {
               onReward={async () => {
                 try {
                   await activateDiscoverBoost(currentUser.id);
-                  setSocialNotice('Videoların və şəkillərin 2 dəqiqə kəşfdə öndədir');
+                  setXpModeNotice('Videoların və şəkillərin 2 dəqiqə kəşfdə öndədir');
                 } catch (err) {
                   alert(err instanceof Error ? err.message : 'Kəşf boostu alınmadı');
                 }
