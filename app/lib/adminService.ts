@@ -14,6 +14,7 @@ import {
 import { db } from '@/firebase';
 import { ensureFirebaseAuth } from '@/app/lib/firebaseAuth';
 import { callSecureFunction } from '@/app/lib/secureFunctions';
+import { resolvePlayerManat } from '@/app/lib/manat';
 import { SUPER_ADMIN_ID } from './adminConfig';
 
 export interface AdminConfigDoc {

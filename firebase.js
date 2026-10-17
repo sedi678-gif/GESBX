@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getId } from "firebase/installations";
+import { getId, getInstallations } from "firebase/installations";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { signInAnonymously } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
@@ -66,7 +66,7 @@ if (typeof window !== 'undefined') {
           let current = auth.currentUser;
           if (!current) current = (await signInAnonymously(auth)).user;
           const challenge = randomChallenge();
-          const installationId = await getId(app);
+          const installationId = await getId(getInstallations(app));
           const requestHash = await sha256Base64Url(`${current.uid}|app-check|${challenge}|${installationId}`);
           const integrityToken = await requestPlayIntegrityToken(requestHash);
           const idToken = await current.getIdToken();

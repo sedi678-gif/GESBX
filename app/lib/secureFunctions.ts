@@ -1,5 +1,5 @@
 import { httpsCallable } from 'firebase/functions';
-import { getId } from 'firebase/installations';
+import { getId, getInstallations } from 'firebase/installations';
 import { Capacitor } from '@capacitor/core';
 import { app, auth, functions, requestPlayIntegrityToken } from '@/firebase';
 import { requireFirebaseAuth } from './firebaseAuth';
@@ -72,5 +72,5 @@ export function createSecureOperationId(): string {
 }
 
 export function getFirebaseInstallationId(): Promise<string> {
-  return getId(app);
+  return getId(getInstallations(app));
 }
