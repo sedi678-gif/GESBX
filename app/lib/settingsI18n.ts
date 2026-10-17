@@ -70,6 +70,24 @@ type SettingsStrings = {
   adminDeleteBlocked: string;
   bannedOverlayTitle: string;
   bannedOverlayText: string;
+  referral: string;
+  referralSubtitle: string;
+  referralCode: string;
+  referralCodeCopy: string;
+  referralCodeCopied: string;
+  referralShare: string;
+  referralEarned: string;
+  referralEarnings: string;
+  referralActive: string;
+  referralPending: string;
+  referralXpThreshold: string;
+  referralReferrals: string;
+  referralNoReferrals: string;
+  referralActivateBtn: string;
+  referralEarnFrom: string;
+  referralOnlyActive: string;
+  referralApplyPlaceholder: string;
+  referralApplyBtn: string;
 };
 
 export const SETTINGS_I18N: Record<AppLanguage, SettingsStrings> = {

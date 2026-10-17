@@ -18,6 +18,7 @@ import {
   unfreezeOwnAccount,
 } from '@/app/lib/accountLifecycleService';
 import StudioSnapshot from '@/app/components/dashboard/StudioSnapshot';
+import ReferralSection from './ReferralSection';
 import styles from '../social/social.module.css';
 
 function Toggle({
@@ -67,6 +68,7 @@ export default function SettingsPageClient() {
       setFrozen(status.frozen);
     });
   }, [canManageAccount, userId]);
+
 
   const closeConfirm = () => {
     if (accountBusy) return;
@@ -338,6 +340,8 @@ export default function SettingsPageClient() {
             {t.savePass}
           </button>
         </section>
+
+        <ReferralSection />
 
         <section className={styles.settingsSection}>
           <h2>🚫 {t.blocked}</h2>
