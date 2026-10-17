@@ -49,7 +49,7 @@ import ProfilePhotoEditorModal from '@/app/components/profile/ProfilePhotoEditor
 import { ProfileCropKind } from '@/app/lib/profileImageCrop';
 import socialStyles from '@/app/components/social/social.module.css';
 import profileStyles from '@/app/components/profile/profile.module.css';
-import { doc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
 import { setProPanelActive } from '@/app/lib/userPlan';
 import { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
@@ -420,7 +420,55 @@ function ProfilePageContent() {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const mediaSyncPausedRef = useRef(false);
 
+  const restoreExistingProfile = async () => {
+    try {
+      const firebaseUser = await ensureFirebaseAuth();
+      if (!firebaseUser || firebaseUser.isAnonymous) return;
+
+      // Look for an existing player profile linked to this Firebase UID
+      const playersRef = collection(db, 'players');
+      const q = query(playersRef, where('firebaseUid', '==', firebaseUser.uid));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        const data = docSnap.data() as Record<string, unknown>;
+        const playerId = docSnap.id;
+
+        const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
+
+        const restoredUser = {
+          id: playerId,
+          firebaseUid: firebaseUser.uid,
+          name: (data.name || data.displayName || '') as string,
+          surname: (data.surname || '') as string,
+          handle: (data.handle || '') as string,
+          gender: (data.gender || 'Kişi') as string,
+          birthDate: (data.birthDate || '') as string,
+          avatar: (data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80') as string,
+          bannerImage: (data.bannerImage || '') as string,
+          bannerGradient: (data.bannerGradient || 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 45%, #06b6d4 100%)') as string,
+          bio: (data.bio || 'Yeni başlayançı 🚀') as string,
+          allianceName: (savedAlliance || (data.allianceName || '') as string) as string,
+          role: (data.role || 'user') as string,
+          createdAt: (data.createdAt || Date.now()) as number,
+        };
+
+        setCurrentUser(restoredUser);
+        setIsRegistered(true);
+        localStorage.setItem('app_current_user_v6', JSON.stringify(restoredUser));
+        notifyUserIdChanged();
+      }
+    } catch (err) {
+      console.error('Profil bərpası xətası:', err);
+    }
+  };
+
   useEffect(() => {
+    if (viewUserId) {
+      setProfileBooting(false);
+      return;
+    }
     const stored = readStoredProfile();
     if (stored) {
       setCurrentUser(stored);
@@ -428,13 +476,10 @@ function ProfilePageContent() {
       localStorage.setItem('app_current_user_v6', JSON.stringify(stored));
       notifyUserIdChanged();
     } else {
-      const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
-      if (savedAlliance) {
-        setCurrentUser((prev) => ({ ...prev, allianceName: savedAlliance }));
-      }
+      void restoreExistingProfile();
     }
     setProfileBooting(false);
-  }, []);
+  }, [viewUserId]);
 
   useEffect(() => {
     if (isRegistered) void ensureFirebaseAuth();
