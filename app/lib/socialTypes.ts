@@ -20,6 +20,7 @@ export interface SocialPost {
   title: string;
   mediaUrl: string;
   mediaType: 'video' | 'image';
+  durationSeconds?: number;
   likes: number;
   views: number;
   commentsCount: number;

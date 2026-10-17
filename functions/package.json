@@ -1,0 +1,17 @@
+{
+  "name": "gesbx-functions",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "lint": "node --check index.js && node --check src/security.js && node --check src/economy.js && node --check src/reels.js && node --check src/referrals.js && node --check src/withdrawals.js && node --check src/appCheck.js && node --check src/identity.js && node --check src/admin.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0",
+    "firebase-functions": "^6.4.0",
+    "google-auth-library": "^10.0.0",
+    "zod": "^4.4.3"
+  }
+}

@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Capacitor resolves native plugins by annotation/reflection.
+-keep class com.example.app.PlayIntegrityPlugin { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }

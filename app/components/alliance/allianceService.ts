@@ -13,14 +13,12 @@ import { getRegionCoords } from './regionCoords';
 import {
   AllianceData,
   AllianceFlagConfig,
-  BattleCardId,
   BattleCardsMap,
   PlayerProfile,
   EMPTY_PLAYER_COSMETICS,
 } from './types';
 import { DEFAULT_ALLIANCE_FLAG, normalizeAllianceFlag } from './allianceFlagConfig';
 import {
-  ALL_CARD_IDS,
   BATTLE_CARDS_SCHEMA_VERSION,
   EMPTY_BATTLE_CARDS,
   normalizeBattleCards,
@@ -29,112 +27,15 @@ import { isAllianceLeader, type LeaderCheckOptions } from './allianceLeader';
 import { DEFAULT_MANAT, resolvePlayerManat, readStoredManat, manatWritePatch } from '@/app/lib/manat';
 import { DEFAULT_USER_PLAN_STATE, normalizeUserPlanState } from '@/app/lib/userPlan';
 import { withTimeout } from '@/app/lib/firebaseAuth';
-
-function mergeBattleCards(a?: BattleCardsMap, b?: BattleCardsMap): BattleCardsMap {
-  const merged = { ...EMPTY_BATTLE_CARDS };
-  const normA = normalizeBattleCards(a);
-  const normB = normalizeBattleCards(b);
-  for (const id of ALL_CARD_IDS) {
-    merged[id] = Math.max(normA[id] ?? 0, normB[id] ?? 0);
-  }
-  return merged;
-}
+import { callSecureFunction } from '@/app/lib/secureFunctions';
 
 /** Firebase UID ilə yaradılmış köhnə profili lokal profil ID ilə birləşdirir */
 export async function reconcilePlayerIdentity(
   canonicalUserId: string,
-  legacyUserId: string,
-  displayName: string
+  _legacyUserId: string,
+  _displayName: string
 ): Promise<void> {
-  if (!legacyUserId || legacyUserId === canonicalUserId) return;
-
-  const canonicalRef = doc(db, 'players', canonicalUserId);
-  const legacyRef = doc(db, 'players', legacyUserId);
-
-  const [canonicalSnap, legacySnap] = await Promise.all([
-    getDoc(canonicalRef),
-    getDoc(legacyRef),
-  ]);
-
-  const canonical = canonicalSnap.exists() ? (canonicalSnap.data() as PlayerProfile) : null;
-  const legacy = legacySnap.exists() ? (legacySnap.data() as PlayerProfile) : null;
-
-  if (!legacy && !canonical) return;
-
-  const allianceId = canonical?.allianceId ?? legacy?.allianceId ?? null;
-  const allianceName = canonical?.allianceName ?? legacy?.allianceName ?? null;
-  const canonicalManat = canonicalSnap.exists()
-    ? readStoredManat(canonical as unknown as Record<string, unknown>)
-    : null;
-  const legacyManat = legacySnap.exists()
-    ? readStoredManat(legacy as unknown as Record<string, unknown>)
-    : null;
-
-  let mergedManat = 0;
-  if (canonicalManat != null && legacyManat != null) {
-    mergedManat = Math.min(canonicalManat, legacyManat);
-  } else if (canonicalManat != null) {
-    mergedManat = canonicalManat;
-  } else if (legacyManat != null) {
-    mergedManat = legacyManat;
-  }
-  const mergedCards = mergeBattleCards(canonical?.battleCards, legacy?.battleCards);
-
-  await setDoc(
-    canonicalRef,
-    {
-      odId: canonicalUserId,
-      displayName: canonical?.displayName || legacy?.displayName || displayName,
-      allianceId,
-      allianceName,
-      isLeader: !!(canonical?.isLeader || legacy?.isLeader),
-      ...manatWritePatch(mergedManat),
-      battleCards: mergedCards,
-      activeShields: canonical?.activeShields?.length
-        ? canonical.activeShields
-        : legacy?.activeShields ?? [],
-      cosmetics: canonical?.cosmetics ?? legacy?.cosmetics ?? { ...EMPTY_PLAYER_COSMETICS },
-      battleCardsVersion: BATTLE_CARDS_SCHEMA_VERSION,
-      updatedAt: Date.now(),
-    },
-    { merge: true }
-  );
-
-  if (allianceId) {
-    const allianceRef = doc(db, 'alliances', allianceId);
-    const allianceSnap = await getDoc(allianceRef);
-    if (allianceSnap.exists()) {
-      const alliance = { id: allianceSnap.id, ...allianceSnap.data() } as AllianceData;
-      let members = [...(alliance.members ?? [])];
-      const hadLegacy = members.includes(legacyUserId);
-      const hasCanonical = members.includes(canonicalUserId);
-
-      if (hadLegacy && !hasCanonical) {
-        members = members.map((m) => (m === legacyUserId ? canonicalUserId : m));
-      } else if (!hadLegacy && !hasCanonical) {
-        members.push(canonicalUserId);
-      } else if (hadLegacy && hasCanonical) {
-        members = members.filter((m) => m !== legacyUserId);
-      }
-
-      const leaderId = alliance.leaderId === legacyUserId ? canonicalUserId : alliance.leaderId;
-      await updateDoc(allianceRef, { members, leaderId });
-    }
-  }
-
-  if (legacySnap.exists()) {
-    await setDoc(
-      legacyRef,
-      {
-        allianceId: null,
-        allianceName: null,
-        ...manatWritePatch(0),
-        battleCards: { ...EMPTY_BATTLE_CARDS },
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
-  }
+  await callSecureFunction('bindPlayerIdentity', { userId: canonicalUserId });
 }
 
 export async function ensurePlayerProfile(
@@ -181,6 +82,7 @@ export async function ensurePlayerProfile(
   }
 
   const profile: PlayerProfile & { battleCardsVersion: number } = {
+    ...(legacyUserId ? { firebaseUid: legacyUserId } : {}),
     odId: userId,
     displayName,
     allianceId: null,
@@ -195,23 +97,6 @@ export async function ensurePlayerProfile(
     battleCardsVersion: BATTLE_CARDS_SCHEMA_VERSION,
     updatedAt: Date.now(),
   };
-
-  if (legacyUserId && legacyUserId !== userId) {
-    const legacySnap = await getDoc(doc(db, 'players', legacyUserId));
-    if (legacySnap.exists()) {
-      const legacy = legacySnap.data() as PlayerProfile;
-      profile.allianceId = legacy.allianceId ?? null;
-      profile.allianceName = legacy.allianceName ?? null;
-      profile.isLeader = !!legacy.isLeader;
-      profile.battleCards = normalizeBattleCards(legacy.battleCards);
-      profile.activeShields = legacy.activeShields ?? [];
-      profile.cosmetics = legacy.cosmetics ?? { ...EMPTY_PLAYER_COSMETICS };
-      const legacyManat = readStoredManat(legacy as unknown as Record<string, unknown>);
-      if (legacyManat != null) {
-        Object.assign(profile, manatWritePatch(legacyManat));
-      }
-    }
-  }
 
   await runTransaction(db, async (transaction) => {
     const existing = await transaction.get(ref);

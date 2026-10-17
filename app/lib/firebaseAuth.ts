@@ -1,4 +1,11 @@
-import { signInAnonymously, connectAuthEmulator, User } from 'firebase/auth';
+import {
+  EmailAuthProvider,
+  linkWithCredential,
+  sendEmailVerification,
+  signInAnonymously,
+  connectAuthEmulator,
+  User,
+} from 'firebase/auth';
 import { connectFirestoreEmulator } from 'firebase/firestore';
 import { connectStorageEmulator } from 'firebase/storage';
 import { auth, db, storage } from '@/firebase';
@@ -62,6 +69,36 @@ export async function requireFirebaseAuth(): Promise<User> {
     throw new Error('Hesab sinxronizasiyası aktiv deyil. İnternet bağlantısını yoxlayın.');
   }
   return user;
+}
+
+/** Attach email/password to the current anonymous account without changing its UID. */
+export async function linkCurrentAccountToEmail(email: string, password: string): Promise<User> {
+  const user = await requireFirebaseAuth();
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || password.length < 6) {
+    throw new Error('Email və ən azı 6 simvolluq şifrə daxil edin.');
+  }
+
+  if (!user.isAnonymous) {
+    if (user.email?.toLowerCase() !== normalizedEmail) {
+      throw new Error('Bu Firebase hesabı artıq başqa emailə bağlıdır.');
+    }
+    if (!user.emailVerified) await sendEmailVerification(user);
+    return user;
+  }
+
+  const credential = EmailAuthProvider.credential(normalizedEmail, password);
+  const linked = await linkWithCredential(user, credential);
+  await sendEmailVerification(linked.user);
+  return linked.user;
+}
+
+export async function refreshEmailVerification(): Promise<{ email: string | null; verified: boolean }> {
+  const user = await requireFirebaseAuth();
+  await user.reload();
+  const refreshed = await requireFirebaseAuth();
+  await refreshed.getIdToken(true);
+  return { email: refreshed.email, verified: refreshed.emailVerified };
 }
 
 export async function blobToDataUrl(blob: Blob): Promise<string> {

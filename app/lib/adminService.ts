@@ -1,13 +1,10 @@
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
   setDoc,
-  updateDoc,
-  deleteDoc,
   query,
   orderBy,
   limit,
@@ -16,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { ensureFirebaseAuth } from '@/app/lib/firebaseAuth';
-import { manatWritePatch, readStoredManat, resolvePlayerManat, ADMIN_START_MANAT } from '@/app/lib/manat';
+import { callSecureFunction } from '@/app/lib/secureFunctions';
 import { SUPER_ADMIN_ID } from './adminConfig';
 
 export interface AdminConfigDoc {
@@ -82,7 +79,6 @@ export async function ensureAdminConfig(): Promise<AdminConfigDoc> {
     minNewUserId: 2,
     updatedAt: Date.now(),
   };
-  await setDoc(ref, config);
   return config;
 }
 
@@ -229,34 +225,9 @@ export function allocateNextUserIdLocal(): string {
   return String(finalId);
 }
 
-export async function logAdminCommand(payload: {
-  adminId: string;
-  action: string;
-  targetUserId?: string;
-  targetReportId?: string;
-  details?: Record<string, unknown>;
-}) {
-  assertSuperAdmin(payload.adminId);
-  await addDoc(collection(db, 'admin_commands'), {
-    adminId: payload.adminId,
-    action: payload.action,
-    targetUserId: payload.targetUserId ?? null,
-    targetReportId: payload.targetReportId ?? null,
-    details: payload.details ?? {},
-    createdAt: Date.now(),
-  });
-}
-
 export async function recordAdminSession(adminId: string, displayName: string, active: boolean) {
   assertSuperAdmin(adminId);
-  const ref = doc(db, 'admin_sessions', adminId);
-  if (active) {
-    await setDoc(ref, { adminId, displayName, active: true, lastLoginAt: Date.now() }, { merge: true });
-    await logAdminCommand({ adminId, action: 'admin_login', details: { displayName } });
-  } else {
-    await setDoc(ref, { active: false, lastLogoutAt: Date.now() }, { merge: true });
-    await logAdminCommand({ adminId, action: 'admin_logout' });
-  }
+  await callSecureFunction('recordAdminSession', { displayName, active });
 }
 
 export function listenAdminCommands(callback: (rows: AdminCommandRow[]) => void): Unsubscribe {
@@ -364,57 +335,28 @@ export function listenAllianceChat(callback: (rows: { id: string; user: string; 
 
 export async function resolveReport(adminId: string, reportId: string, status: 'resolved' | 'dismissed') {
   assertSuperAdmin(adminId);
-  await updateDoc(doc(db, 'reports', reportId), {
-    status,
-    resolvedAt: Date.now(),
-    resolvedBy: adminId,
-  });
-  await logAdminCommand({ adminId, action: 'resolve_report', targetReportId: reportId, details: { status } });
+  await callSecureFunction('adminResolveReport', { reportId, status });
 }
 
 export async function punishUser(adminId: string, userId: string, days: number, reason: string) {
   assertSuperAdmin(adminId);
-  const until = Date.now() + days * 24 * 60 * 60 * 1000;
-  await setDoc(
-    doc(db, 'users', userId),
-    { punishedUntil: until, punishReason: reason, updatedAt: Date.now(), punishedBy: adminId },
-    { merge: true }
-  );
-  await setDoc(
-    doc(db, 'players', userId),
-    { punishedUntil: until, updatedAt: Date.now() },
-    { merge: true }
-  );
-  await logAdminCommand({ adminId, action: 'punish_user', targetUserId: userId, details: { days, reason, until } });
+  await callSecureFunction('adminPunishUser', { targetUserId: userId, days, reason });
 }
 
 export async function banUser(adminId: string, userId: string, banned: boolean) {
   assertSuperAdmin(adminId);
-  await setDoc(
-    doc(db, 'users', userId),
-    { banned, updatedAt: Date.now(), bannedBy: banned ? adminId : null },
-    { merge: true }
-  );
-  await setDoc(doc(db, 'players', userId), { banned, updatedAt: Date.now() }, { merge: true });
-  await logAdminCommand({ adminId, action: banned ? 'ban_user' : 'unban_user', targetUserId: userId });
+  await callSecureFunction('adminBanUser', { targetUserId: userId, banned });
 }
 
 export async function deleteUserAccount(adminId: string, userId: string) {
   assertSuperAdmin(adminId);
   if (userId === SUPER_ADMIN_ID) throw new Error('Super admin silinə bilməz');
-  await deleteDoc(doc(db, 'users', userId));
-  await deleteDoc(doc(db, 'players', userId));
-  await logAdminCommand({ adminId, action: 'delete_user', targetUserId: userId });
+  await callSecureFunction('adminDeleteUser', { targetUserId: userId });
 }
 
 export async function grantModerator(adminId: string, userId: string, grant: boolean) {
   assertSuperAdmin(adminId);
-  await setDoc(
-    doc(db, 'users', userId),
-    { isModerator: grant, canViewReports: grant, updatedAt: Date.now(), moderatorBy: grant ? adminId : null },
-    { merge: true }
-  );
-  await logAdminCommand({ adminId, action: grant ? 'grant_moderator' : 'revoke_moderator', targetUserId: userId });
+  await callSecureFunction('adminGrantModerator', { targetUserId: userId, grant });
 }
 
 const MAX_GRANT_MANAT = 1_000_000;
@@ -436,79 +378,16 @@ export async function grantManatToUser(
     throw new Error(`Maksimum ${MAX_GRANT_MANAT.toLocaleString('az-AZ')} manat verilə bilər`);
   }
 
-  const userSnap = await getDoc(doc(db, 'users', targetId));
-  if (!userSnap.exists()) throw new Error('İstifadəçi tapılmadı');
-
-  const ref = doc(db, 'players', targetId);
-  let previousBalance = 0;
-  let newBalance = 0;
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    previousBalance = snap.exists()
-      ? resolvePlayerManat(snap.data() as Record<string, unknown>)
-      : 0;
-    newBalance = previousBalance + normalizedAmount;
-    tx.set(
-      ref,
-      { odId: targetId, ...manatWritePatch(newBalance), updatedAt: Date.now() },
-      { merge: true }
-    );
-  });
-
-  await logAdminCommand({
-    adminId,
-    action: 'grant_manat',
+  return callSecureFunction<
+    { targetUserId: string; amount: number; reason?: string },
+    { previousBalance: number; newBalance: number }
+  >('adminGrantManat', {
     targetUserId: targetId,
-    details: {
-      amount: normalizedAmount,
-      previousBalance,
-      newBalance,
-      reason: reason?.trim() || null,
-    },
+    amount: normalizedAmount,
+    reason: reason?.trim(),
   });
-
-  return { previousBalance, newBalance };
 }
 
 export async function bootstrapSuperAdmin(displayName: string) {
-  const profile = {
-    id: SUPER_ADMIN_ID,
-    name: displayName.split(' ')[0] || 'Admin',
-    surname: displayName.split(' ').slice(1).join(' ') || '',
-    handle: '@admin',
-    role: 'super_admin',
-    isAdmin: true,
-    isModerator: true,
-    canViewReports: true,
-    canAccessAdminPanel: true,
-    updatedAt: Date.now(),
-  };
-  await setDoc(doc(db, 'users', SUPER_ADMIN_ID), profile, { merge: true });
-
-  const playerRef = doc(db, 'players', SUPER_ADMIN_ID);
-  const playerSnap = await getDoc(playerRef);
-  const existingManat = playerSnap.exists()
-    ? readStoredManat(playerSnap.data() as Record<string, unknown>)
-    : null;
-
-  await setDoc(
-    playerRef,
-    {
-      odId: SUPER_ADMIN_ID,
-      displayName,
-      ...(existingManat != null ? manatWritePatch(existingManat) : manatWritePatch(ADMIN_START_MANAT)),
-      isAdmin: true,
-      role: 'super_admin',
-      updatedAt: Date.now(),
-    },
-    { merge: true }
-  );
-  await ensureAdminConfig();
-
-  const counterRef = doc(db, 'counters', 'userIdCounter');
-  const counterSnap = await getDoc(counterRef);
-  if (!counterSnap.exists()) {
-    await syncUserIdCounterFromFirebase();
-  }
+  return callSecureFunction('bootstrapSuperAdmin', { displayName });
 }

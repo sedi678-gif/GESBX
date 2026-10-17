@@ -1979,13 +1979,63 @@ service cloud.firestore {
     }
 
     function isValidPlanWrite() {
-      return isValidVipProPurchase() || isValidProPanelToggle();
+      return isValidProPanelToggle();
+    }
+
+    function hasLinkedUserProfile(playerId, uid) {
+      let userPath = /databases/$(database)/documents/users/$(playerId);
+      return exists(userPath) && get(userPath).data.firebaseUid == uid;
+    }
+
+    function isPlayerOwner(playerId) {
+      return request.auth != null
+        && resource.data.firebaseUid == request.auth.uid
+        && hasLinkedUserProfile(playerId, request.auth.uid);
+    }
+
+    function isSafeNewPlayer(playerId) {
+      let d = request.resource.data;
+      return request.auth != null
+        && d.firebaseUid == request.auth.uid
+        && d.odId == playerId
+        && hasLinkedUserProfile(playerId, request.auth.uid)
+        && d.allianceId == null
+        && d.allianceName == null
+        && d.isLeader == false
+        && d.keys().hasOnly([
+          'firebaseUid', 'odId', 'displayName', 'allianceId', 'allianceName', 'isLeader',
+          'score', 'manat', 'coins', 'battleCards', 'activeShields', 'cosmetics',
+          'userPlan', 'hasVipPass', 'isVipLifetime', 'proPanelActive', 'battleCardsVersion', 'updatedAt'
+        ])
+        && d.manat == 0
+        && d.coins == 0
+        && d.score == 0
+        && d.battleCards == {
+          'zombi': 0, 'yarasa': 0, 'duman': 0, 'mutant': 0, 'standing': 0, 'it': 0
+        }
+        && d.activeShields is list
+        && d.activeShields.size() == 0
+        && d.cosmetics.owned is list
+        && d.cosmetics.owned.size() == 0
+        && d.cosmetics.equipped is map
+        && d.cosmetics.equipped.keys().size() == 0
+        && d.cosmetics.vip.tier == 'none'
+        && d.cosmetics.vip.expiresAt == 0
+        && d.userPlan == 'FREE'
+        && d.hasVipPass == false
+        && d.isVipLifetime == false
+        && d.proPanelActive == false;
     }
 
     match /players/{playerId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null
+      allow create: if isSafeNewPlayer(playerId);
+      allow update: if isPlayerOwner(playerId)
+        && request.resource.data.firebaseUid == resource.data.firebaseUid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'manat', 'coins', 'xp', 'energy', 'maxEnergy', 'battleCards', 'activeShields',
+          'cosmetics', 'userPlan', 'hasVipPass', 'isVipLifetime', 'proPanelActive', 'identityVerifiedAt'
+        ])
         && (
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['score', 'dailyScore', 'lifetimeScore'])
           || isValidPlayerFinishScore(playerId)
@@ -2671,6 +2721,11 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn()
         && request.resource.data.id == userId
+        && request.resource.data.firebaseUid == request.auth.uid
+        && (!('manat' in request.resource.data) || request.resource.data.manat == 0)
+        && (!('coins' in request.resource.data) || request.resource.data.coins == 0)
+        && (!('likesReceived' in request.resource.data) || request.resource.data.likesReceived == 0)
+        && (!('viewsReceived' in request.resource.data) || request.resource.data.viewsReceived == 0)
         && request.resource.data.keys().hasOnly([
           'id', 'name', 'surname', 'handle', 'gender', 'birthDate', 'role', 'avatar',
           'bannerImage', 'bannerGradient', 'bio', 'allianceName', 'createdAt',
@@ -2681,6 +2736,15 @@ service cloud.firestore {
         ]);
       allow update: if isSignedIn()
         && request.resource.data.id == userId
+        && (
+          resource.data.firebaseUid == request.auth.uid
+          || request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['likesReceived', 'viewsReceived', 'updatedAt'])
+        )
+        && request.resource.data.firebaseUid == resource.data.firebaseUid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'manat', 'coins', 'firebaseUid', 'email', 'parentalConsentVerified'
+        ])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['likesReceived'])
             || request.resource.data.likesReceived >= resource.data.get('likesReceived', 0))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['viewsReceived'])
@@ -2777,15 +2841,81 @@ service cloud.firestore {
 
     match /alliance_quests/{questId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+      allow write: if false;
       allow delete: if false;
     }
 
     match /alliance_weekly_shop/{allianceId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn()
-        && playerBelongsToAlliance(request.auth.uid, allianceId);
-      allow delete: if false;
+      allow write: if false;
+    }
+
+    match /wallet_ledger/{entryId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /xp_ledger/{entryId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /withdrawal_requests/{requestId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /referral_codes/{code} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /referrals/{referralId} {
+      allow read: if isSignedIn()
+        && (resource.data.inviterUid == request.auth.uid || resource.data.referredUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /reel_reward_daily/{dailyId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /reel_reward_views/{viewId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /quest_activity_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /reel_view_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /operation_ledger/{operationId} {
+      allow read, write: if false;
+    }
+
+    match /security_rate_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /app_check_token_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /app_check_nonces/{nonceId} {
+      allow read, write: if false;
+    }
+
+    match /withdrawal_daily_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /referral_daily_limits/{limitId} {
+      allow read, write: if false;
     }
 
     // Postlar — hamı oxuyur, yalnız sahibi yazır/silir.

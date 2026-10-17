@@ -5,6 +5,7 @@ import PostCommentsSheet from '@/app/components/social/PostCommentsSheet';
 import { listenUserLikedPostIds, recordPostView, toggleLikePost } from '@/app/lib/postsService';
 import { getReelsForYou, trackReelSignal, type ForYouFeedItem } from '@/app/lib/reelsForYou';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
+import { callSecureFunction } from '@/app/lib/secureFunctions';
 import ReelsSlide, { type ReelsWatchFlush } from './ReelsSlide';
 
 const VISIBLE_RATIO = 0.7;
@@ -26,6 +27,8 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   const [likeBusy, setLikeBusy] = useState(false);
   const [commentItem, setCommentItem] = useState<ForYouFeedItem | null>(null);
   const loadingMore = useRef(false);
+  const rewardSessions = useRef<Map<string, Promise<string | null>>>(new Map());
+  const rewardHeartbeats = useRef<Map<string, Promise<number>>>(new Map());
 
   const canTrack = Boolean(userId && userId !== 'anonim_user_id' && userId !== 'guest');
   const activeVideoId = items[activeIndex]?.videoId;
@@ -73,6 +76,31 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   }, [activeAuthorId, activeVideoId, canTrack, userId]);
 
   useEffect(() => {
+    if (!activeVideoId || !canTrack) return;
+    const sessionPromise = callSecureFunction<
+      { userId: string; videoId: string },
+      { sessionId: string }
+    >('startReelRewardView', { userId, videoId: activeVideoId })
+      .then((result) => result.sessionId)
+      .catch(() => null);
+    rewardSessions.current.set(activeVideoId, sessionPromise);
+
+    const heartbeat = window.setInterval(() => {
+      const heartbeatPromise = sessionPromise.then(async (sessionId) => {
+        if (!sessionId) return 0;
+        const result = await callSecureFunction<
+          { userId: string; sessionId: string },
+          { accepted: boolean; heartbeatCount: number }
+        >('heartbeatReelRewardView', { userId, sessionId });
+        return result.heartbeatCount;
+      }).catch(() => 0);
+      rewardHeartbeats.current.set(activeVideoId, heartbeatPromise);
+    }, 4_000);
+
+    return () => window.clearInterval(heartbeat);
+  }, [activeVideoId, canTrack, userId]);
+
+  useEffect(() => {
     const root = scrollerRef.current;
     if (!root || items.length === 0) return;
     const observer = new IntersectionObserver(
@@ -110,6 +138,32 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
         categoryId: payload.categoryId,
         hashtags: payload.hashtags,
       }).catch(() => undefined);
+      const sessionPromise = rewardSessions.current.get(payload.videoId);
+      if (sessionPromise) {
+        void sessionPromise.then(async (sessionId) => {
+          if (!sessionId) return null;
+          let heartbeatCount = await (rewardHeartbeats.current.get(payload.videoId) || Promise.resolve(0));
+          if (heartbeatCount < 1) {
+            const heartbeat = await callSecureFunction<
+              { userId: string; sessionId: string },
+              { accepted: boolean; heartbeatCount: number }
+            >('heartbeatReelRewardView', { userId, sessionId });
+            heartbeatCount = heartbeat.heartbeatCount;
+          }
+          if (heartbeatCount < 1) return null;
+          return callSecureFunction<
+            { userId: string; sessionId: string; playedSeconds: number },
+            { xp: number; dailyXp: number }
+          >('completeReelRewardView', {
+            userId,
+            sessionId,
+            playedSeconds: payload.watchDurationSeconds,
+          });
+        }).catch(() => undefined).finally(() => {
+          rewardSessions.current.delete(payload.videoId);
+          rewardHeartbeats.current.delete(payload.videoId);
+        });
+      }
     },
     [canTrack, userId]
   );

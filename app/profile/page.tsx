@@ -6,7 +6,7 @@ import { Gift, ShieldCheck, Trophy } from 'lucide-react';
 import AllianceProfileCard from '@/app/components/alliance/AllianceProfileCard';
 import { useUser } from '@/context/UserContext';
 import { useSettings } from '@/context/SettingsContext';
-import { ensurePlayerProfile, reconcilePlayerIdentity } from '@/app/components/alliance/allianceService';
+import { ensurePlayerProfile } from '@/app/components/alliance/allianceService';
 import { notifyUserIdChanged } from '@/app/lib/userId';
 import {
   createPost,
@@ -24,7 +24,11 @@ import {
   listenPostComments,
   preparePostMediaFile,
 } from '@/app/lib/postsService';
-import { ensureFirebaseAuth } from '@/app/lib/firebaseAuth';
+import {
+  ensureFirebaseAuth,
+  linkCurrentAccountToEmail,
+  refreshEmailVerification,
+} from '@/app/lib/firebaseAuth';
 import { PostComment, SocialPost } from '@/app/lib/socialTypes';
 import { listenFollowCounts, reportContent } from '@/app/lib/socialService';
 import AppBottomNav from '@/app/components/AppBottomNav';
@@ -48,6 +52,7 @@ import profileStyles from '@/app/components/profile/profile.module.css';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
 import { setProPanelActive } from '@/app/lib/userPlan';
+import { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
 import GoogleAdButton from '@/app/components/alliance/GoogleAdButton';
 import {
   activateDiscoverBoost,
@@ -577,13 +582,18 @@ function ProfilePageContent() {
       return;
     }
 
+    let accountUid: string | null = null;
     try {
+      const firebaseUser = await ensureFirebaseAuth();
+      if (!firebaseUser) throw new Error('Firebase hesabı yaradılmadı. İnternet bağlantısını yoxlayın.');
+      accountUid = firebaseUser.uid;
       const generatedId = await allocateNextUserId();
       const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;
       const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
 
       const newUser = {
         id: generatedId,
+        firebaseUid: accountUid,
         name: inputName,
         surname: inputSurname,
         handle: formattedHandle,
@@ -601,12 +611,8 @@ function ProfilePageContent() {
       };
 
       await setDoc(doc(db, "users", generatedId), newUser);
-      const fbUid = auth.currentUser?.uid ?? null;
-      if (fbUid && fbUid !== generatedId) {
-        await reconcilePlayerIdentity(generatedId, fbUid, `${inputName} ${inputSurname}`.trim());
-      } else {
-        await ensurePlayerProfile(generatedId, `${inputName} ${inputSurname}`.trim(), fbUid);
-      }
+      await ensurePlayerProfile(generatedId, `${inputName} ${inputSurname}`.trim(), accountUid);
+      await callSecureFunction('bindPlayerIdentity', { userId: generatedId });
 
       localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
       const idNum = parseInt(generatedId, 10);
@@ -618,6 +624,10 @@ function ProfilePageContent() {
       setIsRegistered(true);
       notifyUserIdChanged();
     } catch (error) {
+      if (accountUid) {
+        alert(error instanceof Error ? error.message : 'Hesab təhlükəsiz şəkildə qoşulmadı.');
+        return;
+      }
       console.error("Firebase ID xətası, lokal rejimə keçid edilir:", error);
       const generatedId = await allocateNextUserIdFallback();
       const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;
@@ -642,12 +652,6 @@ function ProfilePageContent() {
       };
 
       localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
-      const fbUid = auth.currentUser?.uid ?? null;
-      if (fbUid && fbUid !== generatedId) {
-        await reconcilePlayerIdentity(generatedId, fbUid, `${inputName} ${inputSurname}`.trim());
-      } else {
-        await ensurePlayerProfile(generatedId, `${inputName} ${inputSurname}`.trim(), fbUid);
-      }
       setCurrentUser(newUser);
       setIsRegistered(true);
       notifyUserIdChanged();
@@ -666,11 +670,139 @@ function ProfilePageContent() {
   const [discoverBoostUntil, setDiscoverBoostUntil] = useState(0);
   const [boostNow, setBoostNow] = useState(() => Date.now());
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [accountEmail, setAccountEmail] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [accountEmailVerified, setAccountEmailVerified] = useState(false);
+  const [accountSecurityBusy, setAccountSecurityBusy] = useState(false);
+  const [accountSecurityMessage, setAccountSecurityMessage] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('10');
+  const [withdrawEmail, setWithdrawEmail] = useState('');
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawMessage, setWithdrawMessage] = useState('');
+  const [myReferralCode, setMyReferralCode] = useState('');
+  const [applyReferralCode, setApplyReferralCode] = useState('');
+  const [referralBusy, setReferralBusy] = useState(false);
+  const [referralMessage, setReferralMessage] = useState('');
 
   useEffect(() => {
     if (!currentUser.id) return;
     return listenUserDiscoverBoost(currentUser.id, setDiscoverBoostUntil);
   }, [currentUser.id]);
+
+  useEffect(() => {
+    if (!showWalletModal) return;
+    const email = auth.currentUser?.email || '';
+    setAccountEmail(email);
+    setWithdrawEmail(email);
+    setAccountEmailVerified(auth.currentUser?.emailVerified === true);
+  }, [showWalletModal]);
+
+  const handleLinkAndVerifyEmail = async () => {
+    setAccountSecurityBusy(true);
+    setAccountSecurityMessage('');
+    try {
+      const user = await linkCurrentAccountToEmail(accountEmail, accountPassword);
+      setAccountEmail(user.email || accountEmail.trim());
+      setWithdrawEmail(user.email || accountEmail.trim());
+      setAccountEmailVerified(user.emailVerified);
+      setAccountPassword('');
+      setAccountSecurityMessage('Təsdiq linki emailə göndərildi. Linki açdıqdan sonra “Təsdiqi yoxla” düyməsinə vur.');
+    } catch (err) {
+      setAccountSecurityMessage(err instanceof Error ? err.message : 'Email hesaba bağlanmadı.');
+    } finally {
+      setAccountSecurityBusy(false);
+    }
+  };
+
+  const handleCheckEmailVerification = async () => {
+    setAccountSecurityBusy(true);
+    setAccountSecurityMessage('');
+    try {
+      const state = await refreshEmailVerification();
+      setAccountEmail(state.email || accountEmail);
+      setWithdrawEmail(state.email || accountEmail);
+      setAccountEmailVerified(state.verified);
+      setAccountSecurityMessage(state.verified ? 'Email təsdiqləndi.' : 'Təsdiq hələ görünmür. Emaildəki linki açıb yenidən yoxla.');
+    } catch (err) {
+      setAccountSecurityMessage(err instanceof Error ? err.message : 'Email təsdiqi yoxlanmadı.');
+    } finally {
+      setAccountSecurityBusy(false);
+    }
+  };
+
+  const handleCreateWithdrawal = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accountEmailVerified) {
+      setWithdrawMessage('Pul çıxarışı üçün Firebase hesabının emailini əvvəlcə təsdiqlə.');
+      return;
+    }
+    const amount = Number(withdrawAmount);
+    if (!Number.isSafeInteger(amount) || amount < 10) {
+      setWithdrawMessage('Minimum çıxarış məbləği 10 AZN-dir.');
+      return;
+    }
+    setWithdrawBusy(true);
+    setWithdrawMessage('');
+    try {
+      await refreshEmailVerification();
+      const result = await callSecureFunction<
+        { userId: string; amount: number; paymentEmail: string; legalName: string },
+        { requestId: string; amount: number; status: string; availableAt: number }
+      >('createWithdrawalRequest', {
+        userId: currentUser.id,
+        amount,
+        paymentEmail: withdrawEmail.trim(),
+        legalName: `${currentUser.name} ${currentUser.surname}`.trim(),
+      });
+      setWithdrawMessage(`${result.amount} AZN üçün sorğu yaradıldı. 48 saatdan sonra yoxlanış mərhələsinə keçəcək.`);
+      setWithdrawAmount('10');
+    } catch (err) {
+      setWithdrawMessage(err instanceof Error ? err.message : 'Pul çıxarışı sorğusu yaradılmadı.');
+    } finally {
+      setWithdrawBusy(false);
+    }
+  };
+
+  const handleLoadReferralCode = async () => {
+    setReferralBusy(true);
+    setReferralMessage('');
+    try {
+      const installationId = await getFirebaseInstallationId();
+      const result = await callSecureFunction<
+        { userId: string; installationId: string },
+        { code: string }
+      >('getMyReferralCode', { userId: currentUser.id, installationId });
+      setMyReferralCode(result.code);
+    } catch (err) {
+      setReferralMessage(err instanceof Error ? err.message : 'Referral kodu alınmadı.');
+    } finally {
+      setReferralBusy(false);
+    }
+  };
+
+  const handleApplyReferralCode = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accountEmailVerified) {
+      setReferralMessage('Referral üçün Firebase hesabının emaili təsdiqlənməlidir.');
+      return;
+    }
+    setReferralBusy(true);
+    setReferralMessage('');
+    try {
+      await refreshEmailVerification();
+      const installationId = await getFirebaseInstallationId();
+      const result = await callSecureFunction<
+        { userId: string; code: string; installationId: string },
+        { status: string; eligibleAt: number }
+      >('applyReferral', { userId: currentUser.id, code: applyReferralCode, installationId });
+      setReferralMessage(`Dəvət qeydə alındı, 7 günlük yoxlanışdan sonra baxılacaq (${result.status}).`);
+      setApplyReferralCode('');
+    } catch (err) {
+      setReferralMessage(err instanceof Error ? err.message : 'Referral kodu tətbiq edilmədi.');
+    } finally {
+      setReferralBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!isDiscoverBoostActive(discoverBoostUntil)) return;
@@ -1419,6 +1551,94 @@ function ProfilePageContent() {
                 ⚔️ Mağazaya get
               </AppLink>
             </div>
+            <section style={{ marginTop: 18, padding: 14, borderRadius: 16, border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(15,23,42,0.55)' }}>
+              <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Təsdiqlənmiş email</h3>
+              <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>
+                Referral və pul çıxarışı üçün hesab emailini bağla və təsdiqlə.
+              </p>
+              <input
+                type="email"
+                value={accountEmail}
+                onChange={(event) => setAccountEmail(event.target.value)}
+                placeholder="Email ünvanı"
+                autoComplete="email"
+                className={profileStyles.registerInput}
+                disabled={accountEmailVerified}
+              />
+              {!accountEmailVerified ? (
+                <input
+                  type="password"
+                  value={accountPassword}
+                  onChange={(event) => setAccountPassword(event.target.value)}
+                  placeholder="Şifrə (ən azı 6 simvol)"
+                  autoComplete="new-password"
+                  className={profileStyles.registerInput}
+                  style={{ marginTop: 8 }}
+                />
+              ) : null}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                {!accountEmailVerified ? (
+                  <button type="button" className={socialStyles.primaryBtn} disabled={accountSecurityBusy} onClick={() => void handleLinkAndVerifyEmail()}>
+                    {accountSecurityBusy ? 'Gözlə…' : auth.currentUser?.email ? 'Təsdiq linkini göndər' : 'Emaili hesaba bağla'}
+                  </button>
+                ) : <span style={{ color: '#67e8f9', fontWeight: 700 }}>Email təsdiqlənib</span>}
+                <button type="button" className={socialStyles.secondaryBtn} disabled={accountSecurityBusy} onClick={() => void handleCheckEmailVerification()}>
+                  Təsdiqi yoxla
+                </button>
+              </div>
+              {accountSecurityMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{accountSecurityMessage}</p> : null}
+            </section>
+
+            <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(15,23,42,0.55)' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 800 }}>Dost dəvəti</h3>
+              <button type="button" className={socialStyles.secondaryBtn} disabled={referralBusy} onClick={() => void handleLoadReferralCode()}>
+                {referralBusy ? 'Gözlə…' : 'Dəvət kodumu göstər'}
+              </button>
+              {myReferralCode ? <p style={{ margin: '8px 0', color: '#c4b5fd', fontWeight: 800, letterSpacing: 2 }}>{myReferralCode}</p> : null}
+              <form onSubmit={handleApplyReferralCode} style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input
+                  value={applyReferralCode}
+                  onChange={(event) => setApplyReferralCode(event.target.value.toUpperCase())}
+                  placeholder="Dəvət kodu"
+                  maxLength={20}
+                  className={profileStyles.registerInput}
+                />
+                <button type="submit" className={socialStyles.primaryBtn} disabled={referralBusy || !applyReferralCode.trim()}>
+                  Tətbiq et
+                </button>
+              </form>
+              {referralMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{referralMessage}</p> : null}
+            </section>
+
+            <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(15,23,42,0.55)' }}>
+              <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Manatı çıxar</h3>
+              <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>
+                Minimum 10 AZN. Sorğu balansdan ayrılır, 48 saatlıq gözləmə və yoxlamadan sonra işlənir.
+              </p>
+              <form onSubmit={handleCreateWithdrawal} style={{ display: 'grid', gap: 8 }}>
+                <input
+                  type="number"
+                  min={10}
+                  step={1}
+                  value={withdrawAmount}
+                  onChange={(event) => setWithdrawAmount(event.target.value)}
+                  className={profileStyles.registerInput}
+                  aria-label="Çıxarış məbləği, AZN"
+                />
+                <input
+                  type="email"
+                  value={withdrawEmail}
+                  onChange={(event) => setWithdrawEmail(event.target.value)}
+                  placeholder="Təsdiqlənmiş PayPal emaili"
+                  className={profileStyles.registerInput}
+                  required
+                />
+                <button type="submit" className={socialStyles.primaryBtn} disabled={withdrawBusy || !accountEmailVerified}>
+                  {withdrawBusy ? 'Sorğu göndərilir…' : 'Çıxarış sorğusu yarat'}
+                </button>
+              </form>
+              {withdrawMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{withdrawMessage}</p> : null}
+            </section>
           </div>
         </div>
       )}

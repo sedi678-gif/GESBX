@@ -2,9 +2,10 @@ apply plugin: 'com.android.application'
 
 android {
     namespace = "com.example.app"
+    def configuredApplicationId = System.getenv("CAPACITOR_APP_ID") ?: "com.example.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.example.app"
+        applicationId configuredApplicationId
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 2
@@ -47,6 +48,15 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    implementation 'com.google.android.play:integrity:1.5.0'
+}
+
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    doFirst {
+        if ((System.getenv('CAPACITOR_APP_ID') ?: 'com.example.app') == 'com.example.app') {
+            throw new GradleException('Release üçün CAPACITOR_APP_ID real Play package name ilə təyin edilməlidir.')
+        }
+    }
 }
 
 apply from: 'capacitor.build.gradle'

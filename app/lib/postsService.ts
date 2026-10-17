@@ -70,6 +70,7 @@ function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null
     title: String(raw.title || ''),
     mediaUrl: String(raw.mediaUrl),
     mediaType: raw.mediaType === 'video' ? 'video' : 'image',
+    durationSeconds: Number.isFinite(Number(raw.durationSeconds)) ? Number(raw.durationSeconds) : undefined,
     likes: Number(raw.likes) || 0,
     views: Number(raw.views) || 0,
     commentsCount: Number(raw.commentsCount) || 0,
@@ -88,6 +89,37 @@ export async function preparePostMediaFile(file: File): Promise<File> {
     type: 'image/jpeg',
     lastModified: Date.now(),
   });
+}
+
+async function readVideoDurationSeconds(file: File): Promise<number> {
+  const objectUrl = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.muted = true;
+  video.src = objectUrl;
+
+  try {
+    const duration = await new Promise<number>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error('Videonun müddətini oxumaq mümkün olmadı.')), 10_000);
+      video.onloadedmetadata = () => {
+        window.clearTimeout(timeout);
+        resolve(video.duration);
+      };
+      video.onerror = () => {
+        window.clearTimeout(timeout);
+        reject(new Error('Video faylının məlumatı oxunmadı.'));
+      };
+    });
+
+    if (!Number.isFinite(duration) || duration < 5 || duration > 3600) {
+      throw new Error('Video 5 saniyə ilə 60 dəqiqə arasında olmalıdır.');
+    }
+    return Number(duration.toFixed(1));
+  } finally {
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 async function uploadBlobToStorage(blob: Blob, userId: string, contentType: string): Promise<string> {
@@ -157,6 +189,7 @@ async function createPostInternal(
     mediaType === 'image' && !file.name.toLowerCase().endsWith('.jpg')
       ? await preparePostMediaFile(file)
       : file;
+  const durationSeconds = mediaType === 'video' ? await readVideoDurationSeconds(uploadFile) : undefined;
 
   const mediaUrl = await uploadMedia(uploadFile, user.id);
   const now = Date.now();
@@ -173,6 +206,7 @@ async function createPostInternal(
     title: title.trim(),
     mediaUrl,
     mediaType,
+    ...(durationSeconds ? { durationSeconds } : {}),
     likes: 0,
     views: 0,
     commentsCount: 0,

@@ -1,5 +1,6 @@
 import { db } from '../../firebase';
 import { doc, runTransaction } from 'firebase/firestore';
+import { callSecureFunction } from './secureFunctions';
 import {
   ALLIANCE_FORTRESS_MIN_MEMBERS,
   ALLIANCE_FORTRESS_MIN_ONLINE,
@@ -8,7 +9,6 @@ import {
   normalizeFortressLevel,
   type AllianceFortressLevel,
 } from './allianceFortressConfig';
-import { resolvePlayerManat, manatWritePatch } from './manat';
 
 const TICK_MS = 60_000;
 
@@ -156,50 +156,11 @@ export async function purchaseFortressLevel(
   targetLevel: AllianceFortressLevel
 ): Promise<void> {
   if (targetLevel < 2 || targetLevel > 6) throw new Error('Yanlış səviyyə');
-
   const product = FORTRESS_SHOP_PRODUCTS.find((p) => p.level === targetLevel);
   if (!product) throw new Error('Məhsul tapılmadı');
-
-  const playerRef = doc(db, 'players', leaderUserId);
-  const allianceRef = doc(db, 'alliances', allianceId);
-
-  await runTransaction(db, async (tx) => {
-    const [playerSnap, allianceSnap] = await Promise.all([
-      tx.get(playerRef),
-      tx.get(allianceRef),
-    ]);
-
-    if (!playerSnap.exists()) throw new Error('Oyunçu profili tapılmadı');
-    if (!allianceSnap.exists()) throw new Error('İttifaq tapılmadı');
-
-    const alliance = allianceSnap.data();
-    if (alliance.leaderId !== leaderUserId) {
-      throw new Error('Yalnız ittifaq lideri mağazadan qala ala bilər');
-    }
-
-    const current = normalizeFortressLevel(alliance.fortressLevel);
-    if (targetLevel <= current) {
-      throw new Error('Artıq bu və ya daha yüksək səviyyədəsiz');
-    }
-
-    const player = playerSnap.data();
-    const balance = resolvePlayerManat(player);
-    if (balance < product.price) throw new Error('Balansda kifayət qədər manat yoxdur');
-
-    tx.set(
-      playerRef,
-      {
-        ...manatWritePatch(balance - product.price),
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
-
-    tx.update(allianceRef, {
-      fortressLevel: targetLevel,
-      fortressQualifyingMs: 0,
-      fortressPurchasedAt: Date.now(),
-      fortressUpdatedAt: Date.now(),
-    });
+  await callSecureFunction('purchaseFortressLevel', {
+    userId: leaderUserId,
+    allianceId,
+    level: targetLevel,
   });
 }
