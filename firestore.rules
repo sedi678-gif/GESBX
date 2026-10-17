@@ -2004,9 +2004,10 @@ service cloud.firestore {
         && d.isLeader == false
         && d.keys().hasOnly([
           'firebaseUid', 'odId', 'displayName', 'allianceId', 'allianceName', 'isLeader',
-          'score', 'manat', 'coins', 'battleCards', 'activeShields', 'cosmetics',
+          'score', 'manat', 'coins', 'battleCards', 'activeShields', 'cosmetics', 'identityVerifiedAt',
           'userPlan', 'hasVipPass', 'isVipLifetime', 'proPanelActive', 'battleCardsVersion', 'updatedAt'
         ])
+        && d.identityVerifiedAt == request.time
         && d.manat == 0
         && d.coins == 0
         && d.score == 0

@@ -612,7 +612,6 @@ function ProfilePageContent() {
 
       await setDoc(doc(db, "users", generatedId), newUser);
       await ensurePlayerProfile(generatedId, `${inputName} ${inputSurname}`.trim(), accountUid);
-      await callSecureFunction('bindPlayerIdentity', { userId: generatedId });
 
       localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
       const idNum = parseInt(generatedId, 10);

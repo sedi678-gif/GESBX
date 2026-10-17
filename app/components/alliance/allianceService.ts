@@ -8,6 +8,7 @@ import {
   updateDoc,
   deleteDoc,
   runTransaction,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { getRegionCoords } from './regionCoords';
 import {
@@ -101,7 +102,7 @@ export async function ensurePlayerProfile(
   await runTransaction(db, async (transaction) => {
     const existing = await transaction.get(ref);
     if (existing.exists()) return;
-    transaction.set(ref, profile);
+    transaction.set(ref, { ...profile, identityVerifiedAt: serverTimestamp() });
   });
 
   const created = await getDoc(ref);

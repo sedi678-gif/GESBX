@@ -191,6 +191,11 @@ function playerDocIdFromUid(uid) {
   return db.collection('players').where('firebaseUid', '==', uid).limit(2);
 }
 
+function verifiedIdentityMillis(value) {
+  if (value && typeof value.toMillis === 'function') return value.toMillis();
+  return Number(value);
+}
+
 async function getOwnedPlayer(uid, requestedPlayerId, tx) {
   const playerId = safeId(requestedPlayerId, 'Oyunçu ID-si');
   const playerRef = db.doc(`players/${playerId}`);
@@ -202,7 +207,8 @@ async function getOwnedPlayer(uid, requestedPlayerId, tx) {
   if (player.firebaseUid !== uid || user.firebaseUid !== uid) {
     throw new HttpsError('permission-denied', 'Bu oyunçu profili bu hesaba bağlı deyil.');
   }
-  if (!Number.isFinite(Number(player.identityVerifiedAt)) || Number(player.identityVerifiedAt) <= 0) {
+  const verifiedAt = verifiedIdentityMillis(player.identityVerifiedAt);
+  if (!Number.isFinite(verifiedAt) || verifiedAt <= 0) {
     throw new HttpsError('failed-precondition', 'Oyunçu profili serverdə hələ təsdiqlənməyib.');
   }
   if (user.banned === true || user.frozen === true || player.frozen === true) {
@@ -221,7 +227,8 @@ async function requireOwnedPlayer(uid, requestedPlayerId) {
   if (player.firebaseUid !== uid || user.firebaseUid !== uid) {
     throw new HttpsError('permission-denied', 'Bu oyunçu profili bu hesaba bağlı deyil.');
   }
-  if (!Number.isFinite(Number(player.identityVerifiedAt)) || Number(player.identityVerifiedAt) <= 0) {
+  const verifiedAt = verifiedIdentityMillis(player.identityVerifiedAt);
+  if (!Number.isFinite(verifiedAt) || verifiedAt <= 0) {
     throw new HttpsError('failed-precondition', 'Oyunçu profili serverdə hələ təsdiqlənməyib.');
   }
   if (user.banned === true || user.frozen === true || player.frozen === true) {
