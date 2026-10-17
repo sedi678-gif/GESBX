@@ -62,7 +62,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
     try {
       const result = await callSecureFunction<
         { referralId: string },
-        { status: string; rewardXp: number; alreadyActive?: boolean; notActive?: boolean; currentXp?: number; progressPercent?: number }
+        { status: string; rewardXp: number; alreadyActive?: boolean; notActive?: boolean; currentXp?: number; progressPercent?: number; xpThreshold?: number }
       >('checkReferralActivation', { referralId });
       if (result.status === 'active') {
         await loadMyReferrals();
