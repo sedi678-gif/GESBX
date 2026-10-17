@@ -19,7 +19,81 @@ import PostActionIcon from './PostActionIcon';
 import styles from './social.module.css';
 
 const AZ_REGIONS = [
-  'Bakı', 'Gəncə', 'Sumqayıt', 'Abşeron', 'Lənkəran', 'Şəki', 'Mingəçevir', 'Beynəlxalq',
+  'Bakı',
+  'Abşeron',
+  'Ağcabədi',
+  'Ağdam',
+  'Ağdərə',
+  'Ağdaş',
+  'Ağstafa',
+  'Ağsu',
+  'Astara',
+  'Babək',
+  'Balakən',
+  'Bərdə',
+  'Beyləqan',
+  'Biləsuvar',
+  'Cəbrayıl',
+  'Cəlilabad',
+  'Culfa',
+  'Daşkəsən',
+  'Füzuli',
+  'Gədəbəy',
+  'Gəncə',
+  'Goranboy',
+  'Göyçay',
+  'Göygöl',
+  'Hacıqabul',
+  'Xankəndi',
+  'Xaçmaz',
+  'Xızı',
+  'Xocalı',
+  'Xocavənd',
+  'İmişli',
+  'İsmayıllı',
+  'Kəlbəcər',
+  'Kəngərli',
+  'Kürdəmir',
+  'Laçın',
+  'Lənkəran',
+  'Lerik',
+  'Masallı',
+  'Mingəçevir',
+  'Naftalan',
+  'Naxçıvan',
+  'Neftçala',
+  'Oğuz',
+  'Ordubad',
+  'Qax',
+  'Qazax',
+  'Qəbələ',
+  'Qobustan',
+  'Quba',
+  'Qubadlı',
+  'Qusar',
+  'Saatlı',
+  'Sabirabad',
+  'Salyan',
+  'Samux',
+  'Sədərək',
+  'Siyəzən',
+  'Sumqayıt',
+  'Şabran',
+  'Şahbuz',
+  'Şamaxı',
+  'Şəki',
+  'Şəmkir',
+  'Şərur',
+  'Şirvan',
+  'Şuşa',
+  'Tərtər',
+  'Tovuz',
+  'Ucar',
+  'Yardımlı',
+  'Yevlax',
+  'Zaqatala',
+  'Zəngilan',
+  'Zərdab',
 ];
 
 export default function ExplorePageClient() {
@@ -328,7 +402,10 @@ export default function ExplorePageClient() {
             ))}
             <select className={styles.input} value={region} onChange={(e) => setRegion(e.target.value)}>
               <option value="all">Bütün regionlar</option>
-              {AZ_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              <optgroup label="Azərbaycan bölgələri">
+                {AZ_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </optgroup>
+              <option value="Beynəlxalq">Beynəlxalq</option>
             </select>
             <select className={styles.input} value={gender} onChange={(e) => setGender(e.target.value)}>
               <option value="all">Hamısı</option>

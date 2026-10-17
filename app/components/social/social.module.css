@@ -2370,23 +2370,35 @@
 
 .exploreTitle {
   margin: 0;
-  font-size: clamp(16px, 4.5vw, 20px);
+  position: relative;
+  display: inline-block;
+  padding: 2px 0 7px 2px;
+  font-size: clamp(20px, 5.5vw, 25px);
   font-weight: 900;
-  background: linear-gradient(90deg, #f472b6, #a78bfa, #38bdf8);
+  letter-spacing: 0.18em;
+  line-height: 1;
+  background: linear-gradient(110deg, #f9a8d4 0%, #c4b5fd 42%, #67e8f9 74%, #f9a8d4 100%);
+  background-size: 180% 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.34));
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.exploreSub {
-  margin: 2px 0 0;
-  font-size: 11px;
-  color: #64748b;
-  font-weight: 600;
+.exploreTitle::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f472b6, #a78bfa, #38bdf8);
+  box-shadow: 0 0 8px rgba(167, 139, 250, 0.7);
 }
 
 .exploreSearchBtn {
