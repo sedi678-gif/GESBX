@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ARENA_CARD_CATALOG, ARENA_LOADOUT_SIZE } from './match/catalog';
 import { lockArenaLoadout } from './match/matchService';
+import { heartbeatArenaPresence } from './match/matchService';
+import { ARENA_PRESENCE_HEARTBEAT_MS } from './match/presencePolicy';
 import { listenServerClock } from '@/app/lib/battlePlay/battleServerClock';
 import styles from '../table/gameTable.module.css';
 
@@ -25,6 +27,17 @@ export default function ArenaLoadoutPicker({
   const ready = selected.length === ARENA_LOADOUT_SIZE && !busy;
 
   useEffect(() => listenServerClock(() => {}), []);
+
+  useEffect(() => {
+    void heartbeatArenaPresence({ matchId, playerId, online: true }).catch((error) => { console.warn('Arena presence failed', error); });
+    const timer = window.setInterval(() => {
+      void heartbeatArenaPresence({ matchId, playerId, online: true }).catch((error) => { console.warn('Arena presence failed', error); });
+    }, ARENA_PRESENCE_HEARTBEAT_MS);
+    return () => {
+      window.clearInterval(timer);
+      void heartbeatArenaPresence({ matchId, playerId, online: false }).catch((error) => { console.warn('Arena presence failed', error); });
+    };
+  }, [matchId, playerId]);
 
   function toggle(id: string) {
     setError(null);

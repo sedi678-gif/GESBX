@@ -2128,6 +2128,45 @@ service cloud.firestore {
         );
     }
 
+    function arenaPresenceOffline(matchId, playerId, matchCreatedAt) {
+      let path = /databases/$(database)/documents/arena_matches/$(matchId)/presence/$(playerId);
+      return (!exists(path) && request.time.toMillis() - matchCreatedAt > 12000)
+        || get(path).data.online != true
+        || request.time.toMillis() - get(path).data.updatedAt > 12000;
+    }
+
+    function arenaSideHasOtherOwner(playerIds, targetPlayerId) {
+      return (playerIds[0] is string && playerIds[0] != targetPlayerId && ownsProfileId(playerIds[0]))
+        || (playerIds[1] is string && playerIds[1] != targetPlayerId && ownsProfileId(playerIds[1]))
+        || (playerIds[2] is string && playerIds[2] != targetPlayerId && ownsProfileId(playerIds[2]))
+        || (playerIds[3] is string && playerIds[3] != targetPlayerId && ownsProfileId(playerIds[3]))
+        || (playerIds[4] is string && playerIds[4] != targetPlayerId && ownsProfileId(playerIds[4]));
+    }
+
+    function arenaCanControlPlayer(matchId, before, targetPlayerId) {
+      return ownsProfileId(targetPlayerId)
+        || (arenaPresenceOffline(matchId, targetPlayerId, before.createdAt)
+          && ((targetPlayerId in before.homePlayerIds && arenaSideHasOtherOwner(before.homePlayerIds, targetPlayerId))
+            || (targetPlayerId in before.awayPlayerIds && arenaSideHasOtherOwner(before.awayPlayerIds, targetPlayerId))));
+    }
+
+    function arenaLoadoutChangedFor(matchId, before, after, playerId) {
+      return playerId is string
+        && !before.loadouts.keys().hasAny([playerId])
+        && after.loadouts.keys().hasAny([playerId])
+        && after.loadouts[playerId].playerId == playerId
+        && after.loadouts.diff(before.loadouts).affectedKeys().hasOnly([playerId])
+        && arenaCanControlPlayer(matchId, before, playerId);
+    }
+
+    function arenaCardChangedFor(matchId, before, after, playerId) {
+      return playerId is string
+        && before.players[playerId].role == 'CLICKER'
+        && after.players[playerId].energy < before.players[playerId].energy
+        && after.loadouts[playerId] != before.loadouts[playerId]
+        && arenaCanControlPlayer(matchId, before, playerId);
+    }
+
     function isValidArenaMatchCreate() {
       let d = request.resource.data;
       return request.auth != null
@@ -2205,6 +2244,7 @@ service cloud.firestore {
 
     function isValidArenaAction() {
       return isValidArenaTurnAdvance()
+        && arenaCanControlPlayer(resource.data.matchId, resource.data, resource.data.currentTurn)
         && request.time.toMillis() < resource.data.turnExpiresAt
         && resource.data.lastActionTurnSeq != resource.data.turnSeq;
     }
@@ -2236,6 +2276,18 @@ service cloud.firestore {
         && after.matchId == before.matchId
         && after.displayNames == before.displayNames
         && (
+          arenaLoadoutChangedFor(matchId, before, after, before.homePlayerIds[0])
+          || arenaLoadoutChangedFor(matchId, before, after, before.homePlayerIds[1])
+          || arenaLoadoutChangedFor(matchId, before, after, before.homePlayerIds[2])
+          || arenaLoadoutChangedFor(matchId, before, after, before.homePlayerIds[3])
+          || arenaLoadoutChangedFor(matchId, before, after, before.homePlayerIds[4])
+          || arenaLoadoutChangedFor(matchId, before, after, before.awayPlayerIds[0])
+          || arenaLoadoutChangedFor(matchId, before, after, before.awayPlayerIds[1])
+          || arenaLoadoutChangedFor(matchId, before, after, before.awayPlayerIds[2])
+          || arenaLoadoutChangedFor(matchId, before, after, before.awayPlayerIds[3])
+          || arenaLoadoutChangedFor(matchId, before, after, before.awayPlayerIds[4])
+        )
+        && (
           (
             after.phase == 'loadout'
             && after.turnStartedAt == before.turnStartedAt
@@ -2254,6 +2306,18 @@ service cloud.firestore {
       let before = resource.data;
       let after = request.resource.data;
       return request.auth != null
+        && (
+          arenaCardChangedFor(matchId, before, after, before.homePlayerIds[0])
+          || arenaCardChangedFor(matchId, before, after, before.homePlayerIds[1])
+          || arenaCardChangedFor(matchId, before, after, before.homePlayerIds[2])
+          || arenaCardChangedFor(matchId, before, after, before.homePlayerIds[3])
+          || arenaCardChangedFor(matchId, before, after, before.homePlayerIds[4])
+          || arenaCardChangedFor(matchId, before, after, before.awayPlayerIds[0])
+          || arenaCardChangedFor(matchId, before, after, before.awayPlayerIds[1])
+          || arenaCardChangedFor(matchId, before, after, before.awayPlayerIds[2])
+          || arenaCardChangedFor(matchId, before, after, before.awayPlayerIds[3])
+          || arenaCardChangedFor(matchId, before, after, before.awayPlayerIds[4])
+        )
         && before.phase == 'combat'
         && after.phase == 'combat'
         && before.status == 'active'
@@ -2311,6 +2375,7 @@ service cloud.firestore {
       let after = request.resource.data;
       let pid = before.currentTurn;
       return request.auth != null
+        && arenaCanControlPlayer(matchId, before, pid)
         && before.phase == 'combat'
         && after.phase == 'combat'
         && before.status == 'active'
@@ -2563,10 +2628,12 @@ service cloud.firestore {
       match /presence/{playerId} {
         allow read: if request.auth != null;
         allow create, update: if request.auth != null
+          && ownsProfileId(playerId)
           && request.resource.data.keys().hasOnly(['playerId', 'online', 'updatedAt'])
           && request.resource.data.playerId == playerId
           && request.resource.data.online is bool
-          && request.resource.data.updatedAt is int;
+          && request.resource.data.updatedAt is int
+          && request.resource.data.updatedAt <= request.time.toMillis() + 5000;
         allow delete: if false;
       }
     }

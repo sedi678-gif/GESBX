@@ -209,7 +209,17 @@ export function createMatchSnapshot(input: {
 
 export function advanceMatchTurn(match: ArenaMatchState, serverNow: number): ArenaMatchState {
   const seats = filledTurnQueue(match.homePlayerIds, match.awayPlayerIds);
-  const next = nextFilledSeat(seats, currentSeatFromMatch(match));
+  const current = currentSeatFromMatch(match);
+  const home = seats.filter((seat) => seat.side === 'home');
+  const away = seats.filter((seat) => seat.side === 'away');
+  const bothSidesPresent = home.length > 0 && away.length > 0;
+  const nextSide = bothSidesPresent
+    ? current.side === 'home' ? 'away' : 'home'
+    : home.length > 0 ? 'home' : 'away';
+  const sideSeats = nextSide === 'home' ? home : away;
+  const turnNumber = match.turnIndex + 1;
+  const sideTurnNumber = bothSidesPresent ? Math.floor(turnNumber / 2) : turnNumber;
+  const next = sideSeats[sideTurnNumber % sideSeats.length] ?? nextFilledSeat(seats, current);
   return {
     ...match,
     currentTurn: next.playerId,

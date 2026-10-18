@@ -31,6 +31,7 @@ import { applyArenaCardPlay, applyLockedLoadout, assertArenaLoadoutLockAllowed, 
 import { emptyArenaEffects } from './effects/types';
 import { opponentPlayerId, serverActiveUsers } from './effects/engine';
 import { publicAuditCardId } from './effects/interaction';
+import { canArenaPlayerControl } from './presencePolicy';
 import type { ArenaRewardRecord } from './reward/types';
 import {
   applyArenaClick,
@@ -644,11 +645,13 @@ export async function timeoutArenaTurn(input: { matchId: string }): Promise<Aren
 export async function lockArenaLoadout(input: {
   matchId: string;
   playerId: string;
+  actorPlayerId?: string;
   cardIds: unknown;
 }): Promise<ArenaMatchState> {
   await requireFirebaseAuth();
   const matchId = sanitizeBattleId(input.matchId);
   const playerId = sanitizePlayerId(input.playerId);
+  const actorPlayerId = sanitizePlayerId(input.actorPlayerId || input.playerId);
   const now = await requireServerNow();
   const lockKey = `arena-loadout:${matchId}:${playerId}`;
   return replayBattleRequest(lockKey, async () =>
@@ -657,6 +660,13 @@ export async function lockArenaLoadout(input: {
         const snap = await tx.get(matchRef(matchId));
         if (!snap.exists()) throw new Error('Match tapılmadı');
         const match = matchFromData(snap.id, snap.data() as Record<string, unknown>);
+        if (actorPlayerId !== playerId) {
+          const presenceSnap = await tx.get(presenceRef(matchId, playerId));
+          const targetPresence = presenceSnap.exists() ? presenceSnap.data() as ArenaPresenceState : undefined;
+          if (!canArenaPlayerControl(match, actorPlayerId, playerId, { [playerId]: targetPresence ?? { playerId, online: false, updatedAt: 0 } }, now)) {
+            throw new Error('Yalnız offline komanda yoldaşının loadout-unu kilidləyə bilərsən.');
+          }
+        }
         const loadout = assertArenaLoadoutLockAllowed({ match, playerId, cardIds: input.cardIds });
         const next = applyLockedLoadout(match, loadout, now);
         tx.update(matchRef(matchId), matchWrite(next));
@@ -671,6 +681,7 @@ export async function lockArenaLoadout(input: {
 export async function playArenaCard(input: {
   matchId: string;
   playerId: string;
+  actorPlayerId?: string;
   cardId: string;
   actionId: string;
   mode?: unknown;
@@ -678,6 +689,7 @@ export async function playArenaCard(input: {
   await requireFirebaseAuth();
   const matchId = sanitizeBattleId(input.matchId);
   const playerId = sanitizePlayerId(input.playerId);
+  const actorPlayerId = sanitizePlayerId(input.actorPlayerId || input.playerId);
   const cardId = asString(input.cardId);
   const actionId = asString(input.actionId).slice(0, 64);
   if (!cardId) throw new Error('Kart ID yoxdur');
@@ -690,6 +702,13 @@ export async function playArenaCard(input: {
         const snap = await tx.get(matchRef(matchId));
         if (!snap.exists()) throw new Error('Match tapılmadı');
         const match = matchFromData(snap.id, snap.data() as Record<string, unknown>);
+        if (actorPlayerId !== playerId) {
+          const presenceSnap = await tx.get(presenceRef(matchId, playerId));
+          const targetPresence = presenceSnap.exists() ? presenceSnap.data() as ArenaPresenceState : undefined;
+          if (!canArenaPlayerControl(match, actorPlayerId, playerId, { [playerId]: targetPresence ?? { playerId, online: false, updatedAt: 0 } }, now)) {
+            throw new Error('Yalnız offline komanda yoldaşının növbəsini idarə edə bilərsən.');
+          }
+        }
         const energyBefore = match.players[playerId]?.energy ?? 0;
         const usesBefore = match.loadouts[playerId]?.cards.find((card) => card.cardId === cardId)?.remaining ?? 0;
         const oppSide = match.players[playerId]?.side === 'home' ? 'away' : 'home';
@@ -709,6 +728,7 @@ export async function playArenaCard(input: {
         tx.set(auditRef, {
           matchId,
           playerId,
+          actorPlayerId,
           cardId: publicAuditCardId(cardId, hidden),
           mode: hidden ? null : input.mode ?? null,
           timestamp: now,

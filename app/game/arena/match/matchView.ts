@@ -55,13 +55,15 @@ function handFromMatch(match: ArenaMatchState, viewerPlayerId: string): ArenaHan
 export function matchToArenaView(input: {
   match: ArenaMatchState;
   viewerPlayerId: string;
+  actingPlayerId?: string;
   serverNow: number;
   presence: Record<string, ArenaPresenceState>;
 }): ArenaViewModel {
   const { match, viewerPlayerId, serverNow, presence } = input;
-  const viewer = match.players[viewerPlayerId];
+  const actingPlayerId = input.actingPlayerId || viewerPlayerId;
+  const viewer = match.players[actingPlayerId];
   const mode = match.gameMode === '1v1' ? '1v1' : '5v5';
-  const energyCap = mode === '1v1' ? 35 : 30;
+  const energyCap = 30;
   const energy = viewer?.energy ?? energyCap;
   const seconds = remainingTurnSeconds(match.turnExpiresAt, serverNow);
   const base = createPlaceholderArenaView();
@@ -103,7 +105,7 @@ export function matchToArenaView(input: {
           playerId: match.currentTurn,
           label: turnLabel(match),
         },
-    cards: { hand: handFromMatch(match, viewerPlayerId) },
+    cards: { hand: handFromMatch(match, actingPlayerId) },
     clickEvent: {
       visible: Boolean(click),
       cardTitle: click ? arenaCardTitle(click.cardId) : 'Klik kartı',

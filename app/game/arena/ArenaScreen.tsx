@@ -21,9 +21,11 @@ import {
   remainingTurnSeconds,
   submitArenaReactionClick,
   timeoutArenaTurn,
+  lockArenaLoadout,
   type ArenaMatchState,
   type ArenaPresenceState,
 } from './match';
+import { ARENA_PRESENCE_HEARTBEAT_MS, canArenaPlayerControl, isArenaPlayerOffline } from './match/presencePolicy';
 import { matchToArenaView } from './match/matchView';
 import { officialArenaFinishReason } from './match/completion';
 import { arenaCardMeta, isArenaCardId } from './match/catalog';
@@ -44,6 +46,17 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
   const [pendingModeCard, setPendingModeCard] = useState<string | null>(null);
   const timeoutLock = useRef(false);
   const reactionLock = useRef(false);
+  const offlineLoadoutLocks = useRef(new Set<string>());
+
+  const proxyTargetId = useMemo(() => {
+    if (!match || !playerId || serverNow <= 0) return null;
+    const currentTurn = match.currentTurn;
+    if (
+      currentTurn !== playerId &&
+      canArenaPlayerControl(match, playerId, currentTurn, presence, serverNow)
+    ) return currentTurn;
+    return null;
+  }, [match, playerId, presence, serverNow]);
 
   useEffect(() => {
     if (view || !matchId) return undefined;
@@ -65,12 +78,35 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
     void heartbeatArenaPresence({ matchId, playerId, online: true }).catch((error) => { console.warn('Background task failed', error); });
     const timer = window.setInterval(() => {
       void heartbeatArenaPresence({ matchId, playerId, online: true }).catch((error) => { console.warn('Background task failed', error); });
-    }, 8_000);
+    }, ARENA_PRESENCE_HEARTBEAT_MS);
     return () => {
       window.clearInterval(timer);
       void heartbeatArenaPresence({ matchId, playerId, online: false }).catch((error) => { console.warn('Background task failed', error); });
     };
   }, [matchId, playerId, view]);
+
+  useEffect(() => {
+    if (view || !match || !matchId || !playerId || serverNow <= 0 || match.phase !== 'loadout') return;
+    const actor = match.players[playerId];
+    if (!actor) return;
+    for (const targetId of match.participantIds) {
+      if (match.loadouts[targetId] || targetId === playerId) continue;
+      if (!isArenaPlayerOffline(presence[targetId], serverNow, match.createdAt)) continue;
+      if (!canArenaPlayerControl(match, playerId, targetId, presence, serverNow)) continue;
+      const key = `${matchId}:${targetId}`;
+      if (offlineLoadoutLocks.current.has(key)) continue;
+      offlineLoadoutLocks.current.add(key);
+      void lockArenaLoadout({
+        matchId,
+        playerId: targetId,
+        actorPlayerId: playerId,
+        cardIds: ['ogru', 'felaket', 'qutb', 'guzgu', 'duman'],
+      }).catch((error) => {
+        console.warn('Offline teammate loadout could not be locked', error);
+        offlineLoadoutLocks.current.delete(key);
+      });
+    }
+  }, [match, matchId, playerId, presence, serverNow, view]);
 
   useEffect(() => {
     if (view || !match || !matchId) return;
@@ -117,10 +153,11 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
     return matchToArenaView({
       match,
       viewerPlayerId: playerId,
+      actingPlayerId: proxyTargetId || playerId,
       serverNow,
       presence,
     });
-  }, [match, playerId, presence, serverNow]);
+  }, [match, playerId, presence, proxyTargetId, serverNow]);
 
   const ui = view ?? liveView ?? EMPTY_ARENA_VIEW;
   const needsLoadout = Boolean(
@@ -145,7 +182,8 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
     try {
       await playArenaCard({
         matchId,
-        playerId,
+        playerId: actingPlayerId ?? playerId,
+        actorPlayerId: playerId,
         cardId,
         actionId: makeArenaActionId(),
         mode,
@@ -173,17 +211,31 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
   const energyCurrent = Math.max(0, Math.min(energyMax, ui.energy.current ?? 0));
   const energyPct = energyMax > 0 ? Math.round((energyCurrent / energyMax) * 100) : 0;
   const matchClosed = match?.status === 'closed' && Boolean(match.result);
+  const canProxyTurn = Boolean(match && proxyTargetId === match.currentTurn);
+  const actingPlayerId = proxyTargetId || playerId;
+  const homeCount = match?.homePlayerIds.filter(Boolean).length ?? 0;
+  const awayCount = match?.awayPlayerIds.filter(Boolean).length ?? 0;
   const handPlay =
     !matchClosed &&
     match?.phase === 'combat' &&
     playerId &&
-    (playerId === match.currentTurn || match.players[playerId]?.role === 'CLICKER')
+    (playerId === match.currentTurn || Boolean(proxyTargetId) || match.players[playerId]?.role === 'CLICKER')
       ? onPlayCard
       : undefined;
 
   return (
     <div className={styles.body}>
       <ArenaHeader view={ui} onClose={onClose} />
+      {match ? (
+        <p className={styles.waiting} aria-label="Döyüşdəki oyunçu sayı">
+          {homeCount}v{awayCount} döyüş · {match.gameMode === '1v1' ? '1v1 əsas rejimi' : '5v5 masa'}
+        </p>
+      ) : null}
+      {canProxyTurn && match ? (
+        <p role="status" className={styles.waiting}>
+          {match.displayNames[match.currentTurn] || 'Komanda yoldaşı'} offline görünür — onun kartları ilə oynayırsan.
+        </p>
+      ) : null}
       {matchId && playerId && !view ? (
         <ArenaTableVoice
           matchId={matchId}
