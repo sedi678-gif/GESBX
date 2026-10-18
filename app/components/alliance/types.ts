@@ -114,6 +114,7 @@ export interface PlayerProfile {
   allianceName: string | null;
   isLeader: boolean;
   score: number;
+  xp?: number;
   /** Oyun valyutası — manat (₼). Köhnə `coins` sahəsi migrate olunur. */
   manat: number;
   /** @deprecated Jeton — yalnız köhnə məlumat üçün */

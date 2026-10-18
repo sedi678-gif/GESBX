@@ -1,4 +1,4 @@
-import { db } from '../../../firebase';
+import { auth, db } from '../../../firebase';
 import {
   doc,
   setDoc,
@@ -24,7 +24,7 @@ import {
 import { isAllianceLeader, type LeaderCheckOptions } from './allianceLeader';
 import { DEFAULT_MANAT, resolvePlayerManat, readStoredManat, manatWritePatch } from '@/app/lib/manat';
 import { DEFAULT_USER_PLAN_STATE, normalizeUserPlanState } from '@/app/lib/userPlan';
-import { withTimeout } from '@/app/lib/firebaseAuth';
+import { ensureFirebaseAuth, withTimeout } from '@/app/lib/firebaseAuth';
 import { callSecureFunction } from '@/app/lib/secureFunctions';
 
 /** Firebase UID ilə yaradılmış köhnə profili lokal profil ID ilə birləşdirir */
@@ -126,7 +126,14 @@ export const createAlliance = async (
   currentUserName: string
 ) => {
   if (!allianceName.trim()) throw new Error('İttifaq adını daxil edin!');
-  void currentUserName;
+  const firebaseUser = await ensureFirebaseAuth();
+  const firebaseUid = auth.currentUser?.uid || firebaseUser?.uid;
+  if (!firebaseUid) throw new Error('İttifaq yaratmaq üçün hesabınıza yenidən daxil olun.');
+
+  // Profile hydration previously ran in a detached context effect. Create can
+  // be clicked before it finishes, leaving the server without an owned player.
+  await ensurePlayerProfile(currentUserId, currentUserName, firebaseUid);
+  await reconcilePlayerIdentity(currentUserId, firebaseUid, currentUserName);
 
   const coords = getRegionCoords(region !== 'Hamısı' ? region : 'Bakı');
   const newAllData = {

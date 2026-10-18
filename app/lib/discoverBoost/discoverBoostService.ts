@@ -2,14 +2,13 @@ import {
   collection,
   doc,
   onSnapshot,
-  setDoc,
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { ensureFirebaseAuth } from '@/app/lib/firebaseAuth';
+import { callSecureFunction } from '@/app/lib/secureFunctions';
 import {
   DISCOVER_BOOST_COLLECTION,
-  DISCOVER_BOOST_MS,
 } from './discoverBoostConfig';
 
 export function remainingDiscoverBoostMs(until: number, now = Date.now()): number {
@@ -21,19 +20,15 @@ export function isDiscoverBoostActive(until: number, now = Date.now()): boolean 
   return remainingDiscoverBoostMs(until, now) > 0;
 }
 
-export async function activateDiscoverBoost(userId: string, now = Date.now()): Promise<number> {
+export async function activateDiscoverBoost(userId: string): Promise<{ until: number; xpRemaining: number }> {
   if (!userId || userId === 'anonim_user_id') {
     throw new Error('Kəşf boostu üçün profil tələb olunur.');
   }
 
   await ensureFirebaseAuth();
-  const until = now + DISCOVER_BOOST_MS;
-  await setDoc(doc(db, DISCOVER_BOOST_COLLECTION, userId), {
-    userId,
-    until,
-    updatedAt: now,
-  });
-  return until;
+  return callSecureFunction<{ userId: string }, { until: number; xpRemaining: number }>(
+    'purchaseDiscoverBoost', { userId },
+  );
 }
 
 function mapBoostUntil(raw: Record<string, unknown> | undefined): number {

@@ -620,6 +620,8 @@ function ProfilePageContent() {
   const [xpModeToggling, setXpModeToggling] = useState(false);
   const [xpModeOn, setXpModeOn] = useState(true);
   const [discoverBoostUntil, setDiscoverBoostUntil] = useState(0);
+  const [showBoostOptions, setShowBoostOptions] = useState(false);
+  const [buyingDiscoverBoost, setBuyingDiscoverBoost] = useState(false);
   const [boostNow, setBoostNow] = useState(() => Date.now());
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [accountEmail, setAccountEmail] = useState('');
@@ -1151,14 +1153,7 @@ function ProfilePageContent() {
             <GoogleAdButton
               variant="bolt"
               className={isDiscoverBoostActive(discoverBoostUntil, boostNow) ? profileStyles.profileAdBoltOn : undefined}
-              onReward={async () => {
-                try {
-                  await activateDiscoverBoost(currentUser.id);
-                  setXpModeNotice('Videoların və şəkillərin 2 dəqiqə kəşfdə öndədir');
-                } catch (err) {
-                  alert(err instanceof Error ? err.message : 'Kəşf boostu alınmadı');
-                }
-              }}
+              onClick={() => setShowBoostOptions(true)}
             />
             {isDiscoverBoostActive(discoverBoostUntil, boostNow) ? (
               <span className={profileStyles.profileAdBoltTimer}>
@@ -1622,6 +1617,50 @@ function ProfilePageContent() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {showBoostOptions && (
+        <div style={modalOverlayStyle} onClick={() => !buyingDiscoverBoost && setShowBoostOptions(false)}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="discover-boost-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{ ...modalContentStyle, width: '92%', maxWidth: 420, height: 'auto', padding: 22, gap: 14, color: '#f8fafc', background: '#111827', border: '1px solid #374151' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 id="discover-boost-title" style={{ margin: 0, fontSize: 19 }}>Videonu Kəşfə çıxar</h2>
+              <button type="button" onClick={() => setShowBoostOptions(false)} disabled={buyingDiscoverBoost} aria-label="Bağla" style={{ color: '#e5e7eb', background: 'transparent', border: 0, fontSize: 20, cursor: 'pointer' }}>✕</button>
+            </div>
+            <p style={{ margin: 0, color: '#9ca3af', fontSize: 13 }}>Boost profilinin video və şəkillərini Kəşf lentində önə çıxarır.</p>
+            <button type="button" disabled style={{ textAlign: 'left', padding: 14, borderRadius: 12, border: '1px solid #374151', background: '#1f2937', color: '#d1d5db', cursor: 'not-allowed' }}>
+              <strong style={{ display: 'block' }}>▶ Reklama bax · 2 dəqiqə</strong>
+              <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#9ca3af' }}>AdMob reklamı və server təsdiqi qoşulandan sonra aktiv olacaq.</span>
+            </button>
+            <button
+              type="button"
+              disabled={buyingDiscoverBoost || !userId}
+              onClick={async () => {
+                if (!userId || buyingDiscoverBoost) return;
+                setBuyingDiscoverBoost(true);
+                try {
+                  const result = await activateDiscoverBoost(userId);
+                  setDiscoverBoostUntil(result.until);
+                  setShowBoostOptions(false);
+                  setXpModeNotice(`15 dəqiqəlik Kəşf boostu aktivdir · qalıq ${result.xpRemaining} XP`);
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : 'Kəşf boostu alınmadı');
+                } finally {
+                  setBuyingDiscoverBoost(false);
+                }
+              }}
+              style={{ textAlign: 'left', padding: 14, borderRadius: 12, border: 0, background: 'linear-gradient(100deg,#7c3aed,#4f46e5)', color: 'white', cursor: buyingDiscoverBoost ? 'wait' : 'pointer', opacity: buyingDiscoverBoost ? .7 : 1 }}
+            >
+              <strong style={{ display: 'block' }}>{buyingDiscoverBoost ? 'Aktivləşdirilir…' : '⚡ 5000 XP xərclə · 15 dəqiqə'}</strong>
+              <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#e0e7ff' }}>Balans: {Number(playerProfile?.xp || 0).toLocaleString('az-AZ')} XP</span>
+            </button>
+          </section>
         </div>
       )}
 

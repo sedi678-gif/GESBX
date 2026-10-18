@@ -2114,12 +2114,7 @@ service cloud.firestore {
 
     match /discover_boosts/{boostUserId} {
       allow read: if true;
-      allow create, update: if request.auth != null
-        && request.resource.data.keys().hasOnly(['userId', 'until', 'updatedAt'])
-        && request.resource.data.userId == boostUserId
-        && request.resource.data.until is int
-        && request.resource.data.updatedAt is int;
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     function arenaSlotEnergyOk(ids, i, side) {
