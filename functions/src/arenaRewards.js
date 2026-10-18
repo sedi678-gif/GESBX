@@ -2,6 +2,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore } = require('firebase-admin/firestore');
 const { ADMIN_UIDS, adminUid } = require('./security');
+const { planWeeklyRewards } = require('./arenaWeeklyPlanner');
 
 const db = getFirestore();
 const REGION = 'us-central1';
@@ -68,8 +69,130 @@ exports.awardArenaMatchRewards = onCall({ region: REGION, enforceAppCheck: true 
   return { rewards: [{ ...saved.data(), rewardId: id }] };
 });
 
-exports.settleArenaWeeklyRewards = onCall({ region: REGION, enforceAppCheck: true, secrets: [ADMIN_UIDS] }, async (request) => {
+exports.settleArenaWeeklyRewards = onCall({ region: REGION, enforceAppCheck: true, secrets: [ADMIN_UIDS], timeoutSeconds: 300 }, async (request) => {
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Giriş tələb olunur.');
   if (!adminUid(request.auth.uid)) throw new HttpsError('permission-denied', 'Həftəlik mükafat hesablaşması yalnız admin üçündür.');
-  throw new HttpsError('failed-precondition', 'Wallet bölgüsü və rank mükafatları konfiqurasiya edilməyib. Yanlış hesablaşma qəbzi yaradılmadı.');
+  const periodId = String(request.data?.periodId || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(periodId)) {
+    throw new HttpsError('invalid-argument', 'Həftə periodu yanlışdır.');
+  }
+
+  const settlementId = `${periodId}_AZ`;
+  const settlementRef = db.doc(`arena_reward_settlements/${settlementId}`);
+  const [oldSettlement, boardSnap, resetSnap, allocationSnap] = await Promise.all([
+    settlementRef.get(),
+    db.doc(`leaderboard_weekly/${periodId}`).get(),
+    db.doc(`leaderboard_resets/weekly_${periodId}`).get(),
+    db.doc('app_config/arena_reward_allocation').get(),
+  ]);
+  if (oldSettlement.exists) return oldSettlement.data();
+  if (!boardSnap.exists || boardSnap.data().periodKey !== periodId || boardSnap.data().status !== 'closed') {
+    throw new HttpsError('failed-precondition', 'Həftəlik reytinq bağlı deyil.');
+  }
+  if (!resetSnap.exists || resetSnap.data().status !== 'done' || resetSnap.data().kind !== 'weekly') {
+    throw new HttpsError('failed-precondition', 'Həftəlik reytinqin yekunlaşdırılması tamamlanmayıb.');
+  }
+  if (!allocationSnap.exists || !Array.isArray(allocationSnap.data().entries) || allocationSnap.data().entries.length === 0) {
+    throw new HttpsError('failed-precondition', 'app_config/arena_reward_allocation entries cədvəli boşdur.');
+  }
+
+  let plans;
+  try {
+    plans = planWeeklyRewards(boardSnap.data(), allocationSnap.data(), 'AZ');
+  } catch (error) {
+    throw new HttpsError('failed-precondition', error instanceof Error ? error.message : 'Mükafat cədvəli yanlışdır.');
+  }
+  if (plans.length === 0) {
+    throw new HttpsError('failed-precondition', 'Bağlı reytinqdə konfiqurasiya edilmiş rank mükafatı yoxdur.');
+  }
+
+  const now = Date.now();
+  for (const plan of plans) {
+    const rewardRef = db.doc(`arena_rewards/${plan.rewardId}`);
+    await db.runTransaction(async (tx) => {
+      const existing = await tx.get(rewardRef);
+      if (existing.exists) {
+        const old = existing.data();
+        if (old.sourceType !== 'WEEKLY_RANKING' || old.periodId !== periodId || old.recipientId !== plan.recipientId || old.rank !== plan.rank || old.amount !== plan.amount) {
+          throw new HttpsError('already-exists', 'Mövcud mükafat qeydi yeni hesablaşma planı ilə uyğun gəlmir.');
+        }
+        return;
+      }
+      const allianceSnap = await tx.get(db.doc(`alliances/${plan.recipientId}`));
+      if (!allianceSnap.exists) {
+        throw new HttpsError('failed-precondition', `Reytinqdəki ${plan.recipientId} ittifaqı tapılmadı.`);
+      }
+      const alliance = allianceSnap.data();
+      const allianceMembers = await tx.get(db.collection(`alliance_members/${plan.recipientId}/members`));
+      let viewerIds = allianceMembers.docs.map((member) => member.id);
+      if (viewerIds.length === 0 && Array.isArray(alliance.members)) {
+        const userSnaps = await Promise.all(alliance.members.map((id) => tx.get(db.doc(`users/${id}`))));
+        viewerIds = userSnaps.map((user) => String(user.data()?.firebaseUid || '')).filter(Boolean);
+      }
+      viewerIds = [...new Set(viewerIds)];
+      if (viewerIds.length === 0) {
+        throw new HttpsError('failed-precondition', `İttifaq ${plan.recipientId} üzvlərinin Firebase UID-ləri tapılmadı.`);
+      }
+      const blocked = alliance.banned === true || alliance.frozen === true;
+      const status = blocked ? 'REJECTED' : 'APPROVED';
+      tx.create(rewardRef, {
+        ...plan,
+        viewerIds,
+        rewardType: 'WEEKLY_RANKING',
+        sourceType: 'WEEKLY_RANKING',
+        status,
+        createdAt: now,
+        approvedAt: blocked ? null : now,
+        rejectedAt: blocked ? now : null,
+        securityStatus: blocked ? 'BLOCKED' : 'CLEAR',
+        payoutCheckStatus: null,
+        payoutCheckedAt: null,
+        payoutReady: false,
+        walletCredited: false,
+      });
+      for (const type of [
+        'REWARD_ELIGIBILITY_CHECKED',
+        'REWARD_ALLOCATION_CREATED',
+        'REWARD_SECURITY_CHECKED',
+        blocked ? 'REWARD_REJECTED' : 'REWARD_APPROVED',
+      ]) {
+        tx.create(rewardRef.collection('reward_events').doc(type), {
+          type,
+          rewardId: plan.rewardId,
+          sourceId: periodId,
+          periodId,
+          rank: plan.rank,
+          amount: plan.amount,
+          currency: plan.currency,
+          status,
+          timestamp: now,
+        });
+      }
+    });
+  }
+
+  await db.runTransaction(async (tx) => {
+    const existing = await tx.get(settlementRef);
+    if (existing.exists) return;
+    tx.create(settlementRef, {
+      settlementId,
+      periodId,
+      countryCode: 'AZ',
+      sourceType: 'WEEKLY_RANKING',
+      status: 'completed',
+      allocatedCount: plans.length,
+      walletCredited: false,
+      createdAt: now,
+    });
+    tx.create(settlementRef.collection('reward_events').doc('REWARD_ALLOCATION_COMPLETED'), {
+      type: 'REWARD_ALLOCATION_COMPLETED',
+      settlementId,
+      periodId,
+      allocatedCount: plans.length,
+      walletCredited: false,
+      timestamp: now,
+    });
+  });
+  const settlement = await settlementRef.get();
+  return settlement.data();
 });

@@ -2588,10 +2588,7 @@ service cloud.firestore {
       // həmin istifadəçi özü yaradıb bağlaya bilir. Nəticədə istifadəçi özünə ödəniş
       // mükafatı (`payoutReady`) yaza bilirdi.
       //
-      // Mükafat yaradılması artıq istifadəçi tərəfdə icazəli deyil: yalnız server
-      // (Admin SDK / Cloud Function) yazır. `rewardService.ts` hələ də klientdən
-      // `persistArenaMatchRewards` çağırır — bu funksiya Admin SDK-ya köçürülməlidir,
-      // əks halda istifadəçi mükafat sənədini görməyəcək (səssiz itki olmaz, xəta verir).
+      // Mükafat yaradılması yalnız Admin SDK / Cloud Function vasitəsilə edilir.
       allow create: if false
         && request.resource.data.rewardId == rewardId
         && request.resource.data.currency == 'AZN'

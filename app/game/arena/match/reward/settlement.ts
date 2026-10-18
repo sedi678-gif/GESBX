@@ -49,6 +49,7 @@ export async function settleWeeklyRankingRewards(input: {
   const settle = httpsCallable<{ periodId: string }, ArenaRewardSettlementReceipt | null>(
     functions,
     'settleArenaWeeklyRewards',
+    { timeout: 300_000 },
   );
   return (await settle({ periodId })).data;
 }
