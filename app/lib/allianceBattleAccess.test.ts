@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { canReuseActiveAllianceBattle, canStartAllianceBattle } from './allianceBattleAccess';
+import {
+  canReuseActiveAllianceBattle,
+  canStartAllianceBattle,
+  isExpiredUnstartedAllianceBattle,
+} from './allianceBattleAccess';
 
 test('only the alliance leader and promoted assistant leaders can start an attack', () => {
   const alliance = { leaderId: '10', assistantLeaderIds: ['20'] };
@@ -33,4 +37,33 @@ test('a different or closed battle is never reused', () => {
   };
   assert.equal(canReuseActiveAllianceBattle({ ...base, requestedDefenderAllianceId: 'c' }), false);
   assert.equal(canReuseActiveAllianceBattle({ ...base, arenaClosed: true }), false);
+});
+
+test('an expired pre-combat battle no longer blocks a fresh attack', () => {
+  assert.equal(isExpiredUnstartedAllianceBattle({
+    status: 'joining',
+    joinEndsAt: 20_000,
+    now: 140_000,
+  }), true);
+  assert.equal(isExpiredUnstartedAllianceBattle({
+    status: 'joining',
+    joinEndsAt: 20_000,
+    now: 139_999,
+  }), false);
+  assert.equal(isExpiredUnstartedAllianceBattle({
+    status: 'active',
+    joinEndsAt: 1,
+    now: 20_000,
+  }), false);
+  assert.equal(isExpiredUnstartedAllianceBattle({
+    status: 'joining',
+    joinEndsAt: 1,
+    now: 140_000,
+    arenaStarted: true,
+  }), false);
+  assert.equal(isExpiredUnstartedAllianceBattle({
+    status: 'locked',
+    joinEndsAt: 20_000,
+    now: 140_000,
+  }), true);
 });

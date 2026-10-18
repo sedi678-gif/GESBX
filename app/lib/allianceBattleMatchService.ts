@@ -33,7 +33,11 @@ import { readStoredDefenseLoadout } from '@/app/lib/battleDefense/battleDefenseC
 import { stampDefenseSnapshot } from '@/app/lib/battleDefense/battleDefenseService';
 import { serverNowMs, syncServerClock } from '@/app/lib/battlePlay/battleServerClock';
 import type { AllianceData } from '@/app/components/alliance/types';
-import { canReuseActiveAllianceBattle, canStartAllianceBattle } from '@/app/lib/allianceBattleAccess';
+import {
+  canReuseActiveAllianceBattle,
+  canStartAllianceBattle,
+  isExpiredUnstartedAllianceBattle,
+} from '@/app/lib/allianceBattleAccess';
 
 export const ALLIANCE_BATTLE_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 export const ALLIANCE_BATTLE_JOIN_MS = 15_000;
@@ -56,6 +60,7 @@ export interface AllianceBattleGate {
   lastBattleId: string | null;
   lastBattleAt: number;
   attackerAllianceId: string | null;
+  staleJoinRetryAt: number | null;
 }
 
 export interface AllianceBattleView {
@@ -107,22 +112,36 @@ function cooldownFromData(allianceId: string, data: Record<string, unknown> | un
 
 export function viewAllianceBattleGate(
   allianceId: string,
-  cooldown: Pick<AllianceBattleCooldown, 'cooldownUntil' | 'lastBattleId' | 'lastBattleAt' | 'attackerAllianceId'> | null,
-  now = Date.now()
+  cooldown: Pick<AllianceBattleCooldown, 'cooldownUntil' | 'lastBattleId' | 'lastBattleAt' | 'attackerAllianceId'> & { staleJoinRetryAt?: number | null } | null,
+  now = Date.now(),
+  expiredUnstartedBattle = false,
 ): AllianceBattleGate {
   const cooldownUntil = cooldown?.cooldownUntil ?? 0;
+  const staleJoinRetryAt = cooldown?.staleJoinRetryAt ?? null;
   return {
     allianceId,
-    canAttack: !cooldown || cooldownUntil <= 0 || now >= cooldownUntil,
+    canAttack: expiredUnstartedBattle
+      || (staleJoinRetryAt !== null && now >= staleJoinRetryAt)
+      || !cooldown || cooldownUntil <= 0 || now >= cooldownUntil,
     cooldownUntil,
     lastBattleId: cooldown?.lastBattleId ?? null,
     lastBattleAt: cooldown?.lastBattleAt ?? 0,
     attackerAllianceId: cooldown?.attackerAllianceId ?? null,
+    staleJoinRetryAt,
   };
 }
 
 /** createdAt/joinEndsAt 0 və ya epoch olarsa pəncərəni bitmiş sayma. */
 const JOIN_CLOCK_MIN_MS = 1_000_000_000_000;
+
+function battleJoinDeadline(battle: BattleRecord, fallbackBattleAt = 0, now = Date.now()): number {
+  if ((battle.joinEndsAt ?? 0) > JOIN_CLOCK_MIN_MS || (battle.createdAt ?? 0) > JOIN_CLOCK_MIN_MS) {
+    return officialJoinEndsAt(battle, now);
+  }
+  return fallbackBattleAt > JOIN_CLOCK_MIN_MS
+    ? fallbackBattleAt + ALLIANCE_BATTLE_JOIN_MS
+    : 0;
+}
 
 export function officialJoinEndsAt(
   battle: Pick<BattleRecord, 'joinEndsAt' | 'joinDurationMs' | 'createdAt'>,
@@ -166,11 +185,38 @@ export async function identifyAlliance(allianceId: string): Promise<AllianceData
   return { id: snap.id, ...snap.data() } as AllianceData;
 }
 
+async function resolveAllianceBattleGate(allianceId: string, cooldown: AllianceBattleCooldown | null): Promise<AllianceBattleGate> {
+  const now = Date.now();
+  if (!cooldown?.lastBattleId || cooldown.cooldownUntil <= now) {
+    return viewAllianceBattleGate(allianceId, cooldown, now);
+  }
+  const liveSnap = await getDoc(battleRef(cooldown.lastBattleId));
+  if (!liveSnap.exists()) return viewAllianceBattleGate(allianceId, { ...cooldown, staleJoinRetryAt: 0 }, now, true);
+
+  const live = battleFromData(liveSnap.id, liveSnap.data());
+  const arenaSnap = await getDoc(doc(db, ARENA_MATCH_COLLECTION, live.id));
+  const arenaStarted = arenaSnap.exists() && (arenaSnap.data() as { phase?: string }).phase === 'combat';
+  const joinEndsAt = battleJoinDeadline(live, cooldown.lastBattleAt, now);
+  const staleJoinRetryAt = joinEndsAt > 0 && !arenaStarted && (live.status === 'joining' || live.status === 'locked')
+    ? joinEndsAt + 2 * 60 * 1000
+    : null;
+  const expiredUnstarted = isExpiredUnstartedAllianceBattle({
+    status: live.status,
+    joinEndsAt,
+    now,
+    arenaStarted,
+  });
+  return viewAllianceBattleGate(allianceId, { ...cooldown, staleJoinRetryAt }, now, expiredUnstarted);
+}
+
 export async function getAllianceBattleGate(allianceId: string): Promise<AllianceBattleGate> {
   const snap = await getDoc(cooldownRef(allianceId));
-  return viewAllianceBattleGate(
+  const cooldown = snap.exists()
+    ? cooldownFromData(allianceId, snap.data() as Record<string, unknown>)
+    : null;
+  return resolveAllianceBattleGate(
     allianceId,
-    snap.exists() ? cooldownFromData(allianceId, snap.data() as Record<string, unknown>) : null
+    cooldown,
   );
 }
 
@@ -178,13 +224,20 @@ export function listenAllianceBattleGate(
   allianceId: string,
   onChange: (gate: AllianceBattleGate) => void
 ): Unsubscribe {
+  let generation = 0;
   return onSnapshot(cooldownRef(allianceId), (snap) => {
-    onChange(
-      viewAllianceBattleGate(
-        allianceId,
-        snap.exists() ? cooldownFromData(allianceId, snap.data() as Record<string, unknown>) : null
-      )
-    );
+    const current = ++generation;
+    const cooldown = snap.exists()
+      ? cooldownFromData(allianceId, snap.data() as Record<string, unknown>)
+      : null;
+    void resolveAllianceBattleGate(allianceId, cooldown)
+      .then((gate) => {
+        if (generation === current) onChange(gate);
+      })
+      .catch((error) => {
+        console.warn('Alliance battle gate could not be resolved', error);
+        if (generation === current) onChange(viewAllianceBattleGate(allianceId, cooldown));
+      });
   });
 }
 
@@ -222,15 +275,25 @@ export async function startAllianceMapBattle(input: {
         const existingCd = cdSnap.exists()
           ? cooldownFromData(defenderAllianceId, cdSnap.data() as Record<string, unknown>)
           : null;
+        let expiredUnstartedBattle = false;
 
         if (existingCd?.lastBattleId) {
           const liveSnap = await tx.get(battleRef(existingCd.lastBattleId));
-          if (liveSnap.exists()) {
+          if (!liveSnap.exists()) {
+            expiredUnstartedBattle = true;
+          } else {
             const live = battleFromData(liveSnap.id, liveSnap.data());
             const arenaSnap = await tx.get(doc(db, ARENA_MATCH_COLLECTION, live.id));
             const arenaClosed =
               arenaSnap.exists() && (arenaSnap.data() as { status?: string }).status === 'closed';
-            if (canReuseActiveAllianceBattle({
+            const checkNow = Date.now();
+            expiredUnstartedBattle = isExpiredUnstartedAllianceBattle({
+              status: live.status,
+              joinEndsAt: battleJoinDeadline(live, existingCd.lastBattleAt, checkNow),
+              now: checkNow,
+              arenaStarted: arenaSnap.exists() && (arenaSnap.data() as { phase?: string }).phase === 'combat',
+            });
+            if (!expiredUnstartedBattle && canReuseActiveAllianceBattle({
               status: live.status,
               attackerAllianceId: String(live.attackerAllianceId || ''),
               defenderAllianceId: String(live.defenderAllianceId || ''),
@@ -241,6 +304,7 @@ export async function startAllianceMapBattle(input: {
               return live;
             }
             if (
+              !expiredUnstartedBattle &&
               !arenaClosed &&
               (live.status === 'joining' || live.status === 'locked' || live.status === 'active')
             ) {
@@ -249,7 +313,7 @@ export async function startAllianceMapBattle(input: {
           }
         }
 
-        if (existingCd && existingCd.cooldownUntil > Date.now()) {
+        if (!expiredUnstartedBattle && existingCd && existingCd.cooldownUntil > Date.now()) {
           throw new Error('Bu ittifaqa son 3 saat ərzində hücum edilib');
         }
 
@@ -715,6 +779,16 @@ export function listenMyJoiningBattle(
       return;
     }
     const arenaSnap = await getDoc(doc(db, ARENA_MATCH_COLLECTION, battle.id));
+    const now = Date.now();
+    if (isExpiredUnstartedAllianceBattle({
+      status: battle.status,
+      joinEndsAt: battleJoinDeadline(battle, cd.lastBattleAt, now),
+      now,
+      arenaStarted: arenaSnap.exists() && (arenaSnap.data() as { phase?: string }).phase === 'combat',
+    })) {
+      onChange(null);
+      return;
+    }
     if (arenaSnap.exists() && (arenaSnap.data() as { status?: string }).status === 'closed') {
       onChange(null);
       return;

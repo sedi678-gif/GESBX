@@ -25,3 +25,18 @@ export function canReuseActiveAllianceBattle(input: {
     && input.attackerAllianceId === input.requestedAttackerAllianceId
     && input.defenderAllianceId === input.requestedDefenderAllianceId;
 }
+
+export function isExpiredUnstartedAllianceBattle(input: {
+  status: string;
+  joinEndsAt: number;
+  now: number;
+  arenaStarted?: boolean;
+}): boolean {
+  const staleStartPhase = input.status === 'joining' || input.status === 'locked';
+  return staleStartPhase
+    && input.arenaStarted !== true
+    && Number.isFinite(input.joinEndsAt)
+    && input.joinEndsAt > 0
+    && Number.isFinite(input.now)
+    && input.now >= input.joinEndsAt + 2 * 60 * 1000;
+}
