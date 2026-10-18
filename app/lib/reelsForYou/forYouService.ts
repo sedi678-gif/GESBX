@@ -117,7 +117,12 @@ export async function getReelsForYou(
     )
   );
   const postSnap = await getDocs(
-    query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(FOR_YOU_PAGE_SIZE_MAX * 12))
+    query(
+      collection(db, 'posts'),
+      where('moderationStatus', '==', 'approved'),
+      orderBy('createdAt', 'desc'),
+      limit(FOR_YOU_PAGE_SIZE_MAX * 12)
+    )
   );
 
   const recentEvents = eventSnap.docs

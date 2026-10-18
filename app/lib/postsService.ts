@@ -1,30 +1,30 @@
 import {
   collection,
   addDoc,
+  doc,
   onSnapshot,
   query,
   where,
   orderBy,
-  doc,
   updateDoc,
   deleteDoc,
   getDoc,
   increment,
   runTransaction,
+  setDoc,
   Unsubscribe,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/firebase';
-import { ensureFirebaseAuth, blobToDataUrl, compressImageSafe, withTimeout } from './firebaseAuth';
+import { ensureFirebaseAuth, compressImageSafe, withTimeout } from './firebaseAuth';
 import { SocialPost, UserFeedItem, AppUserProfile, PostComment } from './socialTypes';
 import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discoverBoost';
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
-const MAX_INLINE_DATA_URL_CHARS = 850_000;
-const POST_IMAGE_MAX_WIDTH = 900;
-const POST_IMAGE_QUALITY = 0.68;
+const POST_IMAGE_MAX_WIDTH = 1280;
+const POST_IMAGE_QUALITY = 0.78;
 const UPLOAD_TIMEOUT_MS = 45_000;
 const CREATE_POST_TIMEOUT_MS = 75_000;
 
@@ -49,6 +49,7 @@ function scheduleExpiredPostDelete(postId: string) {
 }
 
 function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null {
+  if (raw.moderationStatus !== 'approved') return null;
   if (isExpired(raw)) {
     scheduleExpiredPostDelete(id);
     return null;
@@ -90,6 +91,32 @@ export async function preparePostMediaFile(file: File): Promise<File> {
   });
 }
 
+async function validatePostMediaDimensions(file: File, mediaType: 'video' | 'image'): Promise<void> {
+  const minimum = mediaType === 'image' ? 480 : 360;
+  const url = URL.createObjectURL(file);
+  try {
+    const dimensions = mediaType === 'image'
+      ? await new Promise<{ width: number; height: number }>((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+          image.onerror = () => reject(new Error('Şəkil oxunmadı. Başqa fayl seçin.'));
+          image.src = url;
+        })
+      : await new Promise<{ width: number; height: number }>((resolve, reject) => {
+          const video = document.createElement('video');
+          video.preload = 'metadata';
+          video.onloadedmetadata = () => resolve({ width: video.videoWidth, height: video.videoHeight });
+          video.onerror = () => reject(new Error('Video oxunmadı. Başqa fayl seçin.'));
+          video.src = url;
+        });
+    if (Math.min(dimensions.width, dimensions.height) < minimum) {
+      throw new Error(mediaType === 'image' ? 'Şəkil ən azı 480 × 480 piksel olmalıdır.' : 'Video ən azı 360p olmalıdır.');
+    }
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 async function readVideoDurationSeconds(file: File): Promise<number> {
   const objectUrl = URL.createObjectURL(file);
   const video = document.createElement('video');
@@ -121,27 +148,15 @@ async function readVideoDurationSeconds(file: File): Promise<number> {
   }
 }
 
-async function uploadBlobToStorage(blob: Blob, userId: string, contentType: string): Promise<string> {
+async function uploadBlobToStorage(blob: Blob, userId: string, postId: string, contentType: string): Promise<{ url: string; path: string }> {
   const ext = contentType.startsWith('video/') ? 'mp4' : 'jpg';
-  const path = `posts/${userId}/${Date.now()}.${ext}`;
+  const path = `posts/${userId}/${postId}/${postId}.${ext}`;
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, blob, { contentType: contentType || 'application/octet-stream' });
-  return getDownloadURL(storageRef);
+  return { url: await getDownloadURL(storageRef), path };
 }
 
-async function uploadMediaInline(file: File | Blob): Promise<string> {
-  const compressed =
-    file instanceof File && file.type.startsWith('image/')
-      ? await compressImageSafe(file, 720, 0.62)
-      : file;
-  const dataUrl = await blobToDataUrl(compressed);
-  if (dataUrl.length > MAX_INLINE_DATA_URL_CHARS) {
-    throw new Error('Şəkil çox böyükdür. Daha kiçik fayl seçin.');
-  }
-  return dataUrl;
-}
-
-async function uploadMedia(file: File, userId: string): Promise<string> {
+async function uploadMedia(file: File, userId: string, postId: string): Promise<{ url: string; path: string }> {
   if (file.type.startsWith('video/') && file.size > MAX_VIDEO_BYTES) {
     throw new Error('Video çox böyükdür (maks. 25 MB).');
   }
@@ -151,24 +166,9 @@ async function uploadMedia(file: File, userId: string): Promise<string> {
 
   const authPromise = ensureFirebaseAuth();
 
-  if (file.type.startsWith('image/')) {
-    try {
-      await authPromise;
-      return await withTimeout(
-        uploadBlobToStorage(file, userId, file.type || 'image/jpeg'),
-        UPLOAD_TIMEOUT_MS,
-        'Yükləmə vaxtı bitdi.'
-      );
-    } catch (err) {
-      console.warn('Storage uğursuz, inline fallback:', err);
-      await authPromise;
-      return uploadMediaInline(file);
-    }
-  }
-
   await authPromise;
   return withTimeout(
-    uploadBlobToStorage(file, userId, file.type || 'video/mp4'),
+    uploadBlobToStorage(file, userId, postId, file.type || (file.name.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4')),
     UPLOAD_TIMEOUT_MS,
     'Video yükləmə vaxtı bitdi. İnternet bağlantısını yoxlayın.'
   );
@@ -184,17 +184,16 @@ async function createPostInternal(
     throw new Error('Profil tapılmadı. Əvvəlcə qeydiyyatdan keçin.');
   }
 
-  const uploadFile =
-    mediaType === 'image' && !file.name.toLowerCase().endsWith('.jpg')
-      ? await preparePostMediaFile(file)
-      : file;
+  const uploadFile = mediaType === 'image' ? await preparePostMediaFile(file) : file;
+  await validatePostMediaDimensions(uploadFile, mediaType);
   const durationSeconds = mediaType === 'video' ? await readVideoDurationSeconds(uploadFile) : undefined;
-
-  const mediaUrl = await uploadMedia(uploadFile, user.id);
+  const postRef = doc(collection(db, 'posts'));
+  const ext = mediaType === 'video' ? 'mp4' : 'jpg';
+  const mediaPath = `posts/${user.id}/${postRef.id}/${postRef.id}.${ext}`;
   const now = Date.now();
   const fullName = [user.name, user.surname].filter(Boolean).join(' ').trim();
 
-  const docRef = await addDoc(collection(db, 'posts'), {
+  await setDoc(postRef, {
     userId: user.id,
     userName: fullName || user.name || 'İstifadəçi',
     userHandle: user.handle || '',
@@ -203,8 +202,10 @@ async function createPostInternal(
     userRegion: user.region || '',
     userAge: calcAge(user.birthDate),
     title: title.trim(),
-    mediaUrl,
+    mediaUrl: '',
+    mediaPath,
     mediaType,
+    moderationStatus: 'pending',
     ...(durationSeconds ? { durationSeconds } : {}),
     likes: 0,
     views: 0,
@@ -213,8 +214,15 @@ async function createPostInternal(
     createdAt: now,
     expiresAt: now + POST_TTL_MS,
   });
+  try {
+    const uploadedMedia = await uploadMedia(uploadFile, user.id, postRef.id);
+    await updateDoc(postRef, { mediaUrl: uploadedMedia.url });
+  } catch (error) {
+    await deleteDoc(postRef).catch((cleanupError) => console.warn('Yarımçıq paylaşım qeydi silinmədi:', cleanupError));
+    throw error;
+  }
 
-  return docRef.id;
+  return postRef.id;
 }
 
 export async function createPost(
@@ -301,7 +309,7 @@ export function listenExploreFeed(
   blockedUserIds: string[] = [],
   onError?: (message: string) => void
 ): Unsubscribe {
-  const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, 'posts'), where('moderationStatus', '==', 'approved'), orderBy('createdAt', 'desc'));
   let posts: SocialPost[] = [];
   let boosts = new Map<string, number>();
   let expireTimer: ReturnType<typeof setTimeout> | null = null;
@@ -359,7 +367,11 @@ export function listenUserPosts(
   onError?: (message: string) => void
 ): Unsubscribe {
   // orderBy olmadan — indeks tələb etmir, client-side sıralama
-  const q = query(collection(db, 'posts'), where('userId', '==', userId));
+  const q = query(
+    collection(db, 'posts'),
+    where('userId', '==', userId),
+    where('moderationStatus', '==', 'approved')
+  );
 
   return onSnapshot(
     q,

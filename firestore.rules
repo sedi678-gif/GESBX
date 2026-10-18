@@ -2992,7 +2992,7 @@ service cloud.firestore {
 
     // Postlar — hamı oxuyur, yalnız sahibi yazır/silir.
     match /posts/{postId} {
-      allow read: if true;
+      allow read: if resource.data.moderationStatus == 'approved';
       allow create: if isSignedIn()
         && request.resource.data.userId is string
         && ownsProfileId(request.resource.data.userId)
@@ -3000,10 +3000,12 @@ service cloud.firestore {
         && request.resource.data.title.size() > 0
         && request.resource.data.title.size() <= 500
         && request.resource.data.mediaUrl is string
+        && request.resource.data.mediaPath is string
+        && request.resource.data.moderationStatus == 'pending'
         && request.resource.data.mediaType in ['image', 'video']
         && request.resource.data.keys().hasOnly([
           'userId', 'userName', 'userHandle', 'userAvatar', 'userGender', 'userRegion',
-          'title', 'mediaUrl', 'mediaType', 'durationSeconds', 'likes', 'views',
+          'title', 'mediaUrl', 'mediaPath', 'mediaType', 'moderationStatus', 'durationSeconds', 'likes', 'views',
           'commentsCount', 'giftCount', 'createdAt', 'expiresAt'
         ])
         && request.resource.data.likes == 0
@@ -3015,6 +3017,12 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && request.resource.data.userId == resource.data.userId
         && (ownsProfileId(resource.data.userId) || isTrustedModerator())
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mediaUrl'])
+          || (ownsProfileId(resource.data.userId)
+            && resource.data.moderationStatus == 'pending'
+            && resource.data.mediaUrl == ''
+            && request.resource.data.mediaUrl is string
+            && request.resource.data.mediaUrl.size() > 0))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['views', 'lastViewMarker'])
             || (request.resource.data.views == resource.data.get('views', 0) + 1
               && request.resource.data.lastViewMarker is string
@@ -3024,7 +3032,7 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.ownerId == resource.data.userId
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.viewerAuthUid == request.auth.uid))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'views', 'lastViewMarker', 'likes', 'commentsCount', 'giftCount'
+           'views', 'lastViewMarker', 'likes', 'commentsCount', 'giftCount', 'mediaUrl'
         ])
         && (!request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['likes', 'commentsCount', 'giftCount'])

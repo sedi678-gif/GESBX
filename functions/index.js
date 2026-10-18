@@ -12,10 +12,13 @@ const allianceBattles = require('./src/allianceBattles');
 const { mintMobileAppCheckToken } = require('./src/appCheck');
 const arenaRewards = require('./src/arenaRewards');
 const zegoToken = require('./src/zegoToken');
+const contentModeration = require('./src/contentModeration');
 
 exports.awardArenaMatchRewards = arenaRewards.awardArenaMatchRewards;
 exports.settleArenaWeeklyRewards = arenaRewards.settleArenaWeeklyRewards;
 exports.createZegoToken = zegoToken.createZegoToken;
+exports.moderateUploadedPost = contentModeration.moderateUploadedPost;
+exports.autoHideReportedPost = contentModeration.autoHideReportedPost;
 
 exports.mintMobileAppCheckToken = mintMobileAppCheckToken;
 exports.purchaseBattleCard = economy.purchaseBattleCard;
