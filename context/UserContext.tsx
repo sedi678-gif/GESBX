@@ -144,7 +144,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     applyId();
 
-    window.addEventListener('yolustu_user_updated', applyId);
+    window.addEventListener('gesbx_user_updated', applyId);
 
     window.addEventListener('storage', applyId);
 
@@ -166,7 +166,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       unsubscribe();
 
-      window.removeEventListener('yolustu_user_updated', applyId);
+      window.removeEventListener('gesbx_user_updated', applyId);
 
       window.removeEventListener('storage', applyId);
 

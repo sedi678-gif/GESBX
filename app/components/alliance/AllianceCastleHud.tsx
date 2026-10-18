@@ -17,7 +17,7 @@ export default function AllianceCastleHud(_props: AllianceCastleHudProps) {
   return (
     <div className={styles.castleHudLayer}>
       <div className={styles.castleHudLeft}>
-        <h1 className={styles.castleBrandTitle}>YOLÜSTÜ</h1>
+        <h1 className={styles.castleBrandTitle}>GESBX</h1>
       </div>
     </div>
   );

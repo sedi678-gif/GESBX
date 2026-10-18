@@ -101,7 +101,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const base = prev || getCachedSettings(effectiveId) || DEFAULT_SETTINGS(effectiveId);
         const next = { ...base, ...patch, updatedAt: Date.now() } as UserSettings;
         if (typeof window !== 'undefined') {
-          localStorage.setItem(`yolustu_user_settings_v1_${effectiveId}`, JSON.stringify(next));
+          localStorage.setItem(`gesbx_user_settings_v1_${effectiveId}`, JSON.stringify(next));
         }
         return next;
       });

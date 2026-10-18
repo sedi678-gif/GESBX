@@ -26,14 +26,14 @@ function audioTrackKey(stream: MediaStream | null): string {
 
 function ensureRemoteAudioEl(): HTMLAudioElement | null {
   if (typeof document === 'undefined') return null;
-  const existing = document.getElementById('yolustu-remote-audio') as HTMLAudioElement | null;
+  const existing = document.getElementById('gesbx-remote-audio') as HTMLAudioElement | null;
   if (existing) {
     remoteAudioEl = existing;
     return existing;
   }
   if (remoteAudioEl && remoteAudioEl.isConnected) return remoteAudioEl;
   const el = document.createElement('audio');
-  el.id = 'yolustu-remote-audio';
+  el.id = 'gesbx-remote-audio';
   el.autoplay = true;
   el.setAttribute('playsinline', 'true');
   el.setAttribute('webkit-playsinline', 'true');
@@ -209,7 +209,7 @@ export function releaseCallMedia() {
     remoteAudioEl.remove();
     remoteAudioEl = null;
   }
-  const leftover = document.getElementById('yolustu-remote-audio');
+  const leftover = document.getElementById('gesbx-remote-audio');
   leftover?.remove();
   releaseCallAudioUnlock();
   emit();
@@ -249,7 +249,7 @@ function collectFromStage(): { local: MediaStream | null; remote: MediaStream | 
 
   stage.querySelectorAll('video, audio').forEach((node) => {
     const el = node as HTMLMediaElement;
-    if (el.id === 'yolustu-remote-audio') return;
+    if (el.id === 'gesbx-remote-audio') return;
     const stream = asStream(el.srcObject);
     if (!stream) return;
     if (looksLocalMedia(el)) {
@@ -268,7 +268,7 @@ function collectFromStage(): { local: MediaStream | null; remote: MediaStream | 
   if (!remoteTracks.length) {
     stage.querySelectorAll('video, audio').forEach((node) => {
       const el = node as HTMLMediaElement;
-      if (el.id === 'yolustu-remote-audio' || looksLocalMedia(el)) return;
+      if (el.id === 'gesbx-remote-audio' || looksLocalMedia(el)) return;
       addRemote(asStream(el.srcObject));
     });
   }

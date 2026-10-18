@@ -27,7 +27,7 @@ function drawFrame(ctx: CanvasRenderingContext2D) {
   ctx.font = 'bold 11px Georgia, serif';
   ctx.fillStyle = '#fde68a';
   ctx.textAlign = 'center';
-  ctx.fillText('YOLÜSTÜ · STRATEGY', CARD_W / 2, 34);
+  ctx.fillText('GESBX · STRATEGY', CARD_W / 2, 34);
 }
 
 function drawZombi(ctx: CanvasRenderingContext2D) {

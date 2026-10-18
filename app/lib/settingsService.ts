@@ -2,7 +2,7 @@ import { doc, onSnapshot, setDoc, Unsubscribe, addDoc, collection } from 'fireba
 import { db } from '@/firebase';
 import { AppLanguage, DEFAULT_SETTINGS, UserSettings } from './settingsTypes';
 
-const CACHE_KEY = 'yolustu_user_settings_v1';
+const CACHE_KEY = 'gesbx_user_settings_v1';
 
 export function getCachedSettings(userId: string): UserSettings | null {
   if (typeof window === 'undefined') return null;

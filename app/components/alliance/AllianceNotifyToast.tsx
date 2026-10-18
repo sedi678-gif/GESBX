@@ -19,7 +19,7 @@ export default function AllianceNotifyToast() {
       new Notification('İttifaq bildirişi', {
         body: allianceNotifyToast,
         icon: '/favicon.ico',
-        tag: 'yolustu-alliance-view',
+        tag: 'gesbx-alliance-view',
       });
     } catch {
       /* brauzer bildirişi dəstəklənmirsə */

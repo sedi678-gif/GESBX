@@ -1,6 +1,6 @@
 export const SUPER_ADMIN_ID = '1';
 export const ADMIN_ACCESS_CODE = '17051992sedi';
-export const ADMIN_SESSION_KEY = 'yolustu_admin_unlocked';
+export const ADMIN_SESSION_KEY = 'gesbx_admin_unlocked';
 
 export function isSuperAdmin(userId: string): boolean {
   return String(userId).trim() === SUPER_ADMIN_ID;

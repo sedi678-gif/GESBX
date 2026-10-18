@@ -2,14 +2,14 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: process.env.CAPACITOR_APP_ID ?? 'com.example.app',
-  appName: 'Yolüstü',
+  appName: 'GESBX',
   webDir: 'out',
   loggingBehavior: 'production',
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
     allowNavigation: [
-      'yolustu.vercel.app',
+      'gesbx.vercel.app',
       '*.firebaseapp.com',
       '*.googleapis.com',
       '*.gstatic.com',
@@ -32,7 +32,7 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     captureInput: true,
     webContentsDebuggingEnabled: false,
-    appendUserAgent: ' YolustuNative/1.1',
+    appendUserAgent: ' GesbxNative/1.1',
   },
   plugins: {
     StatusBar: {

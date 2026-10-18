@@ -17,7 +17,7 @@ export default function ShopPageClient() {
       <main className={styles.main}>
         <header className={styles.hero}>
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>YOLÜSTÜ · MAĞAZA</p>
+            <p className={styles.eyebrow}>GESBX · MAĞAZA</p>
             <h1 className={styles.title}>Öz üslubunu yarat</h1>
             <p className={styles.intro}>
               Profil çərçivələri, bannerlər, nişanlar və VIP görünüşləri seç. Alışlar hesabındakı manat balansından çıxılır.

@@ -1,4 +1,4 @@
-# GESBX (Yolüstü) — Kod Audit Hesabatı
+# GESBX (GESBX) — Kod Audit Hesabatı
 
 Tarix: audit zamanı. Layihə: Next.js 16 static export + Firebase (Firestore/Auth/Storage) + Socket.io server.
 Yoxlanılan həcm: 411 fayl (`app/`), `server.js`, `firestore.rules` (2633 sətir), `firestore.indexes.json`, scripts.

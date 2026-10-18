@@ -78,10 +78,8 @@ Eyni şəkildə `arena_reward_settlements` də bağlandı.
 Səbəb: qayda `arena_matches/{id}.status == 'closed'` tələb edirdi, amma o sənədi də
 istifadəçi özü yaradıb bağlaya bilirdi.
 
-> ⚠️ **Diqqət:** `persistArenaMatchRewards()` hələ də klientdən çağırılır
-> (`app/game/arena/match/matchService.ts`). Mükafat sənədləri artıq klientdən yazılmadığı üçün
-> bu funksiya Admin SDK-ya (Cloud Function) köçürülməlidir. İndiyə qədər səssiz itki yox,
-> aydın xəta verəcək.
+Bu çağırış sonradan `awardArenaMatchRewards` callable Cloud Function-a köçürüldü;
+client yalnız match ID göndərir, funksiya yekun nəticəni Firestore-dan özü oxuyur.
 
 ---
 
@@ -151,6 +149,12 @@ Qeyd: `peerjs` heç bir fayldan istifadə olunmurdu — tətbiq Zego (`zegoCallK
 Modul artıq paket olmadıqda da build-i sındırmır.
 
 ---
+
+### Arena reward server-side düzəlişləri
+- Matç və həftəlik hesablaşma reward yazıları `awardArenaMatchRewards` və `settleArenaWeeklyRewards` callable Cloud Function-larına köçürüldü; Firestore klient qaydaları həm reward, həm də settlement `reward_events` yazılarını bağlayır.
+- `/arena/history/` siyahı route-u əlavə edildi.
+- `zegoConfig.ts` client cache/env-dən Zego server secret oxunması silindi. Yayımlanmış köhnə secret-i Zego panelində rotasiya etmək lazımdır.
+- Layihə `output: 'export'` statik qurulduğuna görə `server.js` Firebase Hosting/Vercel static build daxilində işləməyəcək. Socket.io və MongoDB endpoint-ləri ayrıca Node hostunda saxlanmalıdır; Firebase və MongoDB arasında hazırda sinxronizasiya yoxdur. Token endpoint-i də həmin hostda qalır.
 
 ## ❌ Hələ düzəldilməyib (qəsdən)
 

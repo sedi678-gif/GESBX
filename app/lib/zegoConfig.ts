@@ -11,7 +11,6 @@
 export interface ZegoRuntimeConfig {
   appId: number;
   appSign: string;
-  serverSecret: string;
 }
 
 /** Klientdə icazə verilən maksimum: yalnız public açarlar. */
@@ -20,39 +19,23 @@ export interface ZegoPublicConfig {
   appSign: string;
 }
 
-const CACHE_KEY = 'yolustu_zego_config_v3';
-
-/** AppSign (adətən 64 hex) token üçün ServerSecret deyil — 1002011/1002033. */
-function pickServerSecret(appSign: string, serverSecret?: string): string {
-  const sign = (appSign ?? '').trim();
-  const secret = (serverSecret ?? '').trim();
-  if (secret && secret !== sign) return secret;
-  if (secret && secret.length === 32) return secret;
-  return '';
-}
+const CACHE_KEY = 'gesbx_zego_config_v3';
 
 /**
  * Klient heç bir halda serverSecret qəbul etmir. Brauzerdə yalnız public açarlar saxlanılır;
  * secret lazımdırsa, token serverdə imzalanıb klientə verilməlidir.
  */
-function isServerRuntime(): boolean {
-  return typeof window === 'undefined';
-}
-
 let resolved: ZegoRuntimeConfig | null = null;
 let loadPromise: Promise<boolean> | null = null;
 let lastLoadError: string | null = null;
 
-function applyConfig(appId: number, appSign: string, serverSecret?: string): boolean {
+function applyConfig(appId: number, appSign: string): boolean {
   const sign = (appSign ?? '').trim();
-  // Brauzerdə secret qəbul edilmir: yalnız server runtime-ında oxunur.
-  const secret = isServerRuntime() ? pickServerSecret(sign, serverSecret) : '';
   if (!Number.isFinite(appId) || appId <= 0) return false;
-  if (isServerRuntime() && !secret) return false;
-  resolved = { appId, appSign: sign, serverSecret: secret };
+  resolved = { appId, appSign: sign };
   if (typeof window !== 'undefined') {
     try {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify(resolved));
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ appId, appSign: sign }));
     } catch {
       /* ignore */
     }
@@ -69,10 +52,8 @@ function readFromProcessEnv(): boolean {
     process.env.NEXT_PUBLIC_ZEGO_APP_SIGN ??
     process.env.ZEGO_APP_SIGN ??
     '';
-  const secret =
-    process.env.ZEGO_SERVER_SECRET ?? process.env.NEXT_PUBLIC_ZEGO_SERVER_SECRET ?? '';
   const id = Number(rawId);
-  return applyConfig(id, sign, secret);
+  return applyConfig(id, sign);
 }
 
 function readFromSessionCache(): boolean {
@@ -81,7 +62,7 @@ function readFromSessionCache(): boolean {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw) as ZegoRuntimeConfig;
-    return applyConfig(data.appId, data.appSign, data.serverSecret);
+    return applyConfig(data.appId, data.appSign);
   } catch {
     return false;
   }
@@ -146,7 +127,7 @@ function sleep(ms: number): Promise<void> {
 
 /** Bütün mənbələrdən konfiqurasiya yükləyir (retry ilə) */
 export async function ensureZegoConfig(): Promise<boolean> {
-  if (resolved?.appId && resolved.serverSecret) return true;
+  if (resolved?.appId) return true;
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
@@ -186,17 +167,10 @@ export function getZegoAppSign(): string {
   return resolved?.appSign ?? '';
 }
 
-export function getZegoServerSecret(): string {
-  if (resolved?.serverSecret) return resolved.serverSecret;
-  readFromProcessEnv();
-  return resolved?.serverSecret ?? '';
-}
-
 export function isZegoConfigured(): boolean {
   if (getZegoAppId() <= 0) return false;
   // Brauzerdə token serverdə imzalanır — secret tələb olunmur.
-  if (!isServerRuntime()) return true;
-  return getZegoServerSecret().length > 0;
+  return true;
 }
 
 export function getZegoConfigErrorMessage(): string {

@@ -97,7 +97,7 @@ app.post('/api/zego/token', (req, res) => {
 // DIQQƏT: Firebase artıq əsas backenddir. MongoDB yalnız köhnə REST endpointləri üçün
 // saxlanılır və heç bir sinxronizasiya yoxdur. İki mənbədə eyni istifadəçinin
 // bölünməsinin qarşısını almaq üçün bu hissəni tamamilə silmək tövsiyə olunur.
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/yolustu';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/gesbx';
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB verilənlər bazasına uğurla qoşuldu!'))
   .catch((err) => console.error('❌ Baza qoşulma xətası:', err));

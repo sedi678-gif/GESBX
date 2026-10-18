@@ -34,7 +34,7 @@ export function getLocalProfileDisplayName(): string {
 
 export function notifyUserIdChanged() {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('yolustu_user_updated'));
+    window.dispatchEvent(new CustomEvent('gesbx_user_updated'));
   }
 }
 

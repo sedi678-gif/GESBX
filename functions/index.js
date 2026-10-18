@@ -7,6 +7,10 @@ const withdrawals = require('./src/withdrawals');
 const identity = require('./src/identity');
 const admin = require('./src/admin');
 const { mintMobileAppCheckToken } = require('./src/appCheck');
+const arenaRewards = require('./src/arenaRewards');
+
+exports.awardArenaMatchRewards = arenaRewards.awardArenaMatchRewards;
+exports.settleArenaWeeklyRewards = arenaRewards.settleArenaWeeklyRewards;
 
 exports.mintMobileAppCheckToken = mintMobileAppCheckToken;
 exports.purchaseBattleCard = economy.purchaseBattleCard;

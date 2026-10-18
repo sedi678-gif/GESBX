@@ -8,6 +8,8 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebase';
 import { requireFirebaseAuth, withTimeout } from '@/app/lib/firebaseAuth';
 import { sanitizeBattleId, sanitizePlayerId } from '@/app/lib/battleEventLog/sanitizeBattleEventMeta';
 import { replayBattleRequest } from '@/app/lib/battleReconnect/replayBattleRequest';
@@ -29,17 +31,7 @@ import { applyArenaCardPlay, applyLockedLoadout, assertArenaLoadoutLockAllowed, 
 import { emptyArenaEffects } from './effects/types';
 import { opponentPlayerId, serverActiveUsers } from './effects/engine';
 import { publicAuditCardId } from './effects/interaction';
-import {
-  ARENA_REWARD_COLLECTION,
-  ARENA_REWARD_EVENTS_COLLECTION,
-} from './reward/config';
-import {
-  assertArenaRewardEligible,
-  buildArenaRewardRecord,
-  planArenaMatchRewards,
-} from './reward/eligibility';
-import { arenaRewardLedgerWrite, arenaRewardRef, parseArenaReward } from './reward/rewardService';
-import type { ArenaRewardEventType, ArenaRewardRecord } from './reward/types';
+import type { ArenaRewardRecord } from './reward/types';
 import {
   applyArenaClick,
   expireArenaReactionState,
@@ -468,80 +460,22 @@ export async function completeArenaMatch(input: { matchId: string }): Promise<Ar
       'Arena nəticə yazılmadı'
     )
   );
-  await persistArenaMatchRewards(closed);
+  if (closed.result?.status === 'COMPLETED') {
+    const award = httpsCallable(functions, 'awardArenaMatchRewards');
+    await award({ matchId });
+  }
   if (closed.gameMode === '5v5') {
     await finishBattle({ battleId: matchId, playerId: closed.createdBy }).catch(() => {});
   }
   return closed;
 }
 
-function writeArenaRewardEvents(tx: Transaction, record: ArenaRewardRecord, timestamp: number) {
-  const types: ArenaRewardEventType[] = [
-    'REWARD_ELIGIBILITY_CHECKED',
-    'REWARD_CREATED',
-    'REWARD_SECURITY_CHECKED',
-    record.status === 'REJECTED' ? 'REWARD_REJECTED' : 'REWARD_APPROVED',
-  ];
-  types.forEach((type) => {
-    tx.set(doc(db, ARENA_REWARD_COLLECTION, record.rewardId, ARENA_REWARD_EVENTS_COLLECTION, type), {
-      type,
-      rewardId: record.rewardId,
-      matchId: record.matchId,
-      sourceId: record.sourceId,
-      periodId: record.periodId,
-      status: record.status,
-      timestamp,
-    });
-  });
-}
-
 export async function persistArenaMatchRewards(match: ArenaMatchState): Promise<ArenaRewardRecord[]> {
   if (match.status !== 'closed' || !match.result || match.result.status !== 'COMPLETED') return [];
-  const matchId = sanitizeBattleId(match.matchId);
   await requireFirebaseAuth();
-  const now = await requireServerNow();
-  return replayBattleRequest(`arena-reward:${matchId}`, async () =>
-    withTimeout(
-      runTransaction(db, async (tx) => {
-        const matchSnap = await tx.get(matchRef(matchId));
-        if (!matchSnap.exists()) throw new Error('Match tapılmadı');
-        const live = matchFromData(matchSnap.id, matchSnap.data() as Record<string, unknown>);
-        const plans = planArenaMatchRewards(live);
-        const rewardSnaps = await Promise.all(plans.map((plan) => tx.get(arenaRewardRef(plan.rewardId))));
-        const userIds = plans.filter((plan) => plan.recipientType === 'USER').map((plan) => plan.recipientId);
-        const playerSnaps = await Promise.all(userIds.map((id) => tx.get(doc(db, 'players', id))));
-        const written: ArenaRewardRecord[] = [];
-        plans.forEach((plan, index) => {
-          assertArenaRewardEligible(live, plan);
-          const existing = parseArenaReward(
-            rewardSnaps[index].data() as Record<string, unknown> | undefined,
-            plan.rewardId
-          );
-          if (existing) {
-            written.push(existing);
-            return;
-          }
-          const playerData = plan.recipientType === 'USER'
-            ? (playerSnaps[userIds.indexOf(plan.recipientId)]?.data() as Record<string, unknown> | undefined)
-            : undefined;
-          const blocked = playerData?.banned === true || playerData?.frozen === true;
-          const record = buildArenaRewardRecord({
-            plan,
-            createdAt: now,
-            blocked,
-            receiptExists: rewardSnaps[index].exists(),
-          });
-          if (!record) return;
-          tx.set(arenaRewardRef(record.rewardId), arenaRewardLedgerWrite(record));
-          writeArenaRewardEvents(tx, record, now);
-          written.push(record);
-        });
-        return written;
-      }),
-      TX_MS,
-      'Mükafat yazılmadı'
-    )
-  );
+  const award = httpsCallable<{ matchId: string }, { rewards: ArenaRewardRecord[] }>(functions, 'awardArenaMatchRewards');
+  const result = await award({ matchId: sanitizeBattleId(match.matchId) });
+  return result.data.rewards;
 }
 
 async function maybeFinalizeArenaMatch(match: ArenaMatchState): Promise<ArenaMatchState> {

@@ -22,7 +22,7 @@ function runFirebase(args, timeoutMs = 20000) {
   }).trim();
 }
 
-console.log('\n🔥 Yolustu — Firebase yoxlaması\n');
+console.log('\n🔥 Gesbx — Firebase yoxlaması\n');
 
 let ok = true;
 

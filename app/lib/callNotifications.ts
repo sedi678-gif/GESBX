@@ -33,7 +33,7 @@ export function showIncomingCallNotification(
     const notification = new Notification(title, {
       body,
       icon: NOTIFICATION_ICON,
-      tag: 'yolustu-incoming-call',
+      tag: 'gesbx-incoming-call',
       requireInteraction: true,
     });
     notification.onclick = () => {

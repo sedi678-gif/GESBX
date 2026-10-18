@@ -42,8 +42,8 @@ export function clearLegacyBalanceStorage() {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem('user_coins');
-    localStorage.removeItem('yolustu_coins_cache_v1');
-    localStorage.removeItem('yolustu_manat_cache_v1');
+    localStorage.removeItem('gesbx_coins_cache_v1');
+    localStorage.removeItem('gesbx_manat_cache_v1');
   } catch {
     /* ignore */
   }

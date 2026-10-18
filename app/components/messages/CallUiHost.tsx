@@ -126,9 +126,9 @@ export default function CallUiHost() {
       }}
       onOpenInvite={() => requestCallInvite()}
       onShare={() => {
-        const text = `${ui.peerName} — Yolüstü zəng`;
+        const text = `${ui.peerName} — GESBX zəng`;
         if (navigator.share) {
-          void navigator.share({ title: 'Yolüstü', text }).catch(() => undefined);
+          void navigator.share({ title: 'GESBX', text }).catch(() => undefined);
           return;
         }
         void navigator.clipboard?.writeText(text);

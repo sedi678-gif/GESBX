@@ -5,7 +5,6 @@ import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
   ensureZegoConfig,
   getZegoAppId,
-  getZegoServerSecret,
 } from '@/app/lib/zegoConfig';
 import {
   requestCallNotificationPermission,
@@ -55,8 +54,6 @@ let sessionUnsub: (() => void) | null = null;
 let hangupInFlight = false;
 let remoteZimUsers = new Set<string>();
 let remoteRoomPeers = 0;
-
-const TEST_TOKEN_TTL_SEC = 24 * 60 * 60;
 
 type ZimUser = { userID: string; userName?: string };
 type ZimLike = {
@@ -113,19 +110,6 @@ async function generateTestKitToken(
 
   const fromServer = await fetchZegoTokenFromServer({ roomId: rid, userId: uid, userName: userName || uid });
   if (fromServer) return fromServer;
-
-  // Yalnız server runtime-ında (SSR / node) secret mövcuddur — orada imzalamaq olar.
-  const serverSecret = String(getZegoServerSecret() ?? '').trim();
-  if (serverSecret && typeof window === 'undefined') {
-    return ZegoUIKitPrebuilt.generateKitTokenForTest(
-      appID,
-      serverSecret,
-      rid,
-      uid,
-      String(userName || uid),
-      TEST_TOKEN_TTL_SEC
-    );
-  }
 
   throw new Error('Zəng tokeni alınmadı: token serverdə imzalanmalıdır.');
 }
@@ -238,9 +222,9 @@ function applyLiveStageStyle(el: HTMLElement): void {
 }
 
 function patchJoinRoom(zp: ZegoInstance): void {
-  const kit = zp as ZegoInstance & { __yolustuJoinPatched?: boolean };
-  if (kit.__yolustuJoinPatched) return;
-  kit.__yolustuJoinPatched = true;
+  const kit = zp as ZegoInstance & { __gesbxJoinPatched?: boolean };
+  if (kit.__gesbxJoinPatched) return;
+  kit.__gesbxJoinPatched = true;
   const original = zp.joinRoom.bind(zp);
   zp.joinRoom = ((config: Record<string, unknown> = {}) => {
     const stage = getOrCreateZegoStage();
@@ -297,9 +281,9 @@ function installZegoBodyGuard(): void {
 async function patchSharedReactRoot(): Promise<void> {
   try {
     const rd = await import('react-dom/client');
-    const patched = rd as typeof rd & { __yolustuCreateRootPatched?: boolean };
-    if (patched.__yolustuCreateRootPatched) return;
-    patched.__yolustuCreateRootPatched = true;
+    const patched = rd as typeof rd & { __gesbxCreateRootPatched?: boolean };
+    if (patched.__gesbxCreateRootPatched) return;
+    patched.__gesbxCreateRootPatched = true;
     const original = rd.createRoot.bind(rd);
     rd.createRoot = ((container: Element | DocumentFragment, options?: Parameters<typeof rd.createRoot>[1]) => {
       let host = container;
@@ -967,7 +951,7 @@ export function zegoMuteMicrophone(muted: boolean) {
 }
 
 export function zegoMuteSpeaker(muted: boolean) {
-  const el = document.getElementById('yolustu-remote-audio') as HTMLAudioElement | null;
+  const el = document.getElementById('gesbx-remote-audio') as HTMLAudioElement | null;
   if (el) {
     el.muted = false;
     el.volume = muted ? 0.4 : 1;

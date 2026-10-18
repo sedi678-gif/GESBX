@@ -9,7 +9,7 @@ import { useAllianceScreenHold } from './AllianceScreenBusy';
 declare global {
   interface Window {
     adsbygoogle?: unknown[];
-    showYolustuRewardedAd?: () => Promise<boolean>;
+    showGesbxRewardedAd?: () => Promise<boolean>;
   }
 }
 
@@ -44,13 +44,13 @@ export default function GoogleAdButton({ onReward, variant = 'pill', label, clas
   useEffect(() => {
     if (!open || !clientId || !slotId) return;
 
-    const existing = document.querySelector('script[data-yolustu-ads="1"]');
+    const existing = document.querySelector('script[data-gesbx-ads="1"]');
     if (!existing) {
       const script = document.createElement('script');
       script.async = true;
       script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`;
       script.crossOrigin = 'anonymous';
-      script.dataset.yolustuAds = '1';
+      script.dataset.gesbxAds = '1';
       document.head.appendChild(script);
     }
 
@@ -69,8 +69,8 @@ export default function GoogleAdButton({ onReward, variant = 'pill', label, clas
   const handleWatchAd = useCallback(async () => {
     setLoading(true);
     try {
-      if (typeof window.showYolustuRewardedAd === 'function') {
-        const ok = await window.showYolustuRewardedAd();
+      if (typeof window.showGesbxRewardedAd === 'function') {
+        const ok = await window.showGesbxRewardedAd();
         if (ok) await grantReward();
         return;
       }

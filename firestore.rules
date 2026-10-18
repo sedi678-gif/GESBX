@@ -2619,23 +2619,7 @@ service cloud.firestore {
             || (get(/databases/$(database)/documents/arena_rewards/$(rewardId)).data.viewerIds is list
               && request.auth.uid in get(/databases/$(database)/documents/arena_rewards/$(rewardId)).data.viewerIds)
           );
-        allow create: if request.auth != null
-          && request.resource.data.rewardId == rewardId
-          && request.resource.data.type in [
-            'REWARD_ELIGIBILITY_CHECKED',
-            'REWARD_CREATED',
-            'REWARD_SECURITY_CHECKED',
-            'REWARD_APPROVED',
-            'REWARD_REJECTED',
-            'REWARD_ALLOCATION_CREATED',
-            'PAYOUT_CHECKED',
-            'PAYOUT_APPROVED',
-            'PAYOUT_BLOCKED',
-            'PAYOUT_REVIEW'
-          ]
-          && request.resource.data.keys().hasOnly([
-            'type', 'rewardId', 'matchId', 'sourceId', 'periodId', 'status', 'timestamp'
-          ]);
+        allow create: if false;
         allow update, delete: if false;
       }
     }
@@ -2659,15 +2643,7 @@ service cloud.firestore {
 
       match /reward_events/{eventId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null
-          && request.resource.data.rewardId == settlementId
-          && request.resource.data.type in [
-            'REWARD_ALLOCATION_STARTED',
-            'REWARD_ALLOCATION_COMPLETED'
-          ]
-          && request.resource.data.keys().hasOnly([
-            'type', 'rewardId', 'matchId', 'sourceId', 'periodId', 'status', 'timestamp'
-          ]);
+        allow create: if false;
         allow update, delete: if false;
       }
     }

@@ -19,8 +19,8 @@ export default function CallSettingsSheet({ onClose }: CallSettingsSheetProps) {
 
   useEffect(() => {
     const sync = () => setSettings(getCallSettings());
-    window.addEventListener('yolustu_call_settings', sync);
-    return () => window.removeEventListener('yolustu_call_settings', sync);
+    window.addEventListener('gesbx_call_settings', sync);
+    return () => window.removeEventListener('gesbx_call_settings', sync);
   }, []);
 
   const update = (patch: Partial<CallSettings>) => {

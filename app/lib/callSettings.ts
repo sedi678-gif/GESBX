@@ -8,10 +8,10 @@ export interface CallSettings {
   parentalAck: boolean;
 }
 
-const KEY = 'yolustu_call_settings_v1';
+const KEY = 'gesbx_call_settings_v1';
 
 export const TEEN_SAFETY_RULES = [
-  'Yolüstü yalnız 13+ üçündür. 13–18 yaş valideyn icazəsi ilə.',
+  'GESBX yalnız 13+ üçündür. 13–18 yaş valideyn icazəsi ilə.',
   'Tanımadiğın insanlarla video zəng etmə — əvvəl söhbət et.',
   'Narahat edən mesaj/zəng → blokla və şikayət et.',
   'Şəxsi məlumat (ünvan, məktəb) paylaşma.',
@@ -34,7 +34,7 @@ export function getCallSettings(): CallSettings {
 export function saveCallSettings(patch: Partial<CallSettings>): CallSettings {
   const next = { ...getCallSettings(), ...patch };
   localStorage.setItem(KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent('yolustu_call_settings'));
+  window.dispatchEvent(new CustomEvent('gesbx_call_settings'));
   return next;
 }
 

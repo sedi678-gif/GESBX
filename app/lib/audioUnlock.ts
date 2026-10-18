@@ -26,10 +26,10 @@ export async function unlockCallAudio(): Promise<void> {
   }
 
   try {
-    let el = document.getElementById('yolustu-remote-audio') as HTMLAudioElement | null;
+    let el = document.getElementById('gesbx-remote-audio') as HTMLAudioElement | null;
     if (!el) {
       el = document.createElement('audio');
-      el.id = 'yolustu-remote-audio';
+      el.id = 'gesbx-remote-audio';
       el.autoplay = true;
       el.setAttribute('playsinline', 'true');
       el.setAttribute('webkit-playsinline', 'true');

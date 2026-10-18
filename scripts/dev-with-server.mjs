@@ -23,7 +23,7 @@ function run(label, command, args) {
   return child;
 }
 
-console.log('\n🚀 Yolüstü dev: Zəng/mesaj serveri (4000) + Next.js\n');
+console.log('\n🚀 GESBX dev: Zəng/mesaj serveri (4000) + Next.js\n');
 console.log('   Zəng sistemi üçün server vacibdir. Dayandırmaq: Ctrl+C\n');
 
 const server = run('socket', 'node', ['server.js']);

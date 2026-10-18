@@ -1,10 +1,10 @@
 import { AppLanguage } from './settingsTypes';
 
 export const APP_LANGUAGES: AppLanguage[] = ['az', 'en', 'ru', 'tr'];
-export const APP_LANGUAGE_KEY = 'yolustu_app_language_v1';
-export const APP_LANGUAGE_EVENT = 'yolustu-language';
+export const APP_LANGUAGE_KEY = 'gesbx_app_language_v1';
+export const APP_LANGUAGE_EVENT = 'gesbx-language';
 
-const SETTINGS_PREFIX = 'yolustu_user_settings_v1_';
+const SETTINGS_PREFIX = 'gesbx_user_settings_v1_';
 
 export function isAppLanguage(value: unknown): value is AppLanguage {
   return value === 'az' || value === 'en' || value === 'ru' || value === 'tr';

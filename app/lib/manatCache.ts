@@ -1,7 +1,7 @@
 import { DEFAULT_MANAT, normalizeManat } from './manat';
 
-const MANAT_CACHE_KEY = 'yolustu_manat_cache_v1';
-const LEGACY_COINS_CACHE_KEY = 'yolustu_coins_cache_v1';
+const MANAT_CACHE_KEY = 'gesbx_manat_cache_v1';
+const LEGACY_COINS_CACHE_KEY = 'gesbx_coins_cache_v1';
 
 export { DEFAULT_MANAT };
 

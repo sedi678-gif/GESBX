@@ -194,10 +194,10 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   };
 
   const handleShare = async (item: ForYouFeedItem) => {
-    const text = item.title || 'Yolüstü Reels';
+    const text = item.title || 'GESBX Reels';
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Yolüstü', text, url: item.mediaUrl });
+        await navigator.share({ title: 'GESBX', text, url: item.mediaUrl });
       } else {
         await navigator.clipboard?.writeText(item.mediaUrl);
       }
