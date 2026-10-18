@@ -60,6 +60,8 @@ app.use(cors({
 
 app.use(express.json());
 
+app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
+
 // Legacy Mongo endpoints are retired; Firebase is the authoritative data store.
 app.use('/api/users', (_req, res) => res.status(410).json({
   success: false,
