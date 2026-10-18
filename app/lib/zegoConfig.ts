@@ -76,7 +76,7 @@ async function fetchJsonConfig(url: string): Promise<boolean> {
     const id = Number(data.appId);
     const sign = (data.appSign ?? '').trim();
     // public/*.json yalnız public açarları daşıyır — serverSecret qəsdən oxunmur.
-    return applyConfig(id, sign, '');
+    return applyConfig(id, sign);
   } catch {
     return false;
   }
@@ -113,7 +113,7 @@ async function loadFromFirestore(): Promise<boolean> {
     const id = Number(data.appId);
     const sign = (data.appSign ?? '').trim();
     // Firestore-daki app_config yalnız public açarları saxlayır; secret ora da yazılmamalıdır.
-    return applyConfig(id, sign, '');
+    return applyConfig(id, sign);
   } catch (err) {
     lastLoadError = err instanceof Error ? err.message : 'Firestore xətası';
     console.warn('[Zego] Firestore config:', err);
