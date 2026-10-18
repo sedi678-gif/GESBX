@@ -35,7 +35,7 @@ import { listenFollowCounts, reportContent } from '@/app/lib/socialService';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import AdminPanel from '@/app/components/admin/AdminPanel';
 import { isSuperAdmin } from '@/app/lib/adminConfig';
-import { allocateNextUserId, allocateNextUserIdFallback } from '@/app/lib/adminService';
+import { allocateNextUserId } from '@/app/lib/adminService';
 import {
   listenUserProfileMedia,
   updateProfileAvatar,
@@ -605,33 +605,8 @@ function ProfilePageContent() {
         alert(error instanceof Error ? error.message : 'Hesab təhlükəsiz şəkildə qoşulmadı.');
         return;
       }
-      console.error("Firebase ID xətası, lokal rejimə keçid edilir:", error);
-      const generatedId = await allocateNextUserIdFallback();
-      const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;
-      const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
-
-      const newUser = {
-        id: generatedId,
-        name: inputName,
-        surname: inputSurname,
-        handle: formattedHandle,
-        gender: inputGender,
-        birthDate: inputBirthDate,
-        role: 'user',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-        bannerImage: '',
-        bannerGradient: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #3b82f6 100%)',
-        bio: 'Yeni başlanğıc 🚀',
-        allianceName: savedAlliance,
-        createdAt: Date.now(),
-        likesReceived: 0,
-        viewsReceived: 0,
-      };
-
-      localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
-      setCurrentUser(newUser);
-      setIsRegistered(true);
-      notifyUserIdChanged();
+      console.error('Qeydiyyat üçün Firebase ID ayrılması alınmadı:', error);
+      alert(error instanceof Error ? error.message : 'Qeydiyyat tamamlanmadı. İnternet bağlantısını yoxlayıb yenidən cəhd edin.');
     }
   };
 

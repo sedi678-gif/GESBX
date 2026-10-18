@@ -50,7 +50,9 @@ export async function unlockCallAudio(): Promise<void> {
 
 export function releaseCallAudioUnlock(): void {
   if (heldCtx) {
-    void heldCtx.close().catch(() => undefined);
+    void heldCtx.close().catch((error: unknown) => {
+      console.debug('[audioUnlock] Audio context close failed.', error);
+    });
     heldCtx = null;
   }
 }

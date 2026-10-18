@@ -56,7 +56,9 @@ function pipeRemoteAudio(stream: MediaStream | null) {
   }
   el.muted = false;
   el.volume = 1;
-  void el.play().catch(() => undefined);
+  void el.play().catch((error: unknown) => {
+    console.debug('[callMediaBridge] Media playback was blocked or interrupted.', error);
+  });
 }
 
 function emit() {
@@ -291,7 +293,9 @@ function wakeStageMedia() {
       el.muted = false;
       el.volume = 1;
     }
-    void el.play().catch(() => undefined);
+    void el.play().catch((error: unknown) => {
+      console.debug('[callMediaBridge] Media playback was blocked or interrupted.', error);
+    });
   });
 }
 

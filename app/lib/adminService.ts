@@ -163,28 +163,6 @@ export async function allocateNextUserId(): Promise<string> {
   return result.userId;
 }
 
-/** Firebase işləmirsə — əvvəl bazadan skan, sonra lokal counter */
-export async function allocateNextUserIdFallback(): Promise<string> {
-  try {
-    await ensureFirebaseAuth();
-    return await allocateNextUserId();
-  } catch (err) {
-    console.warn('[allocateNextUserIdFallback] Firebase uğursuz, lokal ID:', err);
-    return allocateNextUserIdLocal();
-  }
-}
-
-/** Yalnız brauzer counter (offline) */
-export function allocateNextUserIdLocal(): string {
-  if (typeof window === 'undefined') return 'offline_server';
-  const id = globalThis.crypto?.randomUUID?.();
-  if (id) return `offline_${id}`;
-  const random = Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)))
-    .map((value) => value.toString(16).padStart(2, '0'))
-    .join('');
-  return `offline_${random}`;
-}
-
 export async function recordAdminSession(adminId: string, displayName: string, active: boolean) {
   assertSuperAdmin(adminId);
   await callSecureFunction('recordAdminSession', { displayName, active });

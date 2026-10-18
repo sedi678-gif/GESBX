@@ -128,7 +128,10 @@ export default function CallUiHost() {
       onShare={() => {
         const text = `${ui.peerName} — GESBX zəng`;
         if (navigator.share) {
-          void navigator.share({ title: 'GESBX', text }).catch(() => undefined);
+          void navigator.share({ title: 'GESBX', text }).catch((error: unknown) => {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
+            console.warn('[CallUiHost] Call sharing failed.', error);
+          });
           return;
         }
         void navigator.clipboard?.writeText(text);

@@ -15,7 +15,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:battle-security": "npx tsx --test app/lib/battleSecurity/battleSecurityAudit.test.ts",
-    "test:arena-match": "npx tsx --test app/game/arena/match/arenaMatch.test.ts app/game/arena/match/arenaLoadout.test.ts app/game/arena/match/effects/arenaEffects.test.ts app/game/arena/match/effects/arenaInteraction.test.ts app/game/arena/match/effects/arenaInteraction.test.ts app/game/arena/match/reaction/arenaReaction.test.ts app/game/arena/match/arenaCompletion.test.ts app/game/arena/match/arenaHistory.test.ts app/game/arena/match/arenaReward.test.ts app/game/arena/match/arenaWeeklySettlement.test.ts app/game/arena/match/arenaPayoutCheck.test.ts",
+    "test:arena-match": "npx tsx --test app/game/arena/match/arenaMatch.test.ts app/game/arena/match/arenaLoadout.test.ts app/game/arena/match/effects/arenaEffects.test.ts app/game/arena/match/effects/arenaInteraction.test.ts app/game/arena/match/reaction/arenaReaction.test.ts app/game/arena/match/arenaCompletion.test.ts app/game/arena/match/arenaHistory.test.ts app/game/arena/match/arenaReward.test.ts app/game/arena/match/arenaWeeklySettlement.test.ts app/game/arena/match/arenaPayoutCheck.test.ts",
     "test:battle-e2e": "npx tsx --test --test-concurrency=1 app/lib/battleE2E/battlePipeline.e2e.test.ts",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node --test scripts/firestore-rules.test.mjs\"",
     "firebase:login": "firebase login",

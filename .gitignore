@@ -41,6 +41,7 @@ yarn-error.log*
 # build-time secrets must never be committed
 /public/zego-runtime-config.json
 /.audit-backup/
+/.tmp-eslint.json
 
 # typescript
 *.tsbuildinfo

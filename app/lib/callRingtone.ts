@@ -62,7 +62,9 @@ export function stopRingtone(): void {
   }
   stopOscillators();
   if (audioCtx) {
-    void audioCtx.close().catch(() => undefined);
+    void audioCtx.close().catch((error: unknown) => {
+      console.debug('[callRingtone] Audio context close failed.', error);
+    });
     audioCtx = null;
   }
   stopCallPulse();

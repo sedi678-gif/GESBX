@@ -936,7 +936,9 @@ export function zegoMuteSpeaker(muted: boolean) {
   if (el) {
     el.muted = false;
     el.volume = muted ? 0.4 : 1;
-    if (!muted) void el.play().catch(() => undefined);
+    if (!muted) void el.play().catch((error: unknown) => {
+      console.debug('[zegoCallKit] Speaker playback was blocked or interrupted.', error);
+    });
   }
   getExpress()?.muteSpeaker?.(false);
 }

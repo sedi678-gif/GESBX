@@ -88,7 +88,9 @@ export default function ReelsSlide({
           .catch(() => {
             el.muted = true;
             soundOn.current = false;
-            void el.play().then(() => markPlaying(true)).catch(() => undefined);
+            void el.play().then(() => markPlaying(true)).catch((error: unknown) => {
+              console.debug('[ReelsSlide] Muted autoplay was blocked or interrupted.', error);
+            });
           });
       }
       return;
@@ -107,7 +109,9 @@ export default function ReelsSlide({
     if (!el || !active) return;
     soundOn.current = !soundOn.current;
     el.muted = !soundOn.current;
-    void el.play().catch(() => undefined);
+    void el.play().catch((error: unknown) => {
+      console.debug('[ReelsSlide] Video playback was blocked or interrupted.', error);
+    });
   };
 
   return (
