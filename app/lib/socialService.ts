@@ -38,7 +38,6 @@ export async function searchUsers(searchQuery: string, currentUserId?: string): 
         surname: data.surname,
         handle: data.handle || '',
         gender: data.gender,
-        birthDate: data.birthDate,
         avatar: data.avatar,
         region: data.region,
       });
@@ -68,7 +67,6 @@ export async function getUserProfile(userId: string): Promise<AppUserProfile | n
     surname: data.surname,
     handle: data.handle || '',
     gender: data.gender,
-    birthDate: data.birthDate,
     avatar: data.avatar,
     region: data.region,
     bio: data.bio,
@@ -204,7 +202,8 @@ export async function reportContent(payload: {
     throw new Error('Şikayət məlumatları natamamdır.');
   }
 
-  void ensureFirebaseAuth();
+  const authUser = await ensureFirebaseAuth();
+  if (!authUser) throw new Error('Şikayət göndərmək üçün hesaba daxil olun.');
 
   await addDoc(collection(db, 'reports'), {
     reporterId: payload.reporterId.trim(),

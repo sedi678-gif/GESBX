@@ -160,7 +160,7 @@ export default function AllianceMapBattleHost({
     if (!userId || !view || !arenaMatch) return;
     if (arenaMatch.status !== 'closed') return;
     if (view.battle.status !== 'finished') {
-      void finishBattle({ battleId: view.battle.id, playerId: userId }).catch(() => {});
+      void finishBattle({ battleId: view.battle.id, playerId: userId }).catch((error) => { console.warn('Background task failed', error); });
     }
     if (tableOpen) return;
     clearLiveBattleHint(userId);
@@ -182,11 +182,11 @@ export default function AllianceMapBattleHost({
     if (view.battle.status === 'locked') {
       const attackers = view.battle.attackerPlayerIds ?? [];
       const open = () => {
-        void activateAllianceBattle(view.battle.id, userId).catch(() => {});
+        void activateAllianceBattle(view.battle.id, userId).catch((error) => { console.warn('Background task failed', error); });
       };
       if (attackers.includes(userId) && seatedRef.current !== view.battle.id) {
         seatedRef.current = view.battle.id;
-        void seatOfflineDefenders(view.battle.id, userId).catch(() => {}).finally(open);
+        void seatOfflineDefenders(view.battle.id, userId).catch((error) => { console.warn('Background task failed', error); }).finally(open);
       } else {
         open();
       }
@@ -198,14 +198,14 @@ export default function AllianceMapBattleHost({
     if (view.battle.status !== 'joining') return;
     const endsAt = officialJoinEndsAt(view.battle, now);
     if (now < endsAt) return;
-    void lockAllianceMapBattle(view.battle.id, userId).catch(() => {});
+    void lockAllianceMapBattle(view.battle.id, userId).catch((error) => { console.warn('Background task failed', error); });
   }, [view, userId, now]);
 
   useEffect(() => {
     if (!view || !userId) return;
     if (view.battle.status !== 'active') return;
     if (!officialFinishReason(view.battle)) return;
-    void finishBattle({ battleId: view.battle.id, playerId: userId }).catch(() => {});
+    void finishBattle({ battleId: view.battle.id, playerId: userId }).catch((error) => { console.warn('Background task failed', error); });
   }, [view, userId]);
 
   useEffect(() => {

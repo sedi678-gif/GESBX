@@ -334,7 +334,7 @@ export async function joinAllianceMapBattle(input: {
   const authUser = await requireFirebaseAuth();
   const playerId = sanitizePlayerId(input.playerId);
   const battleId = String(input.battleId || '').trim();
-  await syncServerClock().catch(() => {});
+  await syncServerClock().catch((error) => { console.warn('Background task failed', error); });
 
   return replayBattleRequest(`join:${battleId}:${playerId}`, () =>
     withTimeout(

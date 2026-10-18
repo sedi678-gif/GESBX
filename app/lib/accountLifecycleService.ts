@@ -1,15 +1,13 @@
 import {
-  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
-  setDoc,
   Unsubscribe,
 } from 'firebase/firestore';
-import { deleteUser, signOut } from 'firebase/auth';
 import { auth, db } from '@/firebase';
 import { SUPER_ADMIN_ID } from './adminConfig';
 import { notifyUserIdChanged } from './userId';
+import { callSecureFunction } from './secureFunctions';
 
 export type AccountStatus = {
   exists: boolean;
@@ -23,15 +21,6 @@ export function isRealAccountId(userId: string | null | undefined): boolean {
   const id = String(userId || '').trim();
   if (!id || GUEST_IDS.has(id)) return false;
   return /^\d+$/.test(id);
-}
-
-function authMeta() {
-  const current = auth.currentUser;
-  return {
-    firebaseUid: current?.uid ?? null,
-    email: current?.email ?? null,
-    updatedAt: Date.now(),
-  };
 }
 
 export async function getAccountStatus(userId: string): Promise<AccountStatus> {
@@ -77,26 +66,12 @@ export function listenAccountStatus(
 
 export async function freezeOwnAccount(userId: string): Promise<void> {
   if (!isRealAccountId(userId)) throw new Error('Hesab tapılmadı');
-  const now = Date.now();
-  const extra = authMeta();
-  await setDoc(
-    doc(db, 'users', userId),
-    { frozen: true, frozenAt: now, frozenBy: 'self', ...extra },
-    { merge: true }
-  );
-  await setDoc(doc(db, 'players', userId), { frozen: true, updatedAt: now }, { merge: true });
+  await callSecureFunction<{ frozen: boolean }, { frozen: boolean }>('setOwnFreezeStatus', { frozen: true });
 }
 
 export async function unfreezeOwnAccount(userId: string): Promise<void> {
   if (!isRealAccountId(userId)) throw new Error('Hesab tapılmadı');
-  const now = Date.now();
-  const extra = authMeta();
-  await setDoc(
-    doc(db, 'users', userId),
-    { frozen: false, frozenAt: null, unfrozenAt: now, ...extra },
-    { merge: true }
-  );
-  await setDoc(doc(db, 'players', userId), { frozen: false, updatedAt: now }, { merge: true });
+  await callSecureFunction<{ frozen: boolean }, { frozen: boolean }>('setOwnFreezeStatus', { frozen: false });
 }
 
 export function clearLocalAccountSession() {
@@ -113,24 +88,9 @@ export async function deleteOwnAccount(userId: string): Promise<void> {
     throw new Error('Admin hesabı silinə bilməz');
   }
 
-  await Promise.allSettled([
-    deleteDoc(doc(db, 'users', userId)),
-    deleteDoc(doc(db, 'players', userId)),
-    deleteDoc(doc(db, 'user_settings', userId)),
-  ]);
-
-  clearLocalAccountSession();
-
-  const current = auth.currentUser;
-  if (current && !current.isAnonymous) {
-    try {
-      await deleteUser(current);
-    } catch {
-      try {
-        await signOut(auth);
-      } catch {
-        /* ignore */
-      }
-    }
+  if (!auth.currentUser || auth.currentUser.isAnonymous) {
+    throw new Error('Hesab silmək üçün e-poçt hesabına daxil olun.');
   }
+  await callSecureFunction<Record<string, never>, { deleted: boolean }>('deleteOwnAccount', {});
+  clearLocalAccountSession();
 }

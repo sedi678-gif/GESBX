@@ -374,7 +374,9 @@ function watchSession(sessionId: string) {
 function markSessionEnded() {
   const id = pendingSessionId;
   if (!id) return;
-  void updateCallSession(id, { status: 'ended', endedAt: Date.now() }).catch(() => undefined);
+  void updateCallSession(id, { status: 'ended', endedAt: Date.now() }).catch((err) => {
+    console.warn('[Zego] failed to mark the call session ended:', err);
+  });
 }
 
 function stopCallUi(reason: string) {
@@ -859,8 +861,8 @@ export function zegoHangUp() {
     const cfg = { extendedData: '' };
     if (ringing) {
       const isIncoming = getCallUiState()?.mode === 'incoming';
-      if (isIncoming) void zim.callReject(id, cfg).catch(() => undefined);
-      else void zim.callCancel(id, callee ? [callee] : [], cfg).catch(() => undefined);
+      if (isIncoming) void zim.callReject(id, cfg).catch((err) => console.warn('[Zego] callReject failed:', err));
+      else void zim.callCancel(id, callee ? [callee] : [], cfg).catch((err) => console.warn('[Zego] callCancel failed:', err));
     } else {
       const ender = zim.callEnd
         ? zim.callEnd(id, cfg)
@@ -869,7 +871,7 @@ export function zegoHangUp() {
           : Promise.resolve();
       void Promise.resolve(ender)
         .catch(() => zim.callQuit?.(id, cfg))
-        .catch(() => undefined);
+        .catch((err) => console.warn('[Zego] callEnd/callQuit failed:', err));
     }
   }
   try {

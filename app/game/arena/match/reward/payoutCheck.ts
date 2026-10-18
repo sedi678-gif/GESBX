@@ -46,7 +46,7 @@ function weeklyResetRef(periodId: string) {
 }
 
 async function requireServerNow(): Promise<number> {
-  await syncServerClock().catch(() => {});
+  await syncServerClock().catch((error) => { console.warn('Background task failed', error); });
   const now = serverNowMs();
   if (now <= 0) throw new Error('Server saatı yoxdur');
   return now;

@@ -229,6 +229,29 @@ const banSchema = z.object({ targetUserId: playerIdSchema, banned: z.boolean() }
 const deleteSchema = z.object({ targetUserId: playerIdSchema }).strict();
 const moderatorSchema = z.object({ targetUserId: playerIdSchema, grant: z.boolean() }).strict();
 
+async function allocateUserId({ uid }) {
+  const counterRef = db.doc('counters/userIdCounter');
+  const configRef = db.doc('app_config/admin');
+  return db.runTransaction(async (tx) => {
+    const [counterSnap, configSnap] = await Promise.all([tx.get(counterRef), tx.get(configRef)]);
+    let candidate = Math.max(2, Number(counterSnap.data()?.currentId || 1) + 1,
+      Number(configSnap.data()?.minNewUserId || 2));
+    for (let attempt = 0; attempt < 100; attempt += 1, candidate += 1) {
+      const [userSnap, playerSnap] = await Promise.all([
+        tx.get(db.doc(`users/${candidate}`)), tx.get(db.doc(`players/${candidate}`)),
+      ]);
+      if (userSnap.exists || playerSnap.exists) continue;
+      tx.set(counterRef, { currentId: candidate, reservedAdminId: ADMIN_PROFILE_ID, updatedAt: Date.now() }, { merge: true });
+      return { userId: String(candidate) };
+    }
+    throw new HttpsError('resource-exhausted', 'İstifadəçi ID-si ayrıla bilmədi.');
+  });
+}
+
+exports.allocateUserId = secureCallable(
+  'allocateUserId', z.object({}).strict(), allocateUserId, { max: 10, windowMs: 60_000 },
+);
+
 exports.bootstrapSuperAdmin = secureCallable(
   'bootstrapSuperAdmin', bootstrapSchema, bootstrapSuperAdmin, { max: 5, windowMs: 60_000 },
 );

@@ -127,7 +127,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
 
     const nodes = grid.querySelectorAll<HTMLElement>('[data-post-view-id]');
     const trackVisiblePost = (postId: string) => {
-      void recordPostView(postId, myId, targetUserId).catch(() => undefined);
+      void recordPostView(postId, myId, targetUserId).catch((err) => console.warn('[Feed] view event failed:', err));
     };
 
     if (typeof IntersectionObserver === 'undefined') {

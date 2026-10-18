@@ -165,7 +165,7 @@ export async function submitChallengeClick(input: {
   const challengeId = String(input.challengeId || '').trim();
   if (!challengeId) throw new Error('Challenge tapılmadı');
 
-  await syncServerClock().catch(() => {});
+  await syncServerClock().catch((error) => { console.warn('Background task failed', error); });
   const now = serverNowMs();
   if (now <= 0) throw new Error('Server saatı yoxdur');
 
@@ -258,7 +258,7 @@ export async function expireBattleChallenge(input: {
   const challengeId = String(input.challengeId || '').trim();
   if (!challengeId) throw new Error('Challenge tapılmadı');
 
-  await syncServerClock().catch(() => {});
+  await syncServerClock().catch((error) => { console.warn('Background task failed', error); });
   const now = serverNowMs();
   if (now <= 0) throw new Error('Server saatı yoxdur');
 

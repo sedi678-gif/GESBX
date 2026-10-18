@@ -1,35 +1,8 @@
 import { db } from '@/firebase';
-import {
-  doc,
-  getDoc,
-  runTransaction,
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  limit,
-  Unsubscribe,
-} from 'firebase/firestore';
-import { BattleCardId, BattleCardsMap } from '@/app/components/alliance/types';
-import { isSuperAdmin } from '@/app/lib/adminConfig';
-import {
-  EMPTY_BATTLE_CARDS,
-  normalizeBattleCards,
-} from '@/app/components/alliance/battleCardsConfig';
+import { collection, onSnapshot, query, orderBy, limit, Unsubscribe } from 'firebase/firestore';
+import { BattleCardId } from '@/app/components/alliance/types';
 import { getStableAllianceCoords } from '@/app/components/alliance/regionCoords';
-import {
-  computeDefenderGuardCount,
-  resolveFirstWaveBlock,
-  scaleDamageByBlock,
-} from '@/app/lib/battleDefenderLogic';
-import {
-  computeClickRaidClicksRequired,
-  computeClickRaidDamage,
-  getClickRaidConfig,
-  isClickRaidCard,
-  type ClickRaidCardId,
-} from '@/app/lib/clickRaidLogic';
+import { callSecureFunction } from '@/app/lib/secureFunctions';
 
 export const CARD_POWER: Record<BattleCardId, number> = {
   zombi: 0,
@@ -124,19 +97,6 @@ function normalizeAttack(raw: Omit<AllianceAttack, 'id'> & { id: string }): Alli
   };
 }
 
-function resolveAllianceCoords(
-  data: Record<string, unknown> | undefined,
-  allianceId: string
-): { lat: number; lng: number } {
-  const lat = Number(data?.lat);
-  const lng = Number(data?.lng);
-  if (Number.isFinite(lat) && Number.isFinite(lng)) {
-    return { lat, lng };
-  }
-  const region = typeof data?.region === 'string' ? data.region : 'Bakı';
-  return getStableAllianceCoords(region, allianceId);
-}
-
 export async function launchAllianceAttack(
   userId: string,
   userName: string,
@@ -146,130 +106,11 @@ export async function launchAllianceAttack(
   cardCount: number,
   hintCoords?: LaunchAttackCoords
 ): Promise<{ damage: number; attack: AllianceAttack }> {
-  if (cardCount < 1 || cardCount > 10) throw new Error('1-10 kart istifadə et');
-  if (attackerAllianceId === defenderAllianceId) throw new Error('Öz ittifaqına hücum edə bilməzsən');
-
-  const playerRef = doc(db, 'players', userId);
-  const attackerRef = doc(db, 'alliances', attackerAllianceId);
-  const defenderRef = doc(db, 'alliances', defenderAllianceId);
-  const isClickRaid = isClickRaidCard(cardId);
-  const rawDamage = isClickRaid ? 0 : CARD_POWER[cardId] * cardCount;
-  let blockMeta = {
-    blockedCount: 0,
-    breakthroughCount: cardCount,
-    defenderGuardCount: 1,
-    damage: rawDamage,
-  };
-  let raidMeta = {
-    raidDamage: 0,
-    raidClicksRequired: 0,
-    raidClicksRemaining: 0,
-    defenderMemberCount: 1,
-  };
-
-  await runTransaction(db, async (tx) => {
-    const playerSnap = await tx.get(playerRef);
-    const attackerSnap = await tx.get(attackerRef);
-    const defenderSnap = await tx.get(defenderRef);
-
-    if (!playerSnap.exists()) throw new Error('Oyunçu tapılmadı');
-    if (!attackerSnap.exists() || !defenderSnap.exists()) throw new Error('İttifaq tapılmadı');
-
-    const player = playerSnap.data();
-    if (player.allianceId !== attackerAllianceId) {
-      throw new Error('Yalnız öz ittifaqın adından hücum edə bilərsən');
-    }
-
-    const cards = normalizeBattleCards(player.battleCards as BattleCardsMap);
-    const unlimited = true;
-    if (!unlimited && (cards[cardId] ?? 0) < cardCount) throw new Error('Kifayət qədər kart yoxdur');
-
-    if (!unlimited) cards[cardId] -= cardCount;
-
-    const defender = defenderSnap.data();
-    const defenderMembers = Array.isArray(defender.members) ? defender.members.length : 1;
-
-    if (!unlimited) {
-      tx.set(playerRef, { battleCards: cards, updatedAt: Date.now() }, { merge: true });
-    }
-
-    if (isClickRaid) {
-      const raidCardId = cardId as ClickRaidCardId;
-      const raidDamage = computeClickRaidDamage(raidCardId, defenderMembers);
-      const clicksRequired = computeClickRaidClicksRequired(raidCardId, defenderMembers);
-      raidMeta = {
-        raidDamage,
-        raidClicksRequired: clicksRequired,
-        raidClicksRemaining: clicksRequired,
-        defenderMemberCount: defenderMembers,
-      };
-      blockMeta = { ...blockMeta, damage: 0 };
-      return;
-    }
-
-    const guardCount = computeDefenderGuardCount(defenderMembers);
-    const blockResult = resolveFirstWaveBlock(cardCount, defenderMembers, guardCount);
-    const damage = scaleDamageByBlock(rawDamage, blockResult);
-
-    blockMeta = {
-      blockedCount: blockResult.blockedCount,
-      breakthroughCount: blockResult.breakthroughCount,
-      defenderGuardCount: blockResult.defenderGuardCount,
-      damage,
-    };
-
-    // Rəsmi ittifaq xalı yalnız server finish/result-dan dəyişir — client damage yazılmır.
+  void userName;
+  void hintCoords;
+  return callSecureFunction('startAllianceAttack', {
+    userId, attackerAllianceId, defenderAllianceId, cardId, cardCount,
   });
-
-  const attackerSnap = await getDoc(attackerRef);
-  const defenderSnap = await getDoc(defenderRef);
-  const attackerData = attackerSnap.data();
-  const defenderData = defenderSnap.data();
-
-  const atkCoords = resolveAllianceCoords(attackerData, attackerAllianceId);
-  const defCoords = resolveAllianceCoords(defenderData, defenderAllianceId);
-
-  const createdAt = Date.now();
-  const payload = {
-    attackerAllianceId,
-    attackerAllianceName: attackerData?.name || '?',
-    defenderAllianceId,
-    defenderAllianceName: defenderData?.name || '?',
-    attackerUserId: userId,
-    attackerName: userName,
-    cardId,
-    cardCount,
-    damage: isClickRaid ? 0 : blockMeta.damage,
-    rawDamage: isClickRaid ? raidMeta.raidDamage : rawDamage,
-    blockedCount: blockMeta.blockedCount,
-    breakthroughCount: blockMeta.breakthroughCount,
-    defenderGuardCount: blockMeta.defenderGuardCount,
-    attackerLat: hintCoords?.attackerLat ?? atkCoords.lat,
-    attackerLng: hintCoords?.attackerLng ?? atkCoords.lng,
-    defenderLat: hintCoords?.defenderLat ?? defCoords.lat,
-    defenderLng: hintCoords?.defenderLng ?? defCoords.lng,
-    createdAt,
-    status: isClickRaid ? `${cardId}_active` : 'active',
-    ...(isClickRaid
-      ? {
-          raidDamage: raidMeta.raidDamage,
-          raidClicksRequired: raidMeta.raidClicksRequired,
-          raidClicksRemaining: raidMeta.raidClicksRemaining,
-          raidStatus: 'active' as const,
-          raidEndsAt: createdAt + getClickRaidConfig(cardId as ClickRaidCardId).raidMs,
-          defenderMemberCount: raidMeta.defenderMemberCount,
-        }
-      : {}),
-  };
-
-  const docRef = await addDoc(collection(db, 'alliance_attacks'), payload);
-
-  const attack: AllianceAttack = {
-    id: docRef.id,
-    ...payload,
-  };
-
-  return { damage: blockMeta.damage, attack };
 }
 
 function parseAttacksSnap(snap: import('firebase/firestore').QuerySnapshot): AllianceAttack[] {
@@ -352,86 +193,15 @@ export function mergeAttackLists(...lists: AllianceAttack[][]): AllianceAttack[]
   return [...map.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 30);
 }
 
-function readStoredRaidClicksRemaining(data: Record<string, unknown>): number {
-  return Number(data.raidClicksRemaining ?? data.mutantClicksRemaining ?? 0);
-}
-
-function readStoredRaidStatus(data: Record<string, unknown>): string | undefined {
-  return (data.raidStatus ?? data.mutantStatus) as string | undefined;
-}
-
-function readStoredRaidDamage(data: Record<string, unknown>): number {
-  return Number(data.raidDamage ?? data.mutantDamage ?? 0);
-}
-
 /** Klik raid — müdafiəçi ittifaq üzvlərinin klikləri (mutant, standing) */
 export async function registerClickRaidClick(attackId: string, userId: string): Promise<void> {
-  const attackRef = doc(db, 'alliance_attacks', attackId);
-  const playerRef = doc(db, 'players', userId);
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(attackRef);
-    const playerSnap = await tx.get(playerRef);
-    if (!snap.exists()) return;
-    const data = snap.data()!;
-    if (!isClickRaidCard(data.cardId as BattleCardId)) return;
-    if (readStoredRaidStatus(data) !== 'active') return;
-    const playerAllianceId = playerSnap.data()?.allianceId;
-    if (playerAllianceId !== data.defenderAllianceId) return;
-
-    const cardId = data.cardId as ClickRaidCardId;
-    const remaining = Math.max(0, readStoredRaidClicksRemaining(data) - 1);
-    if (remaining <= 0) {
-      tx.update(attackRef, {
-        raidClicksRemaining: 0,
-        raidStatus: 'killed',
-        damage: 0,
-        status: `${cardId}_killed`,
-        updatedAt: Date.now(),
-      });
-      return;
-    }
-
-    tx.update(attackRef, {
-      raidClicksRemaining: remaining,
-      updatedAt: Date.now(),
-    });
-  });
+  await callSecureFunction('registerAllianceRaidClick', { attackId, userId });
 }
 
 /** Klik raid — vaxt bitdi (zərər) və ya öldürüldü */
 export async function finalizeClickRaid(attackId: string, defeated: boolean): Promise<void> {
-  const attackRef = doc(db, 'alliance_attacks', attackId);
-
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(attackRef);
-    if (!snap.exists()) return;
-    const data = snap.data()!;
-    if (!isClickRaidCard(data.cardId as BattleCardId)) return;
-    if (readStoredRaidStatus(data) !== 'active') return;
-
-    const cardId = data.cardId as ClickRaidCardId;
-
-    if (defeated) {
-      tx.update(attackRef, {
-        raidStatus: 'killed',
-        raidClicksRemaining: 0,
-        damage: 0,
-        status: `${cardId}_killed`,
-        updatedAt: Date.now(),
-      });
-      return;
-    }
-
-    const raidDamage = readStoredRaidDamage(data);
-
-    tx.update(attackRef, {
-      raidStatus: 'hit',
-      damage: raidDamage,
-      status: `${cardId}_hit`,
-      updatedAt: Date.now(),
-    });
-  });
+  void defeated;
+  await callSecureFunction('finalizeAllianceRaid', { attackId });
 }
 
 /** @deprecated registerClickRaidClick istifadə et */

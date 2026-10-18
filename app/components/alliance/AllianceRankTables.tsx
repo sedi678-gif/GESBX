@@ -362,7 +362,7 @@ function useServerLeaderboards() {
   const [weekly, setWeekly] = useState<LeaderboardBoard | null>(null);
 
   useEffect(() => {
-    void requireLeaderboardPeriod().catch(() => {});
+    void requireLeaderboardPeriod().catch((error) => { console.warn('Background task failed', error); });
     return listenLeaderboardState(setPeriod);
   }, []);
 

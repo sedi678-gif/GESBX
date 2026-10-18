@@ -9,7 +9,6 @@ export const APP_BRAIN_FEATURES = {
   profileRedesign: true,
   socketMessaging: true,
   socketCalls: true,
-  webrtcCalls: true,
   videoCalls: true,
   voiceNotes: true,
   mediaSharing: true,

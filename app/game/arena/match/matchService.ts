@@ -465,7 +465,7 @@ export async function completeArenaMatch(input: { matchId: string }): Promise<Ar
     await award({ matchId });
   }
   if (closed.gameMode === '5v5') {
-    await finishBattle({ battleId: matchId, playerId: closed.createdBy }).catch(() => {});
+    await finishBattle({ battleId: matchId, playerId: closed.createdBy }).catch((error) => { console.warn('Background task failed', error); });
   }
   return closed;
 }

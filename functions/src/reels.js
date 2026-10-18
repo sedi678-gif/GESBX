@@ -27,7 +27,7 @@ function uidKey(uid) {
   return crypto.createHash('sha256').update(uid).digest('hex').slice(0, 32);
 }
 
-function startReelRewardView({ uid, payload, operationId, rateLimit }) {
+function startReelRewardViewHandler({ uid, payload, operationId, rateLimit }) {
   const sessionId = operationDocId(uid, `reel-start:${operationId}`);
   const sessionRef = db.doc(`reel_view_sessions/${sessionId}`);
   const postRef = db.doc(`posts/${payload.videoId}`);
@@ -62,7 +62,7 @@ function startReelRewardView({ uid, payload, operationId, rateLimit }) {
   });
 }
 
-function heartbeatReelRewardView({ uid, payload, rateLimit }) {
+function heartbeatReelRewardViewHandler({ uid, payload, rateLimit }) {
   const sessionRef = db.doc(`reel_view_sessions/${payload.sessionId}`);
   const now = Date.now();
   return db.runTransaction(async (tx) => {
@@ -86,7 +86,7 @@ function heartbeatReelRewardView({ uid, payload, rateLimit }) {
   });
 }
 
-function completeReelRewardView({ uid, payload, operationId, rateLimit }) {
+function completeReelRewardViewHandler({ uid, payload, operationId, rateLimit }) {
   const sessionRef = db.doc(`reel_view_sessions/${payload.sessionId}`);
   const now = Date.now();
   const dayKey = new Date(now).toISOString().slice(0, 10);
@@ -152,8 +152,8 @@ function completeReelRewardView({ uid, payload, operationId, rateLimit }) {
   });
 }
 
-const startReelRewardView = secureCallable('startReelRewardView', startSchema, startReelRewardView, { max: 20, windowMs: 60_000 });
-const heartbeatReelRewardView = secureCallable('heartbeatReelRewardView', heartbeatSchema, heartbeatReelRewardView, { max: 20, windowMs: 60_000 });
-const completeReelRewardView = secureCallable('completeReelRewardView', completeSchema, completeReelRewardView, { max: 20, windowMs: 60_000 });
+const startReelRewardView = secureCallable('startReelRewardView', startSchema, startReelRewardViewHandler, { max: 20, windowMs: 60_000 });
+const heartbeatReelRewardView = secureCallable('heartbeatReelRewardView', heartbeatSchema, heartbeatReelRewardViewHandler, { max: 20, windowMs: 60_000 });
+const completeReelRewardView = secureCallable('completeReelRewardView', completeSchema, completeReelRewardViewHandler, { max: 20, windowMs: 60_000 });
 
 module.exports = { startReelRewardView, heartbeatReelRewardView, completeReelRewardView };

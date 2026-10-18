@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { auth } from '@/firebase';
 
 import { getAppUserId } from './userId';
 
@@ -100,7 +101,6 @@ function bindSocketLifecycle(s: Socket) {
 
     }
 
-    void import('./callSocketService').then((m) => m.ensureGlobalCallSignalListeners());
 
   });
 
@@ -161,6 +161,15 @@ export function getAppSocket(): Socket | null {
       randomizationFactor: 0.4,
 
       timeout: 20000,
+
+      auth: (callback) => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          callback({});
+          return;
+        }
+        void currentUser.getIdToken().then((token) => callback({ token })).catch(() => callback({}));
+      },
 
       secure: url.startsWith('https://'),
 

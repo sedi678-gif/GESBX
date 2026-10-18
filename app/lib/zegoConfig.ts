@@ -10,16 +10,15 @@
 
 export interface ZegoRuntimeConfig {
   appId: number;
-  appSign: string;
 }
 
 /** Klientdə icazə verilən maksimum: yalnız public açarlar. */
 export interface ZegoPublicConfig {
   appId: number;
-  appSign: string;
 }
 
-const CACHE_KEY = 'gesbx_zego_config_v3';
+const CACHE_KEY = 'gesbx_zego_config_v4';
+const LEGACY_CACHE_KEY = 'gesbx_zego_config_v3';
 
 /**
  * Klient heç bir halda serverSecret qəbul etmir. Brauzerdə yalnız public açarlar saxlanılır;
@@ -29,13 +28,13 @@ let resolved: ZegoRuntimeConfig | null = null;
 let loadPromise: Promise<boolean> | null = null;
 let lastLoadError: string | null = null;
 
-function applyConfig(appId: number, appSign: string): boolean {
-  const sign = (appSign ?? '').trim();
+function applyConfig(appId: number): boolean {
   if (!Number.isFinite(appId) || appId <= 0) return false;
-  resolved = { appId, appSign: sign };
+  resolved = { appId };
   if (typeof window !== 'undefined') {
     try {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ appId, appSign: sign }));
+      sessionStorage.removeItem(LEGACY_CACHE_KEY);
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ appId }));
     } catch {
       /* ignore */
     }
@@ -48,12 +47,8 @@ function readFromProcessEnv(): boolean {
     process.env.NEXT_PUBLIC_ZEGO_APP_ID ??
     process.env.ZEGO_APP_ID ??
     '';
-  const sign =
-    process.env.NEXT_PUBLIC_ZEGO_APP_SIGN ??
-    process.env.ZEGO_APP_SIGN ??
-    '';
   const id = Number(rawId);
-  return applyConfig(id, sign);
+  return applyConfig(id);
 }
 
 function readFromSessionCache(): boolean {
@@ -62,7 +57,7 @@ function readFromSessionCache(): boolean {
     const raw = sessionStorage.getItem(CACHE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw) as ZegoRuntimeConfig;
-    return applyConfig(data.appId, data.appSign);
+    return applyConfig(data.appId);
   } catch {
     return false;
   }
@@ -74,9 +69,8 @@ async function fetchJsonConfig(url: string): Promise<boolean> {
     if (!res.ok) return false;
     const data = (await res.json()) as Partial<ZegoPublicConfig>;
     const id = Number(data.appId);
-    const sign = (data.appSign ?? '').trim();
     // public/*.json yalnız public açarları daşıyır — serverSecret qəsdən oxunmur.
-    return applyConfig(id, sign);
+    return applyConfig(id);
   } catch {
     return false;
   }
@@ -104,16 +98,14 @@ async function loadFromFirestore(): Promise<boolean> {
     const { db } = await import('@/firebase');
     const { ensureFirebaseAuth } = await import('@/app/lib/firebaseAuth');
     await ensureFirebaseAuth();
-    const snap = await getDoc(doc(db, 'app_config', 'zego'));
+    const snap = await getDoc(doc(db, 'app_config', 'zego_public'));
     if (!snap.exists()) return false;
     const data = snap.data() as {
       appId?: number;
-      appSign?: string;
     };
     const id = Number(data.appId);
-    const sign = (data.appSign ?? '').trim();
     // Firestore-daki app_config yalnız public açarları saxlayır; secret ora da yazılmamalıdır.
-    return applyConfig(id, sign);
+    return applyConfig(id);
   } catch (err) {
     lastLoadError = err instanceof Error ? err.message : 'Firestore xətası';
     console.warn('[Zego] Firestore config:', err);
@@ -163,10 +155,6 @@ export function getZegoAppId(): number {
   return resolved?.appId ?? 0;
 }
 
-export function getZegoAppSign(): string {
-  return resolved?.appSign ?? '';
-}
-
 export function isZegoConfigured(): boolean {
   if (getZegoAppId() <= 0) return false;
   // Brauzerdə token serverdə imzalanır — secret tələb olunmur.
@@ -183,6 +171,7 @@ export function resetZegoConfigCache(): void {
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.removeItem(CACHE_KEY);
+      sessionStorage.removeItem(LEGACY_CACHE_KEY);
     } catch {
       /* ignore */
     }

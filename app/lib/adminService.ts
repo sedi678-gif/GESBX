@@ -4,11 +4,9 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
-  setDoc,
   query,
   orderBy,
   limit,
-  runTransaction,
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/firebase';
@@ -154,55 +152,15 @@ export async function scanMaxNumericUserId(): Promise<number> {
   return maxId;
 }
 
-async function userProfileExists(userId: string): Promise<boolean> {
-  const snap = await getDoc(doc(db, 'users', userId));
-  return snap.exists();
-}
-
 /** Counter-i Firebase-dəki real son ID-yə uyğunlaşdırır */
 export async function syncUserIdCounterFromFirebase(): Promise<number> {
-  const maxId = await scanMaxNumericUserId();
-  await setDoc(
-    doc(db, 'counters', 'userIdCounter'),
-    { currentId: maxId, reservedAdminId: SUPER_ADMIN_ID, updatedAt: Date.now() },
-    { merge: true }
-  );
-  return maxId;
+  return scanMaxNumericUserId();
 }
 
 export async function allocateNextUserId(): Promise<string> {
-  const config = await ensureAdminConfig();
-  const minId = Math.max(2, config.minNewUserId || 2);
-  const counterRef = doc(db, 'counters', 'userIdCounter');
-
   await ensureFirebaseAuth();
-
-  const scannedMax = await scanMaxNumericUserId();
-  let nextIdNum = Math.max(minId, scannedMax + 1);
-
-  await runTransaction(db, async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    const counterCurrent = counterDoc.exists()
-      ? Number(counterDoc.data().currentId) || 1
-      : scannedMax;
-    nextIdNum = Math.max(minId, scannedMax + 1, counterCurrent + 1);
-    transaction.set(
-      counterRef,
-      { currentId: nextIdNum, reservedAdminId: SUPER_ADMIN_ID, updatedAt: Date.now() },
-      { merge: true }
-    );
-  });
-
-  while (await userProfileExists(String(nextIdNum))) {
-    nextIdNum += 1;
-    await setDoc(
-      counterRef,
-      { currentId: nextIdNum, reservedAdminId: SUPER_ADMIN_ID, updatedAt: Date.now() },
-      { merge: true }
-    );
-  }
-
-  return `${nextIdNum}`;
+  const result = await callSecureFunction<Record<string, never>, { userId: string }>('allocateUserId', {});
+  return result.userId;
 }
 
 /** Firebase işləmirsə — əvvəl bazadan skan, sonra lokal counter */

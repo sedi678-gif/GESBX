@@ -236,7 +236,7 @@ export async function playBattleCard(input: PlayBattleCardInput): Promise<PlayBa
       ? Math.trunc(input.slotIndex)
       : undefined;
 
-  await syncServerClock().catch(() => {});
+  await syncServerClock().catch((error) => { console.warn('Background task failed', error); });
   const now = serverNowMs();
   if (now <= 0) throw new Error('Server saatı yoxdur');
 
@@ -635,7 +635,7 @@ export async function playBattleCard(input: PlayBattleCardInput): Promise<PlayBa
     'Kart oynanılmadı.'
       );
       if (finishReasonFromScores(played.turn, played.attackerScore, played.defenderScore)) {
-        await finishBattle({ battleId, playerId }).catch(() => {});
+        await finishBattle({ battleId, playerId }).catch((error) => { console.warn('Background task failed', error); });
       }
       return played;
     } finally {
@@ -654,7 +654,7 @@ export async function timeoutBattleTurn(input: {
   const battleId = sanitizeBattleId(input.battleId);
   const expectedStateVersion = requireInt(input.expectedStateVersion, 'Battle state version');
 
-  await syncServerClock().catch(() => {});
+  await syncServerClock().catch((error) => { console.warn('Background task failed', error); });
   const now = serverNowMs();
   if (now <= 0) throw new Error('Server saatı yoxdur');
 
@@ -725,7 +725,7 @@ export async function timeoutBattleTurn(input: {
       battle.status === 'active' &&
       finishReasonFromScores(battle.turn ?? 0, battle.attackerScore, battle.defenderScore)
     ) {
-      await finishBattle({ battleId, playerId }).catch(() => {});
+      await finishBattle({ battleId, playerId }).catch((error) => { console.warn('Background task failed', error); });
     }
     return battle;
   });

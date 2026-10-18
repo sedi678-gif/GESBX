@@ -46,7 +46,7 @@ export default function BattleClickChallengePanel({
     );
     if (due.length === 0) return;
     due.forEach((item) => {
-      void expireBattleChallenge({ battleId, challengeId: item.challengeId, playerId }).catch(() => {});
+      void expireBattleChallenge({ battleId, challengeId: item.challengeId, playerId }).catch((error) => { console.warn('Background task failed', error); });
     });
   }, [battleId, challenges, playerId, serverNow]);
 

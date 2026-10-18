@@ -3,8 +3,7 @@
  * .env.local və ya process.env-dən oxuyur.
  *
  * TƏHLÜKƏSİZLİK: bu fayl statik hostinqdən hər kəsə açıq verilir, ona görə burada
- * YALNIZ public açarlar (appId, appSign) yazılır. `serverSecret` HEÇ VAXT bura düşməməlidir —
- * o, token imzalama açarıdır və yalnız serverdə (server.js / Cloud Function) qalmalıdır.
+ * YALNIZ public appId yazılır. AppSign və ServerSecret kimi credential-lar bura düşməməlidir.
  */
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -38,19 +37,15 @@ function pick(...keys) {
 }
 
 const appIdRaw = pick('NEXT_PUBLIC_ZEGO_APP_ID', 'ZEGO_APP_ID');
-const appSign = pick('NEXT_PUBLIC_ZEGO_APP_SIGN', 'ZEGO_APP_SIGN');
-
-// serverSecret qəsdən oxunmur və yazılmır — klient bundle-ına düşməməlidir.
 const payload = {
   appId: appIdRaw ? Number(appIdRaw) : 0,
-  appSign,
 };
 
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, JSON.stringify(payload, null, 2), 'utf8');
 
 if (payload.appId > 0) {
-  console.log('[zego] public config embedded → public/zego-runtime-config.json (serverSecret daxil edilmədi)');
+  console.log('[zego] public appId embedded → public/zego-runtime-config.json');
 } else {
   console.warn('[zego] appId yoxdur — runtime Firestore fallback işlədəcək');
 }

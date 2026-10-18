@@ -1,8 +1,9 @@
 /* eslint @typescript-eslint/no-require-imports: off */
-const crypto = require('node:crypto');
 const { getFirestore } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
+const { FieldValue } = require('firebase-admin/firestore');
+const { makeToken04 } = require('./zegoTokenFormat');
 
 const db = getFirestore();
 const ZEGO_SERVER_SECRET = defineSecret('ZEGO_SERVER_SECRET');
@@ -20,33 +21,6 @@ function zegoUserId(raw) {
   return value.slice(0, 32);
 }
 
-function makeToken(appId, secret, userId, roomId) {
-  if (Buffer.byteLength(secret, 'utf8') !== 32) {
-    throw new HttpsError('failed-precondition', 'Zego Server Secret 32 bayt olmalıdır.');
-  }
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    app_id: appId,
-    user_id: userId,
-    nonce: crypto.randomInt(1, 2147483647),
-    ctime: now,
-    expire: now + TOKEN_TTL_SEC,
-    payload: JSON.stringify({ room_id: roomId }),
-  };
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(secret, 'utf8'), iv);
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
-  const packString = (value) => {
-    const bytes = Buffer.from(value);
-    const length = Buffer.alloc(2);
-    length.writeUInt16BE(bytes.length);
-    return Buffer.concat([length, bytes]);
-  };
-  const expiry = Buffer.alloc(8);
-  expiry.writeBigInt64BE(BigInt(payload.expire));
-  return `04${Buffer.concat([expiry, packString(iv), packString(encrypted)]).toString('base64')}`;
-}
-
 exports.createZegoToken = onCall(
   { region: REGION, enforceAppCheck: true, secrets: [ZEGO_SERVER_SECRET], maxInstances: 20 },
   async (request) => {
@@ -62,6 +36,13 @@ exports.createZegoToken = onCall(
       throw new HttpsError('failed-precondition', 'Zego server konfiqurasiyası yoxdur.');
     }
 
+    // Purge credential fields left by the legacy seed script from the readable config doc.
+    await db.doc('app_config/zego').set({
+      appSign: FieldValue.delete(),
+      serverSecret: FieldValue.delete(),
+      updatedAt: Date.now(),
+    }, { merge: true });
+
     const profiles = await db.collection('users').where('firebaseUid', '==', request.auth.uid).limit(2).get();
     const allowedIds = new Set([request.auth.uid]);
     profiles.forEach((profile) => allowedIds.add(zegoUserId(profile.id)));
@@ -70,9 +51,10 @@ exports.createZegoToken = onCall(
     }
 
     return {
-      token: makeToken(appId, secret, zegoUserId(requestedUserId), roomId),
+      token: makeToken04(appId, secret, zegoUserId(requestedUserId), roomId, Math.floor(Date.now() / 1000), TOKEN_TTL_SEC),
       appId,
       expireSec: TOKEN_TTL_SEC,
     };
   },
 );
+

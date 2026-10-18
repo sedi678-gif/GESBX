@@ -133,7 +133,7 @@ async function restoreBattleSessionWork(input: {
     return null;
   }
 
-  await syncServerClock().catch(() => {});
+  await syncServerClock().catch((error) => { console.warn('Background task failed', error); });
   const battle = await readBattle(battleId);
   if (!battle || !isLiveStatus(battle.status) || !(battle.participantIds ?? []).includes(playerId)) {
     clearLiveBattleHint(playerId);
@@ -210,16 +210,16 @@ export function listenBattleReconnect(
       .then((snap) => {
         if (!cancelled) onChange(snap);
       })
-      .catch(() => {});
+      .catch((error) => { console.warn('Background task failed', error); });
   };
 
   const onVisible = () => {
     if (document.visibilityState !== 'visible') return;
-    void syncServerClock().catch(() => {});
+    void syncServerClock().catch((error) => { console.warn('Background task failed', error); });
     run();
   };
   const onOnline = () => {
-    void syncServerClock().catch(() => {});
+    void syncServerClock().catch((error) => { console.warn('Background task failed', error); });
     run();
   };
 

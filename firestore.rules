@@ -39,6 +39,44 @@ service cloud.firestore {
       );
     }
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function ownsProfileId(profileId) {
+      return isSignedIn()
+        && profileId is string
+        && exists(/databases/$(database)/documents/users/$(profileId))
+        && get(/databases/$(database)/documents/users/$(profileId)).data.firebaseUid == request.auth.uid;
+    }
+
+    function canAccessPrivateChat(data) {
+      return isSignedIn()
+        && data.participants is list
+        && data.participants.size() == 2
+        && (ownsProfileId(data.participants[0]) || ownsProfileId(data.participants[1]));
+    }
+
+    function canAccessChatId(chatId) {
+      let chatPath = /databases/$(database)/documents/private_chats/$(chatId);
+      return isSignedIn() && exists(chatPath) && canAccessPrivateChat(get(chatPath).data);
+    }
+
+    function chatContainsProfile(chatId, profileId) {
+      let chatPath = /databases/$(database)/documents/private_chats/$(chatId);
+      return exists(chatPath)
+        && get(chatPath).data.participants is list
+        && profileId in get(chatPath).data.participants;
+    }
+
+    function isTrustedModerator() {
+      return isSignedIn()
+        && (request.auth.token.admin == true || request.auth.token.moderator == true
+          || (exists(/databases/$(database)/documents/users/1)
+            && get(/databases/$(database)/documents/users/1).data.firebaseUid == request.auth.uid
+            && get(/databases/$(database)/documents/users/1).data.isModerator == true));
+    }
+
     function isAllianceMemberOrLeader(allianceId, playerId) {
       return allianceId is string
         && playerId is string
@@ -57,6 +95,12 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/players/$(playerId))
         && get(/databases/$(database)/documents/players/$(playerId)).data.allianceId == allianceId
         && isAllianceMemberOrLeader(allianceId, playerId);
+    }
+
+    function isUidAllianceMember(allianceId) {
+      return request.auth != null
+        && allianceId is string
+        && exists(/databases/$(database)/documents/alliance_members/$(allianceId)/members/$(request.auth.uid));
     }
 
     function sidePlayersBelong(ids, allianceId) {
@@ -1924,7 +1968,8 @@ service cloud.firestore {
           || after.score == 50 + delta
         )
         && after.lifetimeScore is int
-        && after.lifetimeScore == lifeBase + delta;
+        && after.lifetimeScore == lifeBase + delta
+        && after.diff(before).affectedKeys().hasOnly(['score', 'lifetimeScore', 'lastScoreBattleId']);
     }
 
     function isValidAllianceWeeklyReset() {
@@ -1933,18 +1978,22 @@ service cloud.firestore {
         && after.weeklyKey is string
         && after.weeklyResetFrom is string
         && after.weeklyKey != after.weeklyResetFrom
+        && after.diff(resource.data).affectedKeys().hasOnly(['score', 'weeklyKey', 'weeklyResetFrom'])
         && existsAfter(/databases/$(database)/documents/leaderboard_resets/weekly_$(after.weeklyResetFrom));
     }
 
     match /alliances/{allianceId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null
-        && (
-          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['score', 'lifetimeScore'])
-          || isValidAllianceFinishScore(allianceId)
-          || isValidAllianceWeeklyReset()
-        );
+      allow create: if false;
+      allow update: if isValidAllianceFinishScore(allianceId)
+        || isValidAllianceWeeklyReset()
+        || (request.auth != null
+          && exists(/databases/$(database)/documents/users/$(resource.data.leaderId))
+          && get(/databases/$(database)/documents/users/$(resource.data.leaderId)).data.firebaseUid == request.auth.uid
+          && request.resource.data.leaderId == resource.data.leaderId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'previousName', 'nameUpdatedAt', 'flag'
+          ]));
       allow delete: if false;
     }
 
@@ -2029,7 +2078,8 @@ service cloud.firestore {
     }
 
     match /players/{playerId} {
-      allow read: if true;
+      // Player records include balances, inventory and VIP flags; require a signed-in reader.
+      allow read: if request.auth != null;
       allow create: if isSafeNewPlayer(playerId);
       allow update: if isPlayerOwner(playerId)
         && request.resource.data.firebaseUid == resource.data.firebaseUid
@@ -2573,43 +2623,7 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + request.resource.data.periodId))).data.kind == 'weekly'
           )
         );
-      allow update: if request.auth != null
-        && resource.data.walletCredited == false
-        && request.resource.data.walletCredited == false
-        && request.resource.data.rewardId == resource.data.rewardId
-        && request.resource.data.periodId == resource.data.periodId
-        && request.resource.data.sourceType == resource.data.sourceType
-        && request.resource.data.sourceId == resource.data.sourceId
-        && request.resource.data.matchId == resource.data.matchId
-        && request.resource.data.rewardType == resource.data.rewardType
-        && request.resource.data.recipientType == resource.data.recipientType
-        && request.resource.data.recipientId == resource.data.recipientId
-        && request.resource.data.countryCode == resource.data.countryCode
-        && request.resource.data.rank == resource.data.rank
-        && request.resource.data.amount == resource.data.amount
-        && request.resource.data.currency == resource.data.currency
-        && request.resource.data.status == resource.data.status
-        && request.resource.data.securityStatus == resource.data.securityStatus
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.payoutCheckStatus in ['APPROVED', 'BLOCKED', 'REVIEW']
-        && request.resource.data.payoutCheckedAt is int
-        && request.resource.data.payoutReady is bool
-        && (
-          request.resource.data.payoutCheckStatus == 'APPROVED'
-            ? request.resource.data.payoutReady == true
-            : request.resource.data.payoutReady == false
-        )
-        && (
-          !('payoutCheckStatus' in resource.data)
-          || resource.data.payoutCheckStatus == null
-          || request.resource.data.payoutCheckStatus == resource.data.payoutCheckStatus
-        )
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['payoutCheckStatus', 'payoutCheckedAt', 'payoutReady'])
-        && exists(/databases/$(database)/documents/leaderboard_weekly/$(resource.data.periodId))
-        && get(/databases/$(database)/documents/leaderboard_weekly/$(resource.data.periodId)).data.status == 'closed'
-        && exists(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + resource.data.periodId)))
-        && get(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + resource.data.periodId))).data.status == 'done';
+      allow update: if false;
       allow delete: if false;
 
       match /reward_events/{eventId} {
@@ -2625,7 +2639,7 @@ service cloud.firestore {
     }
 
     match /arena_reward_settlements/{settlementId} {
-      allow read: if request.auth != null;
+      allow read: if isTrustedModerator();
       // ⚠️ DİQQƏT (audit tapıntısı #4): hesablaşma qəbzi də istənilən istifadəçi tərəfindən
       // yaradıla bilirdi. Yalnız server yazır.
       allow create: if false
@@ -2689,16 +2703,22 @@ service cloud.firestore {
     // Qeyd: tətbiqdə istifadəçi ID-si Firebase UID deyil (lokal rəqəmli ID), ona görə
     // "sahiblik" yoxlanışı sənədin öz `userId` sahəsi üzərindən qurulur.
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     // İstifadəçi profili — hamı oxuya bilər (ad/avatar), yalnız sahibi yazır.
     match /users/{userId} {
-      allow read: if true;
+      allow read: if isSignedIn()
+        && (resource.data.firebaseUid == request.auth.uid
+          || !resource.data.keys().hasAny([
+            'email', 'birthDate', 'parentalConsentVerified', 'punishedUntil',
+            'bannedBy', 'punishedBy', 'frozenBy', 'punishReason', 'isModerator'
+          ]));
       allow create: if isSignedIn()
         && request.resource.data.id == userId
         && request.resource.data.firebaseUid == request.auth.uid
+        && request.resource.data.role == 'user'
+        && (!('banned' in request.resource.data) || request.resource.data.banned == false)
+        && (!('frozen' in request.resource.data) || request.resource.data.frozen == false)
+        && (!('isModerator' in request.resource.data) || request.resource.data.isModerator == false)
+        && !request.resource.data.keys().hasAny(['email', 'birthDate', 'parentalConsentVerified'])
         && (!('manat' in request.resource.data) || request.resource.data.manat == 0)
         && (!('coins' in request.resource.data) || request.resource.data.coins == 0)
         && (!('likesReceived' in request.resource.data) || request.resource.data.likesReceived == 0)
@@ -2720,7 +2740,14 @@ service cloud.firestore {
         )
         && request.resource.data.firebaseUid == resource.data.firebaseUid
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          'manat', 'coins', 'firebaseUid', 'email', 'parentalConsentVerified'
+          'manat', 'coins', 'firebaseUid', 'email', 'birthDate', 'parentalConsentVerified',
+          'role', 'isAdmin', 'isModerator', 'banned', 'frozen', 'punishedUntil',
+          'bannedBy', 'punishedBy', 'frozenBy', 'punishReason', 'vipTier', 'vipExpiresAt'
+        ])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'surname', 'handle', 'gender', 'avatar', 'bannerImage', 'bannerGradient',
+          'bio', 'allianceName', 'updatedAt', 'equippedCosmetics', 'region',
+          'likesReceived', 'viewsReceived'
         ])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['likesReceived'])
             || request.resource.data.likesReceived >= resource.data.get('likesReceived', 0))
@@ -2733,52 +2760,104 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /private_user_profiles/{authUid} {
+      allow read: if isSignedIn() && request.auth.uid == authUid;
+      allow create, update: if isSignedIn()
+        && request.auth.uid == authUid
+        && request.resource.data.keys().hasOnly(['birthDate', 'updatedAt'])
+        && request.resource.data.birthDate is string
+        && request.resource.data.birthDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.updatedAt is int;
+      allow delete: if false;
+    }
+
     match /user_settings/{userId} {
-      allow read, create, update, delete: if isSignedIn();
+      allow read, create, update, delete: if ownsProfileId(userId);
     }
 
     match /counters/{counterId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn()
-        && request.resource.data.currentId is int
-        && request.resource.data.currentId >= 1;
+      allow create, update: if false;
       allow delete: if false;
     }
 
     // Public app config — yalnız oxu. Yazı serverdə edilir (secret burada saxlanılmır).
     match /app_config/{configId} {
-      allow read: if true;
+      allow read: if configId != 'zego';
       allow write: if false;
     }
 
     // Şəxsi söhbətlər — yalnız iştirakçılar.
     match /private_chats/{chatId} {
-      allow read: if isSignedIn()
-        && resource.data.participants is list;
-      allow create, update: if isSignedIn()
-        && request.resource.data.participants is list
-        && request.resource.data.participants.size() == 2;
+      // Authenticated users may probe a missing ID so a new participant pair can be
+      // created; an existing conversation remains readable only by its participants.
+      allow get: if (resource == null && isSignedIn()) || canAccessPrivateChat(resource.data);
+      allow list: if canAccessPrivateChat(resource.data);
+      allow create: if canAccessPrivateChat(request.resource.data)
+        && request.resource.data.chatId == chatId
+        && request.resource.data.participants[0] != request.resource.data.participants[1]
+        && request.resource.data.keys().hasOnly([
+          'chatId', 'participants', 'participantMeta', 'lastMessage', 'lastMessageAt', 'updatedAt'
+        ]);
+      allow update: if canAccessPrivateChat(resource.data)
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.chatId == resource.data.chatId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'participantMeta', 'lastMessage', 'lastMessageAt', 'updatedAt'
+        ]);
       allow delete: if false;
     }
 
     match /private_messages/{messageId} {
-      allow read: if isSignedIn();
+      allow read: if resource.data.chatId is string && canAccessChatId(resource.data.chatId);
       allow create: if isSignedIn()
+        && request.resource.data.id == messageId
+        && request.resource.data.chatId is string
+        && canAccessChatId(request.resource.data.chatId)
         && request.resource.data.senderId is string
+        && ownsProfileId(request.resource.data.senderId)
         && request.resource.data.recipientId is string
-        && request.resource.data.senderId != request.resource.data.recipientId;
-      allow update: if isSignedIn();
-      allow delete: if false;
+        && request.resource.data.senderId != request.resource.data.recipientId
+        && chatContainsProfile(request.resource.data.chatId, request.resource.data.senderId)
+        && chatContainsProfile(request.resource.data.chatId, request.resource.data.recipientId);
+      allow update: if resource.data.chatId is string
+        && canAccessChatId(resource.data.chatId)
+        && ownsProfileId(resource.data.senderId)
+        && request.resource.data.senderId == resource.data.senderId
+        && request.resource.data.recipientId == resource.data.recipientId
+        && request.resource.data.chatId == resource.data.chatId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 2000;
+      allow delete: if resource.data.chatId is string && canAccessChatId(resource.data.chatId);
     }
 
     match /message_contacts/{contactId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn()
+        && resource.data.ownerId is string
+        && ownsProfileId(resource.data.ownerId);
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId is string
+        && ownsProfileId(request.resource.data.ownerId)
+        && request.resource.data.contactId is string
+        && request.resource.data.keys().hasOnly([
+          'ownerId', 'contactId', 'status', 'initiatedBy', 'createdAt', 'acceptedAt', 'declinedAt'
+        ]);
+      allow update: if isSignedIn()
+        && resource.data.ownerId is string
+        && ownsProfileId(resource.data.ownerId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt', 'declinedAt']);
+      allow delete: if isSignedIn()
+        && resource.data.ownerId is string
+        && ownsProfileId(resource.data.ownerId);
     }
 
     // Qlobal çat — hamı oxuyur, sahibi öz mesajını silə bilər.
     match /global_chat/{messageId} {
       allow read: if true;
       allow create: if isSignedIn()
+        && request.resource.data.userId is string
+        && ownsProfileId(request.resource.data.userId)
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
         && request.resource.data.text.size() <= 2000
@@ -2786,33 +2865,43 @@ service cloud.firestore {
           'user', 'userId', 'text', 'time', 'createdAt', 'allianceId'
         ]);
       allow update: if false;
-      allow delete: if isSignedIn();
+      allow delete: if isSignedIn() && ownsProfileId(resource.data.userId);
     }
 
     // İttifaq çatı — yalnız həmin ittifaqın üzvü/lideri.
     match /alliance_chat/{messageId} {
-      allow read: if isSignedIn();
+      allow read: if resource.data.allianceId is string
+        && isUidAllianceMember(resource.data.allianceId);
       allow create: if isSignedIn()
         && request.resource.data.allianceId is string
+        && request.resource.data.userId is string
+        && exists(/databases/$(database)/documents/users/$(request.resource.data.userId))
+        && get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.firebaseUid == request.auth.uid
+        && isUidAllianceMember(request.resource.data.allianceId)
         && playerBelongsToAlliance(request.resource.data.userId, request.resource.data.allianceId);
       allow update: if false;
-      allow delete: if isSignedIn();
+      allow delete: if isSignedIn()
+        && resource.data.userId is string
+        && exists(/databases/$(database)/documents/users/$(resource.data.userId))
+        && get(/databases/$(database)/documents/users/$(resource.data.userId)).data.firebaseUid == request.auth.uid;
+    }
+
+    match /alliance_members/{allianceId}/members/{authUid} {
+      allow read, write: if false;
     }
 
     match /alliance_notifications/{notificationId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn()
-        && request.resource.data.allianceId is string;
-      allow update: if isSignedIn();
+      allow read: if isSignedIn()
+        && resource.data.userId is string
+        && ownsProfileId(resource.data.userId);
+      allow create, update: if false;
       allow delete: if false;
     }
 
     match /alliance_attacks/{attackId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn()
-        && request.resource.data.attackerAllianceId is string
-        && request.resource.data.defenderAllianceId is string;
-      allow update: if isSignedIn();
+      allow write: if false;
+      allow create, update: if false;
       allow delete: if false;
     }
 
@@ -2900,11 +2989,26 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn()
         && request.resource.data.userId is string
+        && ownsProfileId(request.resource.data.userId)
         && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
         && request.resource.data.title.size() <= 500
-        && request.resource.data.mediaUrl is string;
+        && request.resource.data.mediaUrl is string
+        && request.resource.data.mediaType in ['image', 'video']
+        && request.resource.data.keys().hasOnly([
+          'userId', 'userName', 'userHandle', 'userAvatar', 'userGender', 'userRegion',
+          'title', 'mediaUrl', 'mediaType', 'durationSeconds', 'likes', 'views',
+          'commentsCount', 'giftCount', 'createdAt', 'expiresAt'
+        ])
+        && request.resource.data.likes == 0
+        && request.resource.data.views == 0
+        && request.resource.data.commentsCount == 0
+        && request.resource.data.giftCount == 0
+        && request.resource.data.createdAt is int
+        && request.resource.data.expiresAt is int;
       allow update: if isSignedIn()
         && request.resource.data.userId == resource.data.userId
+        && (ownsProfileId(resource.data.userId) || isTrustedModerator())
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['views', 'lastViewMarker'])
             || (request.resource.data.views == resource.data.get('views', 0) + 1
               && request.resource.data.lastViewMarker is string
@@ -2913,16 +3017,33 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.postId == postId
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.ownerId == resource.data.userId
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.viewerAuthUid == request.auth.uid))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'views', 'lastViewMarker', 'likes', 'commentsCount', 'giftCount'
+        ])
         && (!request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['likes', 'commentsCount', 'giftCount'])
             || request.resource.data.likes == resource.data.likes + 1
-            || request.resource.data.likes == resource.data.likes - 1);
-      allow delete: if isSignedIn() && resource.data.userId is string;
+            || request.resource.data.likes == resource.data.likes - 1)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['commentsCount'])
+          || request.resource.data.commentsCount == resource.data.get('commentsCount', 0) + 1)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['giftCount'])
+          || request.resource.data.giftCount == resource.data.get('giftCount', 0) + 1);
+      allow delete: if resource.data.userId is string
+        && (ownsProfileId(resource.data.userId) || isTrustedModerator());
     }
 
     match /post_likes/{likeId} {
       allow read: if true;
-      allow create, delete: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.userId is string
+        && ownsProfileId(request.resource.data.userId)
+        && request.resource.data.postId is string
+        && likeId == request.resource.data.postId + '_' + request.resource.data.userId
+        && exists(/databases/$(database)/documents/posts/$(request.resource.data.postId))
+        && request.resource.data.keys().hasOnly(['postId', 'userId', 'createdAt']);
+      allow delete: if isSignedIn()
+        && resource.data.userId is string
+        && ownsProfileId(resource.data.userId);
       allow update: if false;
     }
 
@@ -2945,62 +3066,153 @@ service cloud.firestore {
     match /post_comments/{commentId} {
       allow read: if true;
       allow create: if isSignedIn()
+        && request.resource.data.userId is string
+        && ownsProfileId(request.resource.data.userId)
+        && request.resource.data.postId is string
+        && exists(/databases/$(database)/documents/posts/$(request.resource.data.postId))
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 1000;
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.keys().hasOnly([
+          'postId', 'userId', 'userName', 'userAvatar', 'text', 'createdAt'
+        ]);
       allow update: if false;
-      allow delete: if isSignedIn();
+      allow delete: if isSignedIn()
+        && resource.data.userId is string
+        && ownsProfileId(resource.data.userId);
     }
 
     match /follows/{followId} {
       allow read: if true;
-      allow create, delete: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.followerId is string
+        && request.resource.data.followingId is string
+        && request.resource.data.followerId != request.resource.data.followingId
+        && ownsProfileId(request.resource.data.followerId)
+        && followId == request.resource.data.followerId + '_' + request.resource.data.followingId
+        && request.resource.data.keys().hasOnly(['followerId', 'followingId', 'createdAt']);
+      allow delete: if isSignedIn()
+        && resource.data.followerId is string
+        && ownsProfileId(resource.data.followerId);
       allow update: if false;
     }
 
     match /blocks/{blockId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn()
+        && resource.data.blockerId is string
+        && ownsProfileId(resource.data.blockerId);
+      allow create: if isSignedIn()
+        && request.resource.data.blockerId is string
+        && request.resource.data.blockedId is string
+        && ownsProfileId(request.resource.data.blockerId)
+        && blockId == request.resource.data.blockerId + '_' + request.resource.data.blockedId
+        && request.resource.data.keys().hasOnly(['blockerId', 'blockedId', 'createdAt']);
+      allow update: if isSignedIn()
+        && resource.data.blockerId is string
+        && ownsProfileId(resource.data.blockerId)
+        && request.resource.data.blockerId == resource.data.blockerId
+        && request.resource.data.blockedId == resource.data.blockedId
+        && request.resource.data.removed == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['removed', 'createdAt']);
+      allow delete: if isSignedIn()
+        && resource.data.blockerId is string
+        && ownsProfileId(resource.data.blockerId);
     }
 
     // Şikayət və dəstək — istifadəçi yaradır, admin oxuyur; silmək olmaz.
     match /reports/{reportId} {
-      allow read: if isSignedIn();
+      allow read: if isTrustedModerator()
+        || (isSignedIn() && resource.data.reporterId is string && ownsProfileId(resource.data.reporterId));
       allow create: if isSignedIn()
-        && request.resource.data.reason is string;
+        && request.resource.data.reporterId is string
+        && ownsProfileId(request.resource.data.reporterId)
+        && request.resource.data.targetUserId is string
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 2000
+        && request.resource.data.type in ['user', 'post', 'message']
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'reporterId', 'targetUserId', 'targetPostId', 'reason', 'type', 'createdAt', 'status'
+        ]);
       allow update, delete: if false;
     }
 
     match /feedback/{feedbackId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
+      allow read: if isTrustedModerator()
+        || (isSignedIn() && resource.data.userId is string && ownsProfileId(resource.data.userId));
+      allow create: if isSignedIn()
+        && request.resource.data.userId is string
+        && ownsProfileId(request.resource.data.userId)
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 5000
+        && request.resource.data.keys().hasOnly(['userId', 'text', 'category', 'createdAt']);
       allow update, delete: if false;
     }
 
     match /support_requests/{requestId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
+      allow read: if isTrustedModerator()
+        || (isSignedIn() && resource.data.userId is string && ownsProfileId(resource.data.userId));
+      allow create: if isSignedIn()
+        && request.resource.data.userId is string
+        && ownsProfileId(request.resource.data.userId)
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() > 0
+        && request.resource.data.subject.size() <= 200
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 5000
+        && request.resource.data.status == 'open'
+        && request.resource.data.keys().hasOnly(['userId', 'subject', 'message', 'status', 'createdAt']);
       allow update, delete: if false;
     }
 
     // Zəng sessiyaları — yalnız tərəflər.
     match /call_sessions/{sessionId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn()
+      allow read: if isSignedIn()
+        && ((resource.data.callerId is string && ownsProfileId(resource.data.callerId))
+          || (resource.data.calleeId is string && ownsProfileId(resource.data.calleeId))
+          || (resource.data.participants is list && request.auth.uid in resource.data.participants));
+      allow create: if isSignedIn()
         && request.resource.data.callerId is string
-        && request.resource.data.calleeId is string;
-      allow delete: if isSignedIn();
+        && request.resource.data.calleeId is string
+        && ownsProfileId(request.resource.data.callerId)
+        && request.resource.data.chatId is string
+        && canAccessChatId(request.resource.data.chatId)
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.callerId in request.resource.data.participants
+        && request.resource.data.calleeId in request.resource.data.participants
+        && request.resource.data.keys().hasOnly([
+          'callId', 'chatId', 'callerId', 'calleeId', 'callType', 'callerName',
+          'callerAvatar', 'status', 'participants', 'invitedUserIds', 'createdAt'
+        ]);
+      allow update: if isSignedIn()
+        && (ownsProfileId(resource.data.callerId) || ownsProfileId(resource.data.calleeId))
+        && request.resource.data.callerId == resource.data.callerId
+        && request.resource.data.calleeId == resource.data.calleeId
+        && request.resource.data.chatId == resource.data.chatId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'endedAt', 'participants', 'invitedUserIds'
+        ])
+        && request.resource.data.participants.hasAll(resource.data.participants)
+        && request.resource.data.invitedUserIds.hasAll(resource.data.invitedUserIds)
+        && request.resource.data.participants.size() <= 8
+        && request.resource.data.invitedUserIds.size() <= 6;
+      allow delete: if false;
     }
 
     // ✅ FIXED: admin jurnalı əvvəl tamamilə açıq idi — istənilən istifadəçi
     // saxta admin əmri yaza bilərdi. İndi yalnız oxu (giriş nəzarəti UI-dədir)
     // və yazı yoxdur: qeydlər server tərəfdə (Admin SDK) yazılmalıdır.
     match /admin_commands/{commandId} {
-      allow read: if isSignedIn();
+      allow read: if isTrustedModerator();
       allow write: if false;
     }
 
     match /admin_sessions/{sessionId} {
-      allow read: if isSignedIn();
+      allow read: if isTrustedModerator();
       allow write: if false;
     }
 

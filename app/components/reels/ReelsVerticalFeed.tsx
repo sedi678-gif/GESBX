@@ -72,7 +72,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
 
   useEffect(() => {
     if (!activeVideoId || !activeAuthorId || !canTrack) return;
-    void recordPostView(activeVideoId, userId, activeAuthorId).catch(() => undefined);
+    void recordPostView(activeVideoId, userId, activeAuthorId).catch((err) => console.warn('[Reels] view event failed:', err));
   }, [activeAuthorId, activeVideoId, canTrack, userId]);
 
   useEffect(() => {
@@ -82,7 +82,10 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
       { sessionId: string }
     >('startReelRewardView', { userId, videoId: activeVideoId })
       .then((result) => result.sessionId)
-      .catch(() => null);
+      .catch((err) => {
+        console.warn('[Reels] reward session could not start:', err);
+        return null;
+      });
     rewardSessions.current.set(activeVideoId, sessionPromise);
 
     const heartbeat = window.setInterval(() => {
@@ -137,7 +140,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
         watchDurationSeconds: payload.watchDurationSeconds,
         categoryId: payload.categoryId,
         hashtags: payload.hashtags,
-      }).catch(() => undefined);
+      }).catch((err) => console.warn('[Reels] metadata update failed:', err));
       const sessionPromise = rewardSessions.current.get(payload.videoId);
       if (sessionPromise) {
         void sessionPromise.then(async (sessionId) => {
@@ -159,7 +162,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
             sessionId,
             playedSeconds: payload.watchDurationSeconds,
           });
-        }).catch(() => undefined).finally(() => {
+        }).catch((err) => console.warn('[Reels] reward heartbeat/complete failed:', err)).finally(() => {
           rewardSessions.current.delete(payload.videoId);
           rewardHeartbeats.current.delete(payload.videoId);
         });
@@ -185,7 +188,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
         watchDurationSeconds: 0,
         categoryId: item.categoryId,
         hashtags: item.hashtags,
-      }).catch(() => undefined);
+      }).catch((err) => console.warn('[Reels] like failed:', err));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Bəyənmə alınmadı.');
     } finally {
@@ -211,7 +214,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
       watchDurationSeconds: 0,
       categoryId: item.categoryId,
       hashtags: item.hashtags,
-    }).catch(() => undefined);
+    }).catch((err) => console.warn('[Reels] comment action failed:', err));
   };
 
   const handleComment = (item: ForYouFeedItem) => {
@@ -223,7 +226,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
       watchDurationSeconds: 0,
       categoryId: item.categoryId,
       hashtags: item.hashtags,
-    }).catch(() => undefined);
+    }).catch((err) => console.warn('[Reels] share count update failed:', err));
   };
 
   const setSlotRef = (index: number) => (node: HTMLDivElement | null) => {

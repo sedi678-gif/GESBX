@@ -120,7 +120,7 @@ async function upsertChat(
     doc(db, 'private_chats', chatId),
     {
       chatId,
-      participants: [payload.senderId, payload.recipientId],
+      participants: [payload.senderId, payload.recipientId].sort(),
       participantMeta: {
         ...existingMeta,
         [payload.senderId]: {
@@ -184,6 +184,7 @@ export async function sendPrivateMessage(payload: ChatPayload & { text: string }
   const trimmed = payload.text.trim();
   if (!trimmed) throw new Error('Boş mesaj göndərilə bilməz');
 
+  await upsertChat(chatId, { ...payload, lastMessage: trimmed, lastMessageAt: now });
   const msgRef = doc(collection(db, 'private_messages'));
   const message: StoredMessage = {
     id: msgRef.id,
@@ -224,6 +225,7 @@ export async function sendAudioMessageFast(
   };
 
   const persist = async (): Promise<StoredMessage> => {
+    await upsertChat(chatId, { ...payload, lastMessage: 'audio', lastMessageAt: now });
     const audioUrl = await persistBlobUrl(
       `voice_messages/${chatId}/${messageId}.${ext}`,
       payload.audioBlob,
@@ -267,6 +269,7 @@ export async function sendMediaMessageFast(
   };
 
   const persist = async (): Promise<StoredMessage> => {
+    await upsertChat(chatId, { ...payload, lastMessage, lastMessageAt: now });
     let blob: Blob = payload.file;
     let mime = payload.file.type;
     if (type === 'image') {
@@ -311,6 +314,7 @@ export async function sendFileMessageFast(payload: ChatPayload & { file: File })
   };
 
   const persist = async (): Promise<StoredMessage> => {
+    await upsertChat(chatId, { ...payload, lastMessage: payload.file.name, lastMessageAt: now });
     const mediaUrl = await uploadOrInline(
       `chat_files/${chatId}/${messageId}.${ext}`,
       payload.file,
@@ -347,6 +351,7 @@ export async function sendLocationMessage(
   const now = Date.now();
   const msgRef = doc(collection(db, 'private_messages'));
   const mapsUrl = `https://www.google.com/maps?q=${payload.lat},${payload.lng}`;
+  await upsertChat(chatId, { ...payload, lastMessage: 'location', lastMessageAt: now });
 
   const message: StoredMessage = {
     id: msgRef.id,

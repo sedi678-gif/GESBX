@@ -1,5 +1,19 @@
 # GESBX (GESBX) — Kod Audit Hesabatı
 
+## 2026-10-18 follow-up — status supersedes stale findings below
+
+Repository fixes made since the original audit:
+
+- Client Zego configuration now uses only `appId`. `appSign` and `serverSecret` are not read into the client bundle, session storage, generated public JSON, or the Zego seed path. The readable legacy document `app_config/zego` is denied by Firestore Rules; the replacement public document is `app_config/zego_public`. The authenticated token callable removes legacy credential fields when the next Zego token is requested.
+- Arena reward and weekly settlement writes are server callables; client reward event writes are denied. Missing payout configuration now fails rather than recording a fake empty settlement.
+- Alliance create/join/leave/name/flag and attack/raid mutations use authenticated App Check callables. `alliance_attacks` is readable only to signed-in clients and cannot be directly created or changed by them.
+- Account deletion/freeze actions and numeric user ID allocation moved to Admin SDK callables. Mongo/Mongoose endpoints and dependency were removed; `/api/users/*` returns 410, and Firebase remains the only persistent app database.
+- `/arena/history` now exists; empty catch handlers on previously audited background tasks now log errors.
+
+Verification evidence on 2026-10-18: `npm install --no-audit --no-fund` completed; `npx tsc --noEmit` passed; `npm run build` passed and generated 17 static routes; `npm run test:arena-match` passed 106/106; `npm run test:zego-token --prefix functions` passed 2/2; Functions syntax/lint and changed-file ESLint passed.
+
+Still open or requiring external setup: Firestore Rules emulator tests were added but cannot run without Java; the full project lint is still running/has not yet returned a result; the Zego panel keys must be rotated and a real call tested; deploy Functions + Firestore/Storage Rules; deploy Socket.IO on a separate Node host and set its environment; define actual reward amounts and a payment provider; configure Android signing/application ID and Firebase Android app, iOS project, privacy/terms, and store billing. There are also intentionally ignored best-effort browser media-play rejections and some remaining telemetry/call cleanup handlers to review.
+
 Tarix: audit zamanı. Layihə: Next.js 16 static export + Firebase (Firestore/Auth/Storage) + Socket.io server.
 Yoxlanılan həcm: 411 fayl (`app/`), `server.js`, `firestore.rules` (2633 sətir), `firestore.indexes.json`, scripts.
 
@@ -11,8 +25,8 @@ Yoxlanılan həcm: 411 fayl (`app/`), `server.js`, `firestore.rules` (2633 səti
 **Fayl:** `public/zego-runtime-config.json`
 ```json
 { "appId": 1347665418,
-  "appSign": "cfc29caed44facb6059be54e018721101fe83f6b00efeb1c584c71415357f00e",
-  "serverSecret": "942f3d546ab2bdc6b578211ce0491780" }
+  "appSign": "[REDACTED]",
+  "serverSecret": "[REDACTED]" }
 ```
 Bu fayl statik hostinqdən (`out/`) hər kəsə açıq verilir: `https://<domen>/zego-runtime-config.json`.
 `serverSecret` **token imzalama açarıdır** — onunla istənilən istifadəçi adına Zego tokeni yaradıla bilər

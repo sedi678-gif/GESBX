@@ -26,7 +26,6 @@ import {
   leaveOrDeleteAlliance,
   sendChatMessage,
   ensurePlayerProfile,
-  resetBattleCards,
   updateAllianceFlag,
   updateAllianceName,
 } from './allianceService';
@@ -582,7 +581,7 @@ export function AllianceBrainProvider({ userId, userName, firebaseUid = null, ch
         activeAlliance.id,
         onlineInAlliance,
         activeAlliance.members.length
-      ).catch(() => {});
+      ).catch((error) => { console.warn('Background task failed', error); });
     };
 
     runTick();
@@ -693,7 +692,7 @@ export function AllianceBrainProvider({ userId, userName, firebaseUid = null, ch
             });
           }
         })
-        .catch(() => {});
+        .catch((error) => { console.warn('Background task failed', error); });
     },
     [userId, userName, activeAlliance?.id, activeAlliance?.name]
   );

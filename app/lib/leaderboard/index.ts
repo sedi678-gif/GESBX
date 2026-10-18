@@ -56,7 +56,7 @@ export type { BattleLeaderboardAward } from './leaderboardService';
 /**
  * Həftəlik mükafat paylanması və payout yoxlaması.
  *
- * ƏVVƏL: `await ... .catch(() => {})` — xəta tamamilə udulurdu, istifadəçi pulunu
+ * ƏVVƏL: `await ... .catch((error) => { console.warn('Background task failed', error); })` — xəta tamamilə udulurdu, istifadəçi pulunu
  * almırdı və heç bir iz qalmırdı. İndi xəta loglanır və nəticə qaytarılır ki, çağıran
  * tərəf (məs. UI) istifadəçiyə məlumat verə bilsin.
  */

@@ -9,7 +9,6 @@ import {
   updateDoc,
   deleteDoc,
   getDoc,
-  setDoc,
   increment,
   runTransaction,
   Unsubscribe,
@@ -46,7 +45,7 @@ function isExpired(raw: Record<string, unknown>, now = Date.now()): boolean {
 }
 
 function scheduleExpiredPostDelete(postId: string) {
-  void deleteDoc(doc(db, 'posts', postId)).catch(() => {});
+  void deleteDoc(doc(db, 'posts', postId)).catch((error) => { console.warn('Background task failed', error); });
 }
 
 function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null {

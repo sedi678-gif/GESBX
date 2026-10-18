@@ -62,13 +62,13 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
 
   useEffect(() => {
     if (view || !matchId || !playerId) return undefined;
-    void heartbeatArenaPresence({ matchId, playerId, online: true }).catch(() => {});
+    void heartbeatArenaPresence({ matchId, playerId, online: true }).catch((error) => { console.warn('Background task failed', error); });
     const timer = window.setInterval(() => {
-      void heartbeatArenaPresence({ matchId, playerId, online: true }).catch(() => {});
+      void heartbeatArenaPresence({ matchId, playerId, online: true }).catch((error) => { console.warn('Background task failed', error); });
     }, 8_000);
     return () => {
       window.clearInterval(timer);
-      void heartbeatArenaPresence({ matchId, playerId, online: false }).catch(() => {});
+      void heartbeatArenaPresence({ matchId, playerId, online: false }).catch((error) => { console.warn('Background task failed', error); });
     };
   }, [matchId, playerId, view]);
 
@@ -76,7 +76,7 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
     if (view || !match || !matchId) return;
     if (match.status !== 'active') return;
     if (!officialArenaFinishReason(match)) return;
-    void completeArenaMatch({ matchId }).catch(() => {});
+    void completeArenaMatch({ matchId }).catch((error) => { console.warn('Background task failed', error); });
   }, [match, matchId, view]);
 
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
     if (timeoutLock.current) return;
     timeoutLock.current = true;
     void timeoutArenaTurn({ matchId })
-      .catch(() => {})
+      .catch((error) => { console.warn('Background task failed', error); })
       .finally(() => {
         window.setTimeout(() => {
           timeoutLock.current = false;
@@ -104,7 +104,7 @@ export default function ArenaScreen({ onClose, view, matchId, playerId }: ArenaS
     if (reactionLock.current) return;
     reactionLock.current = true;
     void expireArenaReaction({ matchId })
-      .catch(() => {})
+      .catch((error) => { console.warn('Background task failed', error); })
       .finally(() => {
         window.setTimeout(() => {
           reactionLock.current = false;

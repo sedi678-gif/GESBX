@@ -1,16 +1,43 @@
 const express = require('express');
 const http = require('http');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const { Server } = require('socket.io');
+
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+
+async function verifyFirebaseToken(token) {
+  if (!FIREBASE_API_KEY) throw new Error('Firebase API key serverdə konfiqurasiya edilməyib.');
+  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(FIREBASE_API_KEY)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: token }),
+  });
+  if (!response.ok) throw new Error('Firebase token etibarsızdır.');
+  const data = await response.json();
+  const uid = data.users?.[0]?.localId;
+  if (!uid) throw new Error('Firebase istifadəçisi tapılmadı.');
+  return uid;
+}
+
+async function getProfileForToken(profileId, token, uid) {
+  if (!FIREBASE_PROJECT_ID) return null;
+  const path = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(FIREBASE_PROJECT_ID)}/databases/(default)/documents/users/${encodeURIComponent(profileId)}`;
+  const response = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) return null;
+  const document = await response.json();
+  const fields = document.fields || {};
+  if (fields.firebaseUid?.stringValue !== uid) return null;
+  return {
+    displayName: fields.displayName?.stringValue || [fields.name?.stringValue, fields.surname?.stringValue].filter(Boolean).join(' '),
+  };
+}
 
 const app = express();
 
 // CORS: yalnız icazəli originlər (env ilə genişləndirilə bilər)
 const allowedOrigins = [
-  'https://your-domain.com',
-  'http://localhost:3000',
-  'http://localhost:4000',
+  ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3000', 'http://localhost:4000']),
   ...(process.env.ALLOWED_ORIGINS || '')
     .split(',')
     .map((item) => item.trim())
@@ -33,6 +60,12 @@ app.use(cors({
 
 app.use(express.json());
 
+// Legacy Mongo endpoints are retired; Firebase is the authoritative data store.
+app.use('/api/users', (_req, res) => res.status(410).json({
+  success: false,
+  error: 'Bu endpoint deaktiv edilib. Firebase istifadə edin.',
+}));
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -45,162 +78,54 @@ const io = new Server(server, {
   }
 });
 
-// ─────────────────────────────────────────────────────────────
-// ZEGO TOKEN — serverSecret YALNIZ burada yaşayır, klientə getmir
-// ─────────────────────────────────────────────────────────────
-// Zego tokeni: base64( HMAC-SHA256(secret_hash, payload) )
-// Sənəd: https://docs.zegocloud.com/article/11649
-// Zego tokens are issued by the authenticated Firebase callable in functions/src/zegoToken.js.
-
-// 1. MONGODB BAZASINA QOŞULMA
-// DIQQƏT: Firebase artıq əsas backenddir. MongoDB yalnız köhnə REST endpointləri üçün
-// saxlanılır və heç bir sinxronizasiya yoxdur. İki mənbədə eyni istifadəçinin
-// bölünməsinin qarşısını almaq üçün bu hissəni tamamilə silmək tövsiyə olunur.
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/gesbx';
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('✅ MongoDB verilənlər bazasına uğurla qoşuldu!'))
-  .catch((err) => console.error('❌ Baza qoşulma xətası:', err));
-
-// 2. İSTİFADƏÇİ SXEMİ VƏ MODELİ (Baza üçün)
-const userSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  username: { type: String, required: true, unique: true },
-  age: { type: Number, default: 18 },
-  avatar: { type: String, default: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80' },
-  isOnline: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-
-// 3. MESAJ SXEMİ VƏ MODELİ (Mesajların bazada qalması üçün)
-const messageSchema = new mongoose.Schema({
-  senderId: { type: String, required: true },
-  recipientId: { type: String, required: true },
-  text: String,
-  audioUrl: String,
-  fileUrl: String,
-  fileType: String,
-  location: Object,
-  createdAt: { type: Date, default: Date.now }
-});
-
-const Message = mongoose.model('Message', messageSchema);
-
-// 4. REST API ROUTES (Qeydiyyat, Axtarış, Siyahı)
-
-// Yeni İstifadəçi Qeydiyyatı
-app.post('/api/users/register', async (req, res) => {
+io.use(async (socket, next) => {
   try {
-    const { name, username, age } = req.body;
-    
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Bu istifadəçi adı artıq götürülüb.' });
-    }
-
-    const newUser = new User({ name, username, age });
-    await newUser.save();
-
-    res.json({ success: true, user: newUser });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    const token = socket.handshake.auth?.token;
+    if (typeof token !== 'string' || !token) return next(new Error('unauthorized'));
+    socket.data.authUserId = await verifyFirebaseToken(token);
+    socket.data.firebaseIdToken = token;
+    next();
+  } catch {
+    next(new Error('unauthorized'));
   }
 });
 
-// ✅ FIXED: bu endpointlər auth-suz idi — bütün istifadəçi siyahısını verirdi.
-// İndi server açarı tələb olunur (ADMIN_API_KEY env). Tətbiq onsuz da Firebase işlədir.
-function requireAdminKey(req, res) {
-  const key = String(process.env.ADMIN_API_KEY || '').trim();
-  if (!key) {
-    res.status(503).json({ success: false, error: 'Bu endpoint konfiqurasiya olunmayıb' });
-    return false;
-  }
-  const sent = String(req.headers['x-admin-key'] || '').trim();
-  if (sent !== key) {
-    res.status(401).json({ success: false, error: 'İcazə yoxdur' });
-    return false;
-  }
-  return true;
-}
-
-// Qeydiyyatdan Keçən Bütün İstifadəçiləri Gettir
-app.get('/api/users/all', async (req, res) => {
-  if (!requireAdminKey(req, res)) return;
-  try {
-    const users = await User.find().sort({ createdAt: -1 });
-    res.json({ success: true, users });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Axtarış Sistemi (Ad və ya Username üzrə dayıoğlunu və s. tapmaq üçün)
-app.get('/api/users/search', async (req, res) => {
-  if (!requireAdminKey(req, res)) return;
-  try {
-    const { query } = req.query;
-    if (!query) return res.json({ success: true, users: [] });
-
-    // ✅ FIXED: regex inject — istifadəçi girişi escape olunur (ReDoS / wildcard axtarışın qarşısı)
-    const safe = String(query).slice(0, 64).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    const users = await User.find({
-      $or: [
-        { name: { $regex: safe, $options: 'i' } },
-        { username: { $regex: safe, $options: 'i' } }
-      ]
-    });
-
-    res.json({ success: true, users });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// 5. REAL-TIME SOCKET.IO — Alliance Hub (mərkəzi beyin otağı)
+// REAL-TIME SOCKET.IO — presence/alliance hub transport; application data stays in Firebase.
 const allianceHubUsers = new Map(); // socketId -> { userId, userName }
 const onlineUsers = new Map(); // socketId -> userId
 
 io.on('connection', (socket) => {
   console.log('🔌 Yeni istifadəçi qoşuldu:', socket.id);
 
-  // Socket auth: klient Firebase ID tokeni göndərir; uğursuzsa bağlantı kəsilir.
-  socket.on('authenticate', async ({ token, userId } = {}) => {
-    if (!token || !userId) {
-      socket.emit('auth_failed', { reason: 'token_required' });
-      return;
-    }
-    try {
-      const { getAuth } = require('firebase-admin/auth');
-      const decoded = await getAuth().verifyIdToken(String(token));
-      if (String(userId) !== decoded.uid && String(userId) !== decoded.user_id) {
-        socket.emit('auth_failed', { reason: 'uid_mismatch' });
-        return;
-      }
-      socket.data.authUserId = decoded.uid;
-      socket.data.authenticated = true;
-      socket.emit('auth_ok', { userId: decoded.uid });
-    } catch (error) {
-      console.warn('Socket auth uğursuz:', error.message);
-      socket.emit('auth_failed', { reason: 'invalid_token' });
-    }
+  socket.data.authenticated = true;
+
+  socket.on('user_connected', async (userId) => {
+    const profileId = String(userId || '').trim();
+    if (!profileId) return;
+    if (!await getProfileForToken(profileId, socket.data.firebaseIdToken, socket.data.authUserId)) return;
+    onlineUsers.set(socket.id, profileId);
+    socket.join(profileId);
+    io.emit('user_status_change', { userId: profileId, isOnline: true });
   });
 
-  socket.on('join_alliance_hub', ({ userId, userName }) => {
+  socket.on('join_alliance_hub', async ({ userId } = {}) => {
     if (!userId) return;
     // ✅ FIXED: auth olunmadan hub-a qoşulmaq olmaz
     if (!socket.data.authenticated) {
       socket.emit('auth_required', { room: 'alliance_hub' });
       return;
     }
+    const profileId = String(userId);
+    const profile = await getProfileForToken(profileId, socket.data.firebaseIdToken, socket.data.authUserId);
+    if (!profile) return;
+    const userName = profile.displayName || profileId;
     socket.join('alliance_hub');
     allianceHubUsers.set(socket.id, { userId, userName });
     io.to('alliance_hub').emit('hub_online_count', { count: allianceHubUsers.size });
     io.to('alliance_hub').emit('hub_stats_updated', { type: 'player_joined', userId, userName });
   });
 
-  socket.on('leave_alliance_hub', ({ userId }) => {
+  socket.on('leave_alliance_hub', () => {
     allianceHubUsers.delete(socket.id);
     io.to('alliance_hub').emit('hub_online_count', { 
       count: allianceHubUsers.size 

@@ -27,7 +27,7 @@ export default function ArenaClickerPanel({
         className={styles.primaryBtn}
         style={{ marginTop: 8 }}
         onClick={() => {
-          void shareArenaClickEvent({ matchId, playerId }).catch(() => {});
+          void shareArenaClickEvent({ matchId, playerId }).catch((error) => { console.warn('Background task failed', error); });
         }}
       >
         İttifaq çatına göndər

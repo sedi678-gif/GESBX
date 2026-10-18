@@ -223,7 +223,10 @@ async function finishBattleWork(input: { battleId: string; playerId: string }): 
   const battleId = sanitizeBattleId(input.battleId);
 
   const challengeSnaps = await getDocs(collection(db, 'battles', battleId, BATTLE_CHALLENGE_COLLECTION));
-  const period = await requireLeaderboardPeriod().catch(() => null);
+  const period = await requireLeaderboardPeriod().catch((err) => {
+    console.warn('[Battle finish] leaderboard period unavailable:', err);
+    return null;
+  });
 
   const finished = await withTimeout(
     runTransaction(db, async (tx) => {
@@ -438,7 +441,7 @@ async function finishBattleWork(input: { battleId: string; playerId: string }): 
   );
 
   if (period && finished.reason !== 'join_failed') {
-    await commitLeaderboardAwardsFromFinish(finished, period).catch(() => {});
+    await commitLeaderboardAwardsFromFinish(finished, period).catch((error) => { console.warn('Background task failed', error); });
   }
   return finished;
 }

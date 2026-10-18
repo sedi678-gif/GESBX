@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GESBX
 
-## Getting Started
+GESBX is a Next.js 16 application exported as a static site, with Firebase Authentication, Firestore, Storage, and Cloud Functions. Calls use ZEGOCLOUD; Socket.IO is an optional standalone service for realtime presence and the alliance hub. Persistent application data is stored in Firebase.
 
-First, run the development server:
+## Local development
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Install the dependencies with `npm install`.
+2. Copy `.env.example` to `.env.local` and fill in the Firebase web settings and public Zego App ID. Keep service credentials in Firebase Secret Manager; never add them to `NEXT_PUBLIC_*` variables.
+3. Start the web app with `npm run dev`.
+4. Start the standalone realtime server separately with `npm run server` when testing presence/alliance hub. Set `ALLOWED_ORIGINS`, `FIREBASE_PROJECT_ID`, and `FIREBASE_API_KEY` for that host.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Build and checks
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npx tsc --noEmit` — TypeScript check.
+- `npm run lint` — ESLint across the repository.
+- `npm run test:arena-match` — arena gameplay/reward tests.
+- `npm run test:zego-token --prefix functions` — Token04 format tests.
+- `npm run test:firestore-rules` — Firestore Rules emulator tests (requires Java).
+- `npm run build` — static production build in `out/`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Firebase Functions and secrets
 
-## Learn More
+Deploy callable functions and Firestore/Storage Rules before enabling server-backed account, reward, alliance, or Zego flows. Configure `ZEGO_APP_ID` as a Functions runtime variable and set `ZEGO_SERVER_SECRET`, `ADMIN_UIDS`, `RISK_HASH_SECRET`, and `REFERRAL_CODE_SECRET` with Firebase Secret Manager. A successful static build does not deploy the standalone Socket.IO service or Functions.
 
-To learn more about Next.js, take a look at the following resources:
+## Release prerequisites
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Rotate any previously exposed Zego keys in the Zego Console.
+- Deploy Firebase Functions and Rules; exercise a real Zego call and Firestore Rules tests in the emulator.
+- Host `server.js` on a Node-capable service and set the exact production origin allowlist if realtime presence/signalling is required.
+- Set the actual Play `CAPACITOR_APP_ID` and add the matching Firebase Android app configuration before release. `google-services.json` is intentionally not committed.
+- Publish reviewed privacy policy and terms, prepare an iOS project if shipping on iPhone, and connect a real billing provider before selling VIP or cash rewards.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`output: 'export'` produces static assets. Firebase Hosting can serve those files, but it does not run `server.js`; the standalone Socket.IO host is a separate deployment. Zego calls use ZEGOCLOUD; the removed legacy Socket call-signaling module is not part of the call path. MongoDB is not used. Arena reward ledgers do not represent a wallet credit or a payment provider transaction.

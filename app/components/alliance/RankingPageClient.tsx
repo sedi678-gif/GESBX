@@ -10,9 +10,9 @@ import styles from '@/app/components/alliance/alliance.module.css';
 export default function RankingPageClient() {
   const t = useAppStrings();
   useEffect(() => {
-    void requireLeaderboardPeriod().catch(() => {});
+    void requireLeaderboardPeriod().catch((error) => { console.warn('Background task failed', error); });
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void requireLeaderboardPeriod().catch(() => {});
+      if (document.visibilityState === 'visible') void requireLeaderboardPeriod().catch((error) => { console.warn('Background task failed', error); });
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);

@@ -161,7 +161,7 @@ export default function ExplorePageClient() {
       currentUserId === myId
     ) return;
 
-    void recordPostView(mediaId, myId, currentUserId).catch(() => undefined);
+    void recordPostView(mediaId, myId, currentUserId).catch((err) => console.warn('[Explore] view event failed:', err));
   }, [currentUserId, mediaId, myId]);
 
   const applyFilters = () => {

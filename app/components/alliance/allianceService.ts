@@ -5,8 +5,6 @@ import {
   getDoc,
   collection,
   addDoc,
-  updateDoc,
-  deleteDoc,
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -14,11 +12,10 @@ import { getRegionCoords } from './regionCoords';
 import {
   AllianceData,
   AllianceFlagConfig,
-  BattleCardsMap,
   PlayerProfile,
   EMPTY_PLAYER_COSMETICS,
 } from './types';
-import { DEFAULT_ALLIANCE_FLAG, normalizeAllianceFlag } from './allianceFlagConfig';
+import { normalizeAllianceFlag } from './allianceFlagConfig';
 import {
   BATTLE_CARDS_SCHEMA_VERSION,
   EMPTY_BATTLE_CARDS,
@@ -36,6 +33,8 @@ export async function reconcilePlayerIdentity(
   _legacyUserId: string,
   _displayName: string
 ): Promise<void> {
+  void _legacyUserId;
+  void _displayName;
   await callSecureFunction('bindPlayerIdentity', { userId: canonicalUserId });
 }
 
@@ -120,66 +119,6 @@ export async function ensurePlayerProfile(
   };
 }
 
-export async function syncPlayerWithAlliance(
-  userId: string,
-  displayName: string,
-  alliance: AllianceData | null
-): Promise<void> {
-  const ref = doc(db, 'players', userId);
-  const snap = await getDoc(ref);
-  const existingCards: BattleCardsMap = snap.exists()
-    ? normalizeBattleCards((snap.data() as PlayerProfile).battleCards)
-    : { ...EMPTY_BATTLE_CARDS };
-
-  const isLeader = alliance?.leaderId === userId;
-
-  await setDoc(
-    ref,
-    {
-      odId: userId,
-      displayName,
-      allianceId: alliance?.id ?? null,
-      allianceName: alliance?.name ?? null,
-      isLeader: !!isLeader,
-      score: alliance ? alliance.score || 50 : 0,
-      battleCards: existingCards,
-      updatedAt: Date.now(),
-    },
-    { merge: true }
-  );
-}
-
-export async function syncAllianceMembers(alliance: AllianceData): Promise<void> {
-  const tasks = (alliance.members || []).map(async (memberId) => {
-    const ref = doc(db, 'players', memberId);
-    const snap = await getDoc(ref);
-    const displayName =
-      memberId === alliance.leaderId
-        ? alliance.leader
-        : (snap.data() as PlayerProfile | undefined)?.displayName || 'Oyunçu';
-
-    await setDoc(
-      ref,
-      {
-        odId: memberId,
-        displayName,
-        allianceId: alliance.id,
-        allianceName: alliance.name,
-        isLeader: memberId === alliance.leaderId,
-        score: alliance.score || 50,
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    );
-  });
-
-  await Promise.all(tasks);
-}
-
-export async function clearMemberAlliance(userId: string, displayName: string): Promise<void> {
-  await syncPlayerWithAlliance(userId, displayName, null);
-}
-
 export const createAlliance = async (
   allianceName: string,
   region: string,
@@ -187,6 +126,7 @@ export const createAlliance = async (
   currentUserName: string
 ) => {
   if (!allianceName.trim()) throw new Error('İttifaq adını daxil edin!');
+  void currentUserName;
 
   const coords = getRegionCoords(region !== 'Hamısı' ? region : 'Bakı');
   const newAllData = {
@@ -194,21 +134,18 @@ export const createAlliance = async (
     region: region !== 'Hamısı' ? region : 'Bakı',
     lat: coords.lat,
     lng: coords.lng,
-    leaderId: currentUserId,
-    leader: currentUserName,
-    score: 50,
-    members: [currentUserId],
-    createdAt: Date.now(),
-    flag: { ...DEFAULT_ALLIANCE_FLAG },
-    fortressLevel: 1,
-    fortressQualifyingMs: 0,
   };
 
-  const docRef = await addDoc(collection(db, 'alliances'), newAllData);
-  const created = { id: docRef.id, ...newAllData };
-
-  await syncAllianceMembers(created);
-  return created;
+  return callSecureFunction<
+    { userId: string; name: string; region: string; lat: number; lng: number },
+    AllianceData
+  >('createAlliance', {
+    userId: currentUserId,
+    name: newAllData.name,
+    region: newAllData.region,
+    lat: newAllData.lat,
+    lng: newAllData.lng,
+  });
 };
 
 export const joinAlliance = async (
@@ -216,17 +153,12 @@ export const joinAlliance = async (
   currentUserId: string,
   currentUserName: string
 ) => {
-  const updatedMembers = [...(alliance.members || []), currentUserId];
-  const newScore = (alliance.score || 50) + 15;
-  const allianceRef = doc(db, 'alliances', alliance.id);
-
-  await updateDoc(allianceRef, { members: updatedMembers, score: newScore });
-  const updated = { ...alliance, members: updatedMembers, score: newScore };
-
-  await syncPlayerWithAlliance(currentUserId, currentUserName, updated);
-  await syncAllianceMembers(updated);
-
-  return updated;
+  void currentUserName;
+  const result = await callSecureFunction<
+    { userId: string; allianceId: string },
+    { id: string; members: string[]; score: number }
+  >('joinAlliance', { userId: currentUserId, allianceId: alliance.id });
+  return { ...alliance, members: result.members, score: result.score };
 };
 
 export const leaveOrDeleteAlliance = async (
@@ -234,16 +166,11 @@ export const leaveOrDeleteAlliance = async (
   currentUserId: string,
   currentUserName: string
 ) => {
-  const allianceRef = doc(db, 'alliances', activeAlliance.id);
-
-  if (activeAlliance.leaderId === currentUserId || activeAlliance.members?.length <= 1) {
-    await deleteDoc(allianceRef);
-    await clearMemberAlliance(currentUserId, currentUserName);
-  } else {
-    const updatedMembers = activeAlliance.members.filter((m: string) => m !== currentUserId);
-    await updateDoc(allianceRef, { members: updatedMembers });
-    await clearMemberAlliance(currentUserId, currentUserName);
-  }
+  void currentUserName;
+  await callSecureFunction<{ userId: string; allianceId: string }, { deleted: boolean }>(
+    'leaveAlliance',
+    { userId: currentUserId, allianceId: activeAlliance.id },
+  );
 };
 
 export const sendChatMessage = async (
@@ -296,10 +223,9 @@ export async function updateAllianceFlag(
     }
   }
 
-  const patch: { flag: AllianceFlagConfig; leaderId?: string } = { flag: normalized };
-  if (knownLeader) patch.leaderId = actorId;
+  const patch: { flag: AllianceFlagConfig } = { flag: normalized };
 
-  await withTimeout(updateDoc(allianceRef, patch), 6_000, 'Bayraq saxlanması vaxtı bitdi.');
+  await callSecureFunction('updateAllianceFlag', { userId: actorId, allianceId, flag: patch.flag });
   return normalized;
 }
 
@@ -324,45 +250,8 @@ export async function updateAllianceName(
   const previousName = data.name?.trim() || '';
   if (previousName === name) return name;
 
-  await withTimeout(
-    updateDoc(allianceRef, {
-      name,
-      previousName,
-      nameUpdatedAt: Date.now(),
-    }),
-    6_000,
-    'Ad saxlanması vaxtı bitdi.'
-  );
-
-  const members = [...new Set([...(data.members ?? []), data.leaderId].filter(Boolean))];
-  await Promise.all(
-    members.map((memberId) =>
-      updateDoc(doc(db, 'players', memberId), {
-        allianceName: name,
-        updatedAt: Date.now(),
-      }).catch(() => undefined)
-    )
-  );
+  await callSecureFunction('updateAllianceName', { userId: actorId, allianceId, name });
 
   return name;
 }
 
-export async function addPlayerScore(userId: string, amount: number): Promise<number> {
-  const ref = doc(db, 'players', userId);
-  return runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-    const current = snap.exists() ? (snap.data() as PlayerProfile).score || 0 : 0;
-    const next = current + amount;
-    tx.set(ref, { score: next, updatedAt: Date.now() }, { merge: true });
-    return next;
-  });
-}
-
-export async function resetBattleCards(userId: string): Promise<void> {
-  const ref = doc(db, 'players', userId);
-  await setDoc(
-    ref,
-    { battleCards: { ...EMPTY_BATTLE_CARDS }, updatedAt: Date.now() },
-    { merge: true }
-  );
-}

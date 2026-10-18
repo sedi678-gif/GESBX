@@ -46,11 +46,11 @@ function emitClock() {
 
 function onVisible() {
   if (document.visibilityState !== 'visible') return;
-  void syncServerClock().catch(() => {});
+  void syncServerClock().catch((error) => { console.warn('Background task failed', error); });
 }
 
 function onOnline() {
-  void syncServerClock().catch(() => {});
+  void syncServerClock().catch((error) => { console.warn('Background task failed', error); });
 }
 
 function startSharedClock() {
@@ -66,14 +66,14 @@ function startSharedClock() {
         applyServerSample(timestampToMs(snap.data().t));
         emitClock();
       });
-      void syncServerClock().catch(() => {});
+      void syncServerClock().catch((error) => { console.warn('Background task failed', error); });
     })
-    .catch(() => {});
+    .catch((error) => { console.warn('Background task failed', error); });
 
   sharedTick = window.setInterval(emitClock, 500);
 
   sharedResync = window.setInterval(() => {
-    void syncServerClock().catch(() => {});
+    void syncServerClock().catch((error) => { console.warn('Background task failed', error); });
   }, 20_000);
 
   document.addEventListener('visibilitychange', onVisible);

@@ -11,13 +11,14 @@ Bu sənəd `AUDIT-GESBX.md`-də tapılan səhvlərin hansının düzəldildiyini
 |---|---|
 | `public/zego-runtime-config.json` | **Silindi** (içindəki `serverSecret` açıq idi) |
 | `.gitignore` | `/public/zego-runtime-config.json` əlavə edildi — bir daha commit olunmasın |
-| `scripts/embed-zego-config.mjs` | Artıq `serverSecret` oxumur və yazmır; yalnız `appId` + `appSign` |
+| `scripts/embed-zego-config.mjs` | Yalnız public `appId` yazır; `appSign` və `serverSecret` oxunmur/yazılmır |
 | `next.config.ts` | `env` blokundan `ZEGO_SERVER_SECRET` və `ZEGO_APP_SIGN` **çıxarıldı** |
 | `app/lib/zegoConfig.ts` | Brauzerdə secret qəbul edilmir; `loadFromRuntimeJson()` və `loadFromFirestore()` secret oxumur; `isZegoConfigured()` brauzerdə secret tələb etmir |
 | `app/lib/zegoCallKit.ts` | `generateTestKitToken()` artıq `async`-dir: əvvəlcə serverdən token istəyir, secret-i yalnız server runtime-ında işlədir, heç bir halda sessiyaya yazmır |
 
-**Yeni server endpoint:** `server.js` → `POST /api/zego/token`
-`serverSecret` yalnız burada yaşayır (env-dən oxunur), token AES-256-CBC + HMAC ilə serverdə imzalanır.
+**Yeni server endpoint:** Firebase callable `createZegoToken` (`functions/src/zegoToken.js`).
+`serverSecret` Firebase Secret Manager-dən oxunur; `server.js` Zego token yaratmır.
+Token04 binary layout-u Zego-nun rəsmi server assistant nümunəsi ilə müqayisə edən unit test əlavə edilib; canlı Zego hesabında zəng sınağı ayrıca tələb olunur.
 
 > ⚠️ **Sənin etməli olduğun:** Zego panelində **hər iki açarı dəyişdir**. Köhnə `serverSecret`
 > `942f3d…` artıq açıqlanmış sayılır — kod düzəlişi onu xilas etmir.
@@ -87,12 +88,12 @@ client yalnız match ID göndərir, funksiya yekun nəticəni Firestore-dan öz�
 | Əvvəl | İndi |
 |---|---|
 | `io` → `origin: '*'` | `io` → REST ilə **eyni allowlist** (`originAllowed()`) |
-| Socket auth yox | `socket.on('authenticate')` → Firebase ID token yoxlanışı |
+| Socket auth yox | Socket.IO middleware Firebase ID token-i yoxlayır |
 | — | `join_alliance_hub` auth olmadan işləmir (`auth_required` hadisəsi) |
-| `/api/users/all`, `/api/users/search` açıq | `x-admin-key` tələb olunur (`ADMIN_API_KEY` env) |
-| Regex inject (`$regex: query`) | Giriş escape olunur + 64 simvol limiti |
+| `/api/users/*` Mongo endpointləri | Hamısı `410 Gone`; Mongo sxemləri, Mongoose və bağlı endpoint kodu çıxarılıb |
 
-Yeni env dəyişənləri: `ALLOWED_ORIGINS`, `ADMIN_API_KEY`, `ZEGO_APP_ID`, `ZEGO_SERVER_SECRET`.
+Socket host env dəyişənləri: `ALLOWED_ORIGINS`, `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`.
+Zego secret Firebase Secret Manager-də saxlanılır; `firebase functions:secrets:set ZEGO_SERVER_SECRET`.
 
 ---
 
@@ -154,7 +155,8 @@ Modul artıq paket olmadıqda da build-i sındırmır.
 - Matç və həftəlik hesablaşma reward yazıları `awardArenaMatchRewards` və `settleArenaWeeklyRewards` callable Cloud Function-larına köçürüldü; Firestore klient qaydaları həm reward, həm də settlement `reward_events` yazılarını bağlayır.
 - `/arena/history/` siyahı route-u əlavə edildi.
 - `zegoConfig.ts` client cache/env-dən Zego server secret oxunması silindi. Yayımlanmış köhnə secret-i Zego panelində rotasiya etmək lazımdır.
-- Layihə `output: 'export'` statik qurulduğuna görə `server.js` Firebase Hosting/Vercel static build daxilində işləməyəcək. Socket.io və MongoDB endpoint-ləri ayrıca Node hostunda saxlanmalıdır; Firebase və MongoDB arasında hazırda sinxronizasiya yoxdur. Token endpoint-i də həmin hostda qalır.
+- `server.js` yalnız ayrıca Node hostunda Socket.IO/presence üçün işləyə bilər; Firebase Hosting/Vercel static export onu başladmır. MongoDB/Mongoose kodu və `MONGO_URI` nümunəsi silinib, Firebase tətbiq datası üçün yeganə DB-dir. Socket funksiyalarının production sınağı ayrıca host və `ALLOWED_ORIGINS` konfiqurasiyası tələb edir.
+- `alliance_attacks` yazıları `startAllianceAttack`, `registerAllianceRaidClick`, `finalizeAllianceRaid` callable-larına köçürülüb; klient yalnız signed-in oxuya bilər, birbaşa create/update bağlıdır.
 
 ## ❌ Hələ düzəldilməyib (qəsdən)
 
@@ -162,30 +164,18 @@ Modul artıq paket olmadıqda da build-i sındırmır.
 |---|---|
 | 8 — `startAllianceMapBattle` lider yoxlanışı | Biznes qaydasıdır: **üzv** hücum edə bilirsə problem yox, yalnız **lider** edə bilirsə `attacker.leaderId !== playerId` şərti əlavə olunmalıdır. Sənin qərarını gözləyir. |
 | 10 — `app/profile/page.tsx` (1850 sətir) | Böyük refaktor: `handleRegister`-in `try`/`catch` dublikatı ortaq funksiyaya çıxarılmalı, offline ID toqquşması server tərəfdə həll olunmalıdır. |
-| 12 — MongoDB + Firebase ikiqat backend | `server.js`-dəki Mongoose hissəsi silinməlidir. Sildim? **Yox** — hansı endpointlərin hələ işlədiyini bilmədən silmək riskli idi. |
+| Real mükafat ödənişi | Ödəniş məbləği/provider yoxdur; ledger qeydi pul balansına çevrilmir. Biznes məbləğləri və Play/yerli provider hesabı tələb olunur. |
+| Zego sızmış açarların rotasiyası | Köhnə açarlar Zego panelində dəyişdirilməlidir; repo-dan bunu etmək mümkün deyil. |
+| Android/Store buraxılışı | `applicationId`, uyğun `google-services.json`, push, iOS layihəsi və privacy/terms hüquqi mətni təsdiq və mağaza hesabı tələb edir. |
 
 ---
 
 ## ⚠️ Təsdiqlənməmiş hissə
 
-`npm run build` və `tsc` **işlədilə bilmədi**: bu layihədə `node_modules` yarımçıqdır
-(817 paketdən 119-unun `package.json`-u yoxdur, `node_modules/next` və
-`node_modules/typescript` natamamdır) və tam quraşdırma bu mühitdə saatlarla vaxt apardı.
-Yoxlama bununla məhdudlaşdı:
-
-- hər düzəldilən fayl üçün **mötərizə balansı** yoxlanıldı → hamısı `0/0/0` (balanslı)
-- `server.js` → `node --check` → **OK**
-- `firestore.rules` → struktur balansı `0`, `match` bloklarının sayı 63
-- `next.config.ts`, `zegoConfig.ts`, `zegoCallKit.ts`, `leaderboard/index.ts`,
-  `battleScoreConfig.ts`, `embed-zego-config.mjs`, yeni `page.tsx` → balans OK
-
-**Sənin tərəfində etməli:** `npm install` (tam) → `npm run build`.
+Son auditin köhnə “node_modules natamamdır / yoxlama işləyə bilmədi” qeydi artıq qüvvədə deyil.
+2026-10-18 yoxlaması: `npx tsc --noEmit` uğurla tamamlandı, `npm run build` Next.js 16.3.1 ilə uğurla tamamlandı (17 statik səhifə), `npm run test:arena-match` 106/106 keçdi və Functions `node --check` lint-i keçdi. Firestore Rules emulatoru Java olmadığı üçün bu mühitdə işə salınmayıb.
 
 ---
 
 ## 📁 Ehtiyat nüsxələr
-Bütün dəyişdirilmiş faylların orijinalları burada saxlanılır:
-`.audit-backup/` — `firestore.rules`, `server.js`, `next.config.ts`,
-`embed-zego-config.mjs`, `zego-runtime-config.json`
-
-Geri qaytarmaq üçün: `cp .audit-backup/<fayl> <yerinə>`
+Audit ehtiyat nüsxəsi repoda saxlanmır; Git diff dəyişiklikləri yoxlamaq üçün mənbədir.
