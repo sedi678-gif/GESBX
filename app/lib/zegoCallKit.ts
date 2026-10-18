@@ -1,6 +1,8 @@
 'use client';
 
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/firebase';
 import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
   ensureZegoConfig,
@@ -86,7 +88,7 @@ type InvitePayload = {
  * Zəng tokeni.
  *
  * TƏHLÜKƏSİZLİK: token YALNIZ serverdə imzalanır. Brauzerdə serverSecret saxlanılmır,
- * ona görə bu funksiya əvvəlcə serverdən hazır token istəyir; server əlçatan deyilsə
+ * ona görə bu funksiya əvvəlcə Cloud Function-dan hazır token istəyir; funksiya əlçatan deyilsə
  * xəta atılır (sessiyaya secret yazmaq qadağandır).
  */
 async function generateTestKitToken(
@@ -111,63 +113,40 @@ async function generateTestKitToken(
   const fromServer = await fetchZegoTokenFromServer({ roomId: rid, userId: uid, userName: userName || uid });
   if (fromServer) return fromServer;
 
-  throw new Error('Zəng tokeni alınmadı: token serverdə imzalanmalıdır.');
+  throw new Error('Zəng tokeni alınmadı: Cloud Function token imzalamalıdır.');
 }
 
-/** Serverdən hazır Zego tokeni — uğursuz olsa null. */
+/** Cloud Function-dan hazır Zego tokeni. */
 async function fetchZegoTokenFromServer(input: {
   roomId: string;
   userId: string;
   userName: string;
 }): Promise<string | null> {
-  const base = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SOCKET_URL?.trim() : '';
-  const origin = base || (typeof window !== 'undefined' ? window.location.origin : '');
-  if (!origin) return null;
   try {
-    const res = await fetch(`${origin.replace(/\/$/, '')}/api/zego/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { token?: string };
-    const token = String(data?.token ?? '').trim();
+    const callable = httpsCallable<typeof input, { token?: string }>(functions, 'createZegoToken');
+    const { data } = await callable(input);
+    const token = String(data.token ?? '').trim();
     return token || null;
-  } catch {
-    return null;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Cloud Function əlçatan deyil.';
+    throw new Error(`Zego tokeni alına bilmədi: ${message}`);
   }
 }
 
 /**
- * Token serveri işləyirmi?
+ * Token Cloud Function üçün public konfiqurasiya mövcuddurmu?
  *
  * Bu yoxlama vacibdir: brauzerdə `serverSecret` saxlanılmadığı üçün token yalnız
- * serverdə imzalana bilər. Server yoxdursa zəng başlamaz — istifadəçi səbəbi görsün,
+ * serverdə imzalana bilər. Funksiya yoxdursa zəng başlamaz — istifadəçi səbəbi görsün,
  * "sonsuz yüklənir" vəziyyətinə düşməsin.
  */
 let tokenServiceState: boolean | null = null;
 
 async function isZegoTokenServiceAvailable(): Promise<boolean> {
   if (tokenServiceState != null) return tokenServiceState;
-  const base = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SOCKET_URL?.trim() : '';
-  const origin = base || (typeof window !== 'undefined' ? window.location.origin : '');
-  if (!origin) {
-    tokenServiceState = false;
-    return false;
-  }
-  try {
-    const res = await fetch(`${origin.replace(/\/$/, '')}/api/zego/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: 'health_check', roomId: 'health_check' }),
-    });
-    // 400/500 də "server var" deməkdir; yalnız şəbəkə xətası/404 yox sayılır.
-    tokenServiceState = res.status !== 404 && res.status < 500 ? true : res.status === 500;
-    return tokenServiceState;
-  } catch {
-    tokenServiceState = false;
-    return false;
-  }
+  // Callable Functions are invoked with the real user's auth/App Check context when a token is requested.
+  tokenServiceState = getZegoAppId() > 0;
+  return tokenServiceState;
 }
 
 /** Server yenidən işə düşdükdən sonra yoxlamanı sıfırlamaq üçün. */
@@ -642,9 +621,9 @@ export async function initZegoCallKit(
     return null;
   }
 
-  // Token serverdə imzalanır — server əlçatan deyilsə zəng başlamaz.
+  // Token Cloud Function-da imzalanır — public konfiqurasiya yoxdursa zəng başlamaz.
   if (!(await isZegoTokenServiceAvailable())) {
-    lastInitError = 'Zəng tokeni serveri əlçatmazdır. Serveri işə salın (npm run server).';
+    lastInitError = 'Zego token Cloud Function konfiqurasiya edilməyib.';
     return null;
   }
 

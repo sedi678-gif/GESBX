@@ -10,9 +10,10 @@ Create Firebase Functions secrets from the Firebase project used by this app:
 firebase functions:secrets:set ADMIN_UIDS
 firebase functions:secrets:set RISK_HASH_SECRET
 firebase functions:secrets:set REFERRAL_CODE_SECRET
+firebase functions:secrets:set ZEGO_SERVER_SECRET
 ```
 
-Use comma separated Firebase Auth UIDs for `ADMIN_UIDS`. Generate separate random values for the two HMAC secrets and keep them in Secret Manager. Do not put them in the web app environment.
+Use comma separated Firebase Auth UIDs for `ADMIN_UIDS`. Generate separate random values for the HMAC secrets and keep them in Secret Manager. `ZEGO_SERVER_SECRET` must be the newly rotated secret from the Zego Console; do not put it in the web app environment. Set the public Zego app ID as `ZEGO_APP_ID` in `functions/.env.youstu-cab15`.
 
 Create `functions/.env.youstu-cab15` locally with these non-secret values. Do not commit that file:
 
@@ -23,6 +24,7 @@ APP_CHECK_ALLOWED_ORIGINS=<exact deployed web origin>,https://localhost,http://l
 WITHDRAWAL_MIN_AZN=10
 WITHDRAWAL_DAILY_LIMIT_AZN=500
 WITHDRAWAL_MANUAL_REVIEW_AZN=100
+ZEGO_APP_ID=<public Zego application id>
 ```
 
 The origin list must match the actual web and Capacitor WebView origins. Remove entries the app does not use. The Android application ID and Firebase Android App ID must be the real registered values; `com.example.app` is only the current placeholder.
@@ -51,5 +53,7 @@ npm run firebase:deploy
 ```
 
 For Android, set `CAPACITOR_APP_ID` to the registered production package before building. For local development, start the Auth, Firestore, Storage, and Functions emulators with `npm run firebase:emulators`.
+
+Zego room tokens are minted by the `createZegoToken` callable Cloud Function. The Socket.io/MongoDB service in `server.js` remains a separate Node service; static Firebase Hosting does not run that process.
 
 Existing profile documents created before `firebaseUid` was stored need an authenticated account-linking migration. The new binding flow intentionally does not import balances, XP, cards, or cosmetics from an old UID-keyed document unless that document already carries the matching Firebase UID; local numeric profile IDs alone cannot prove ownership.

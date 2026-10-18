@@ -8,9 +8,11 @@ const identity = require('./src/identity');
 const admin = require('./src/admin');
 const { mintMobileAppCheckToken } = require('./src/appCheck');
 const arenaRewards = require('./src/arenaRewards');
+const zegoToken = require('./src/zegoToken');
 
 exports.awardArenaMatchRewards = arenaRewards.awardArenaMatchRewards;
 exports.settleArenaWeeklyRewards = arenaRewards.settleArenaWeeklyRewards;
+exports.createZegoToken = zegoToken.createZegoToken;
 
 exports.mintMobileAppCheckToken = mintMobileAppCheckToken;
 exports.purchaseBattleCard = economy.purchaseBattleCard;
