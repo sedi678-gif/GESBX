@@ -1,1 +1,2038 @@
-"use client";\n\nimport React, { useState, useEffect, Suspense, useRef } from 'react';\nimport Link from 'next/link';\nimport { useSearchParams } from 'next/navigation';\nimport { Gift, ShieldCheck, Trophy } from 'lucide-react';\nimport AllianceProfileCard from '@/app/components/alliance/AllianceProfileCard';\nimport { useUser } from '@/context/UserContext';\nimport { useSettings } from '@/context/SettingsContext';\nimport { ensurePlayerProfile } from '@/app/components/alliance/allianceService';\nimport { notifyUserIdChanged } from '@/app/lib/userId';\nimport {\n  createPost,\n  listenUserPosts,\n  toggleLikePost,\n  listenUserLikedPostIds,\n  listenUserLikesReceived,\n  listenUserViewsReceived,\n  readCachedViewsReceived,\n  writeCachedViewsReceived,\n  ensureMinLikesReceived,\n  readCachedLikesReceived,\n  writeCachedLikesReceived,\n  addPostComment,\n  listenPostComments,\n  preparePostMediaFile,\n} from '@/app/lib/postsService';\nimport {\n  ensureFirebaseAuth,\n  linkCurrentAccountToEmail,\n  refreshEmailVerification,\n} from '@/app/lib/firebaseAuth';\nimport { PostComment, SocialPost } from '@/app/lib/socialTypes';\nimport { listenFollowCounts, reportContent } from '@/app/lib/socialService';\nimport AppBottomNav from '@/app/components/AppBottomNav';\nimport AdminPanel from '@/app/components/admin/AdminPanel';\nimport { isSuperAdmin } from '@/app/lib/adminConfig';\nimport { allocateNextUserId, allocateNextUserIdFallback } from '@/app/lib/adminService';\nimport {\n  listenUserProfileMedia,\n  updateProfileAvatar,\n  updateProfileBanner,\n} from '@/app/lib/profileMediaService';\nimport PostActionIcon from '@/app/components/social/PostActionIcon';\nimport OtherUserProfile from '@/app/components/social/OtherUserProfile';\nimport FollowListSheet from '@/app/components/social/FollowListSheet';\nimport AppLink from '@/app/components/AppLink';\nimport ProfileHeroDisplay from '@/app/components/profile/ProfileHeroDisplay';\nimport ProfilePhotoEditorModal from '@/app/components/profile/ProfilePhotoEditorModal';\nimport { ProfileCropKind } from '@/app/lib/profileImageCrop';\nimport socialStyles from '@/app/components/social/social.module.css';\nimport profileStyles from '@/app/components/profile/profile.module.css';\nimport { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';\nimport { auth, db } from '@/firebase';\nimport { setProPanelActive } from '@/app/lib/userPlan';\nimport { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';\nimport GoogleAdButton from '@/app/components/alliance/GoogleAdButton';\nimport {\n  activateDiscoverBoost,\n  isDiscoverBoostActive,\n  listenUserDiscoverBoost,\n} from '@/app/lib/discoverBoost';\n\ninterface GiftItem {\n  id: number;\n  name: string;\n  icon: string;\n  price: number;\n}\n\ninterface PostItem {\n  id: string;\n  userId: string;\n  title: string;\n  mediaUrl: string;\n  thumbnail: string;\n  mediaType: 'video' | 'image';\n  views: number;\n  likes: number;\n  isLiked: boolean;\n  isSaved: boolean;\n  receivedGifts: GiftItem[];\n  createdAt: number;\n}\n\ninterface Stats {\n  followers: number;\n  following: number;\n  likes: number;\n  viewsReceived: number;\n  activeSeasonScore: number;\n}\n\nconst availableGifts: GiftItem[] = [\n  { id: 1, name: "Qızılgül 🌹", icon: "🌹", price: 10 },\n  { id: 2, name: "Ulduz ⭐", icon: "⭐", price: 25 },\n  { id: 3, name: "Super Avtomobil 🏎️", icon: "🏎️", price: 100 },\n  { id: 4, name: "Tac 👑", icon: "👑", price: 250 },\n  { id: 5, name: "Almaz 💎", icon: "💎", price: 500 }\n];\n\nconst translations = {\n  az: {\n    registerTitle: "Profil Yarat & Qeydiyyat",\n    registerSubtitle: "Məlumatlarını doldur, şərtləri qəbul et və unikal ID qazan.",\n    name: "Ad",\n    surname: "Soyad",\n    handle: "Nickname (İstifadəçi adı)",\n    gender: "Cins",\n    male: "Kişi",\n    female: "Qadın",\n    birthDate: "Doğum Tarixi",\n    termsAccept: "İstifadəçi razılaşmasını oxudum və bütün şərtləri qəbul edirəm.",\n    submitBtn: "Qeydiyyatı Tamamla & Profil Yarat",\n    wallet: "Cüzdan Balansı",\n    newPost: "Yeni Paylaşım (24 saat)",\n    hide: "🙈 Gizlə",\n    show: "👁️ Göstər",\n    followers: "İzləyici",\n    following: "İzlənən",\n    followersList: "İzləyicilər",\n    followingList: "İzlənənlər",\n    emptyFollowers: "Hələ izləyici yoxdur.",\n    emptyFollowing: "Heç kimi izləmir.",\n    gifts: "Hədiyyələr",\n    likes: "Bəyənmə",\n    views: "İzlənmə sayı",\n    allianceTitle: "İTTİFAQ (ALLIANCE)",\n    noAllianceTitle: "Aktiv İttifaq yoxdur",\n    noAllianceDesc: "Hələ heç bir ittifaqa qoşulmamısan",\n    status: "STATUS",\n    free: "Sərbəst",\n    rating: "REYTİNQ",\n    joinAlliance: "🛡️ İttifaqa Qoşul",\n    rankTitle: "REYTİNQ VƏ NİŞAN",\n    activeSeason: "Aktiv Sezon",\n    score: "Xal",\n    giftGallery: "Hədiyyələr Sərgisi",\n    noGifts: "Hələ heç bir hədiyyə almamısan.",\n    postsTitle: "Paylaşımlər (24 Saatlıq)",\n    postsSubtitle: "Paylaşımlər 24 saat sonra avtomatik silinir.",\n    total: "Cəmi",\n    noPosts: "Aktiv paylaşımlarınız yoxdur",\n    noPostsHint: "İlk paylaşımını etmək üçün '+' düyməsini istifadə et!"\n  },\n  ru: {\n    registerTitle: "Создать профиль & Регистрация",\n    registerSubtitle: "Заполните данные, примите условия.",\n    name: "Имя",\n    surname: "Фамилия",\n    handle: "Никнейм",\n    gender: "Пол",\n    male: "Мужской",\n    female: "Женский",\n    birthDate: "Дата рождения",\n    termsAccept: "Я принимаю условия.",\n    submitBtn: "Завершить регистрацию",\n    wallet: "Баланс",\n    newPost: "Новый пост",\n    hide: "🙈 Скрыть",\n    show: "👁️ Показать",\n    followers: "Подписчики",\n    following: "Подписки",\n    followersList: "Подписчики",\n    followingList: "Подписки",\n    emptyFollowers: "Пока нет подписчиков.",\n    emptyFollowing: "Никого не отслеживает.",\n    gifts: "Подарки",\n    likes: "Лайки",\n    views: "Просмотры",\n    allianceTitle: "АЛЬЯНС",\n    noAllianceTitle: "Нет альянса",\n    noAllianceDesc: "Вы не состоите в альянсе",\n    status: "СТАТУС",\n    free: "Свободный",\n    rating: "РЕЙТИНГ",\n    joinAlliance: "🛡️ Вступить",\n    rankTitle: "РЕЙТИНГ",\n    activeSeason: "Сезон",\n    score: "Очки",\n    giftGallery: "Галерея подарков",\n    noGifts: "Нет подарков",\n    postsTitle: "Публикации",\n    postsSubtitle: "Удаляются через 24 часа",\n    total: "Всего",\n    noPosts: "Активных публикаций нет",\n    noPostsHint: "Нажми «+», чтобы сделать первую публикацию!"\n  },\n  en: {\n    registerTitle: "Create Profile & Register",\n    registerSubtitle: "Fill in your details.",\n    name: "First Name",\n    surname: "Last Name",\n    handle: "Username",\n    gender: "Gender",\n    male: "Male",\n    female: "Female",\n    birthDate: "Birth Date",\n    termsAccept: "I accept the terms.",\n    submitBtn: "Complete Registration",\n    wallet: "Wallet Balance",\n    newPost: "New Post",\n    hide: "🙈 Hide",\n    show: "👁️ Show",\n    followers: "Followers",\n    following: "Following",\n    followersList: "Followers",\n    followingList: "Following",\n    emptyFollowers: "No followers yet.",\n    emptyFollowing: "Not following anyone yet.",\n    gifts: "Gifts",\n    likes: "Likes",\n    views: "Views",\n    allianceTitle: "ALLIANCE",\n    noAllianceTitle: "No Alliance",\n    noAllianceDesc: "No active alliance",\n    status: "STATUS",\n    free: "Free",\n    rating: "RATING",\n    joinAlliance: "🛡️ Join Alliance",\n    rankTitle: "RATING",\n    activeSeason: "Season",\n    score: "Score",\n    giftGallery: "Gift Gallery",\n    noGifts: "No gifts",\n    postsTitle: "Posts",\n    postsSubtitle: "Deleted after 24 hours",\n    total: "Total",\n    noPosts: "You have no active posts",\n    noPostsHint: "Tap + to share your first post!"\n  },\n  tr: {\n    registerTitle: "Profil Oluştur & Kayıt",\n    registerSubtitle: "Bilgilerini doldur, şartları kabul et.",\n    name: "Ad",\n    surname: "Soyad",\n    handle: "Kullanıcı adı",\n    gender: "Cinsiyet",\n    male: "Erkek",\n    female: "Kadın",\n    birthDate: "Doğum tarihi",\n    termsAccept: "Şartları okudum ve kabul ediyorum.",\n    submitBtn: "Kaydı tamamla ve profil oluştur",\n    wallet: "Cüzdan bakiyesi",\n    newPost: "Yeni paylaşım",\n    hide: "🙈 Gizle",\n    show: "👁️ Göster",\n    followers: "Takipçi",\n    following: "Takip",\n    followersList: "Takipçiler",\n    followingList: "Takip edilenler",\n    emptyFollowers: "Henüz takipçi yok.",\n    emptyFollowing: "Kimseyi takip etmiyor.",\n    gifts: "Hediyeler",\n    likes: "Beğeni",\n    views: "Görüntülenme",\n    allianceTitle: "İTTİFAK",\n    noAllianceTitle: "Aktif ittifak yok",\n    noAllianceDesc: "Henüz bir ittifaka katılmadın",\n    status: "DURUM",\n    free: "Serbest",\n    rating: "SIRALAMA",\n    joinAlliance: "🛡️ İttifaka katıl",\n    rankTitle: "SIRALAMA VE ROZET",\n    activeSeason: "Aktif sezon",\n    score: "Puan",\n    giftGallery: "Hediye galerisi",\n    noGifts: "Henüz hediye yok.",\n    postsTitle: "Paylaşımlar (24 saat)",\n    postsSubtitle: "Paylaşımlar 24 saat sonra silinir.",\n    total: "Toplam",\n    noPosts: "Aktif paylaşımın yok",\n    noPostsHint: "İlk paylaşım için + düğmesini kullan!"\n  }\n};\n\nconst DEFAULT_PROFILE_USER = {\n  id: '',\n  name: '',\n  surname: '',\n  handle: '',\n  gender: 'Kişi',\n  birthDate: '',\n  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',\n  bannerImage: '',\n  bannerGradient: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 45%, #06b6d4 100%)',\n  bio: 'Yeni başlanğıc 🚀',\n  allianceName: '',\n};\n\nfunction readStoredProfile() {\n  if (typeof window === 'undefined') return null;\n  try {\n    const savedUser = localStorage.getItem('app_current_user_v6');\n    if (!savedUser) return null;\n    const parsed = JSON.parse(savedUser);\n    const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';\n    return { ...parsed, allianceName: savedAlliance || parsed.allianceName || '' };\n  } catch {\n    return null;\n  }\n}\n\nfunction ProfileBootSkeleton() {\n  return (\n    <div className={profileStyles.bootSkeleton}>\n      <div className={profileStyles.bootPulse} />\n    </div>\n  );\n}\n\nexport default function ProfilePage() {\n  return (\n    <Suspense fallback={<ProfileBootSkeleton />}>\n      <ProfilePageContent />\n    </Suspense>\n  );\n}\n\nfunction ProfilePageContent() {\n  const searchParams = useSearchParams();\n  const viewUserId = searchParams.get('user');\n\n  const { manat, playerProfile, spendManat, userId } = useUser();\n  const { language: settingsLang, setLanguage: setSettingsLang } = useSettings();\n  const language = settingsLang;\n  const t = translations[language] ?? translations.az;\n  const [stats, setStats] = useState<Stats>({ followers: 0, following: 0, likes: 0, viewsReceived: 0, activeSeasonScore: 0 });\n  const [followListMode, setFollowListMode] = useState<'followers' | 'following' | null>(null);\n\n  const [currentUser, setCurrentUser] = useState(DEFAULT_PROFILE_USER);\n  const [isRegistered, setIsRegistered] = useState(false);\n  const [profileBooting, setProfileBooting] = useState(true);\n  const [inputName, setInputName] = useState('');\n  const [inputSurname, setInputSurname] = useState('');\n  const [inputHandle, setInputHandle] = useState('');\n  const [inputGender, setInputGender] = useState('Kişi');\n  const [inputBirthDate, setInputBirthDate] = useState('');\n  const [acceptedTerms, setAcceptedTerms] = useState(false);\n  const [uploadingAvatar, setUploadingAvatar] = useState(false);\n  const [uploadingBanner, setUploadingBanner] = useState(false);\n  const [photoEditor, setPhotoEditor] = useState<{ kind: ProfileCropKind; file: File } | null>(null);\n  const avatarInputRef = useRef<HTMLInputElement>(null);\n  const bannerInputRef = useRef<HTMLInputElement>(null);\n  const mediaSyncPausedRef = useRef(false);\n\n  const restoreExistingProfile = async () => {\n    try {\n      const firebaseUser = await ensureFirebaseAuth();\n      if (!firebaseUser || firebaseUser.isAnonymous) return;\n\n      // Look for an existing player profile linked to this Firebase UID\n      const playersRef = collection(db, 'players');\n      const q = query(playersRef, where('firebaseUid', '==', firebaseUser.uid));\n      const snap = await getDocs(q);\n\n      if (!snap.empty) {\n        const docSnap = snap.docs[0];\n        const data = docSnap.data() as Record<string, unknown>;\n        const playerId = docSnap.id;\n        const privateProfile = await getDoc(doc(db, 'private_user_profiles', firebaseUser.uid));\n        const privateData = privateProfile.exists() ? privateProfile.data() : {};\n\n        const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';\n\n        const restoredUser = {\n          id: playerId,\n          firebaseUid: firebaseUser.uid,\n          name: (data.name || data.displayName || '') as string,\n          surname: (data.surname || '') as string,\n          handle: (data.handle || '') as string,\n          gender: (data.gender || 'Kişi') as string,\n          birthDate: (privateData.birthDate || data.birthDate || '') as string,\n          avatar: (data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80') as string,\n          bannerImage: (data.bannerImage || '') as string,\n          bannerGradient: (data.bannerGradient || 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 45%, #06b6d4 100%)') as string,\n          bio: (data.bio || 'Yeni başlayançı 🚀') as string,\n          allianceName: (savedAlliance || (data.allianceName || '') as string) as string,\n          role: (data.role || 'user') as string,\n          createdAt: (data.createdAt || Date.now()) as number,\n        };\n\n        setCurrentUser(restoredUser);\n        setIsRegistered(true);\n        localStorage.setItem('app_current_user_v6', JSON.stringify(restoredUser));\n        notifyUserIdChanged();\n      }\n    } catch (err) {\n      console.error('Profil bərpası xətası:', err);\n    }\n  };\n\n  useEffect(() => {\n    if (viewUserId) {\n      setProfileBooting(false);\n      return;\n    }\n    const stored = readStoredProfile();\n    if (stored) {\n      setCurrentUser(stored);\n      setIsRegistered(true);\n      localStorage.setItem('app_current_user_v6', JSON.stringify(stored));\n      notifyUserIdChanged();\n    } else {\n      void restoreExistingProfile();\n    }\n    setProfileBooting(false);\n  }, [viewUserId]);\n\n  useEffect(() => {\n    if (isRegistered) void ensureFirebaseAuth();\n  }, [isRegistered]);\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    return listenFollowCounts(currentUser.id, (followers, following) => {\n      setStats((prev) => ({ ...prev, followers, following }));\n    });\n  }, [currentUser.id, isRegistered]);\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    const cached = readCachedLikesReceived(currentUser.id);\n    if (cached > 0) {\n      setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, cached) }));\n    }\n    return listenUserLikesReceived(currentUser.id, (likes) => {\n      writeCachedLikesReceived(currentUser.id, likes);\n      setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, likes) }));\n    });\n  }, [currentUser.id, isRegistered]);\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    const cached = readCachedViewsReceived(currentUser.id);\n    if (cached > 0) {\n      setStats((prev) => ({ ...prev, viewsReceived: cached }));\n    }\n    return listenUserViewsReceived(currentUser.id, (viewsReceived) => {\n      writeCachedViewsReceived(currentUser.id, viewsReceived);\n      setStats((prev) => ({ ...prev, viewsReceived }));\n    });\n  }, [currentUser.id, isRegistered]);\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    return listenUserProfileMedia(\n      currentUser.id,\n      (media) => {\n        setCurrentUser((prev) => {\n          const next = {\n            ...prev,\n            ...(media.avatar ? { avatar: media.avatar } : {}),\n            ...(media.bannerImage !== undefined ? { bannerImage: media.bannerImage || '' } : {}),\n            ...(media.bannerGradient ? { bannerGradient: media.bannerGradient } : {}),\n          };\n          localStorage.setItem('app_current_user_v6', JSON.stringify(next));\n          return next;\n        });\n      },\n      { paused: () => mediaSyncPausedRef.current }\n    );\n  }, [currentUser.id, isRegistered]);\n\n  const persistProfile = (patch: Partial<typeof currentUser>) => {\n    setCurrentUser((prev) => {\n      const next = { ...prev, ...patch };\n      localStorage.setItem('app_current_user_v6', JSON.stringify(next));\n      return next;\n    });\n  };\n\n  const openPhotoEditor = (kind: ProfileCropKind, file: File) => {\n    setPhotoEditor({ kind, file });\n  };\n\n  const closePhotoEditor = () => {\n    setPhotoEditor(null);\n  };\n\n  const uploadProfilePhoto = async (kind: ProfileCropKind, file: File) => {\n    if (!currentUser.id) return;\n\n    const isAvatar = kind === 'avatar';\n    const previous = isAvatar ? currentUser.avatar : currentUser.bannerImage;\n    const preview = URL.createObjectURL(file);\n    if (isAvatar) {\n      persistProfile({ avatar: preview });\n      setUploadingAvatar(true);\n    } else {\n      persistProfile({ bannerImage: preview });\n      setUploadingBanner(true);\n    }\n    mediaSyncPausedRef.current = true;\n\n    try {\n      void ensureFirebaseAuth();\n      const url = isAvatar\n        ? await updateProfileAvatar(currentUser.id, file)\n        : await updateProfileBanner(currentUser.id, file);\n      if (isAvatar) {\n        persistProfile({ avatar: url });\n      } else {\n        persistProfile({ bannerImage: url });\n      }\n      closePhotoEditor();\n    } catch (err) {\n      if (isAvatar) {\n        persistProfile({ avatar: previous });\n      } else {\n        persistProfile({ bannerImage: previous });\n      }\n      console.error(err);\n      alert(err instanceof Error ? err.message : isAvatar ? 'Profil şəkli saxlanmadı.' : 'Qapaq şəkli saxlanmadı.');\n    } finally {\n      URL.revokeObjectURL(preview);\n      if (isAvatar) setUploadingAvatar(false);\n      else setUploadingBanner(false);\n      window.setTimeout(() => {\n        mediaSyncPausedRef.current = false;\n      }, 2000);\n    }\n  };\n\n  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {\n    const file = e.target.files?.[0];\n    e.target.value = '';\n    if (!file || !currentUser.id) return;\n    if (!file.type.startsWith('image/')) {\n      alert('Yalnız şəkil faylı seçin.');\n      return;\n    }\n    openPhotoEditor('avatar', file);\n  };\n\n  const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => {\n    const file = e.target.files?.[0];\n    e.target.value = '';\n    if (!file || !currentUser.id) return;\n    if (!file.type.startsWith('image/')) {\n      alert('Yalnız şəkil faylı seçin.');\n      return;\n    }\n    openPhotoEditor('banner', file);\n  };\n\n  const handleRegister = async (e: React.FormEvent) => {\n    e.preventDefault();\n    if (!inputName.trim() || !inputSurname.trim() || !inputBirthDate) return;\n\n    if (!acceptedTerms) {\n      alert("Zəhmət olmasa İstifadəçi Razılaşmasını qəbul edin.");\n      return;\n    }\n\n    let accountUid: string | null = null;\n    try {\n      const firebaseUser = await ensureFirebaseAuth();\n      if (!firebaseUser) throw new Error('Firebase hesabı yaradılmadı. İnternet bağlantısını yoxlayın.');\n      accountUid = firebaseUser.uid;\n      const generatedId = await allocateNextUserId();\n      const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;\n      const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';\n\n      const newUser = {\n        id: generatedId,\n        firebaseUid: accountUid,\n        name: inputName,\n        surname: inputSurname,\n        handle: formattedHandle,\n        gender: inputGender,\n        birthDate: inputBirthDate,\n        role: 'user',\n        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',\n        bannerImage: '',\n        bannerGradient: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #3b82f6 100%)',\n        bio: 'Yeni başlanğıc 🚀',\n        allianceName: savedAlliance,\n        createdAt: Date.now(),\n        likesReceived: 0,\n        viewsReceived: 0,\n      };\n\n      const { birthDate: privateBirthDate, ...publicUser } = newUser;\n      await Promise.all([\n        setDoc(doc(db, 'users', generatedId), publicUser),\n        setDoc(doc(db, 'private_user_profiles', accountUid), {\n          birthDate: privateBirthDate,\n          updatedAt: Date.now(),\n        }),\n      ]);\n      await ensurePlayerProfile(generatedId, `${inputName} ${inputSurname}`.trim(), accountUid);\n\n      localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));\n      const idNum = parseInt(generatedId, 10);\n      if (!Number.isNaN(idNum)) {\n        const prev = parseInt(localStorage.getItem('app_last_id_num_v6') || '1', 10);\n        localStorage.setItem('app_last_id_num_v6', String(Math.max(prev, idNum)));\n      }\n      setCurrentUser(newUser);\n      setIsRegistered(true);\n      notifyUserIdChanged();\n    } catch (error) {\n      if (accountUid) {\n        alert(error instanceof Error ? error.message : 'Hesab təhlükəsiz şəkildə qoşulmadı.');\n        return;\n      }\n      console.error("Firebase ID xətası, lokal rejimə keçid edilir:", error);\n      const generatedId = await allocateNextUserIdFallback();\n      const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;\n      const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';\n\n      const newUser = {\n        id: generatedId,\n        name: inputName,\n        surname: inputSurname,\n        handle: formattedHandle,\n        gender: inputGender,\n        birthDate: inputBirthDate,\n        role: 'user',\n        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',\n        bannerImage: '',\n        bannerGradient: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #3b82f6 100%)',\n        bio: 'Yeni başlanğıc 🚀',\n        allianceName: savedAlliance,\n        createdAt: Date.now(),\n        likesReceived: 0,\n        viewsReceived: 0,\n      };\n\n      localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));\n      setCurrentUser(newUser);\n      setIsRegistered(true);\n      notifyUserIdChanged();\n    }\n  };\n\n  const [isBalanceVisible, setIsBalanceVisible] = useState<boolean>(true);\n  const [posts, setPosts] = useState<PostItem[]>([]);\n  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);\n  const [showAllianceModal, setShowAllianceModal] = useState(false);\n  const [showRankModal, setShowRankModal] = useState(false);\n  const [showGiftsModal, setShowGiftsModal] = useState(false);\n  const [xpModeNotice, setXpModeNotice] = useState<string | null>(null);\n  const [xpModeToggling, setXpModeToggling] = useState(false);\n  const [xpModeOn, setXpModeOn] = useState(true);\n  const [discoverBoostUntil, setDiscoverBoostUntil] = useState(0);\n  const [boostNow, setBoostNow] = useState(() => Date.now());\n  const [showWalletModal, setShowWalletModal] = useState(false);\n  const [accountEmail, setAccountEmail] = useState('');\n  const [accountPassword, setAccountPassword] = useState('');\n  const [accountEmailVerified, setAccountEmailVerified] = useState(false);\n  const [accountSecurityBusy, setAccountSecurityBusy] = useState(false);\n  const [accountSecurityMessage, setAccountSecurityMessage] = useState('');\n  const [withdrawAmount, setWithdrawAmount] = useState('10');\n  const [withdrawEmail, setWithdrawEmail] = useState('');\n  const [withdrawBusy, setWithdrawBusy] = useState(false);\n  const [withdrawMessage, setWithdrawMessage] = useState('');\n  const [myReferralCode, setMyReferralCode] = useState('');\n  const [applyReferralCode, setApplyReferralCode] = useState('');\n  const [referralBusy, setReferralBusy] = useState(false);\n  const [referralMessage, setReferralMessage] = useState('');\n\n  useEffect(() => {\n    if (!currentUser.id) return;\n    return listenUserDiscoverBoost(currentUser.id, setDiscoverBoostUntil);\n  }, [currentUser.id]);\n\n  useEffect(() => {\n    if (!showWalletModal) return;\n    const email = auth.currentUser?.email || '';\n    setAccountEmail(email);\n    setWithdrawEmail(email);\n    setAccountEmailVerified(auth.currentUser?.emailVerified === true);\n  }, [showWalletModal]);\n\n  const handleLinkAndVerifyEmail = async () => {\n    setAccountSecurityBusy(true);\n    setAccountSecurityMessage('');\n    try {\n      const user = await linkCurrentAccountToEmail(accountEmail, accountPassword);\n      setAccountEmail(user.email || accountEmail.trim());\n      setWithdrawEmail(user.email || accountEmail.trim());\n      setAccountEmailVerified(user.emailVerified);\n      setAccountPassword('');\n      setAccountSecurityMessage('Təsdiq linki emailə göndərildi. Linki açdıqdan sonra “Təsdiqi yoxla” düyməsinə vur.');\n    } catch (err) {\n      setAccountSecurityMessage(err instanceof Error ? err.message : 'Email hesaba bağlanmadı.');\n    } finally {\n      setAccountSecurityBusy(false);\n    }\n  };\n\n  const handleCheckEmailVerification = async () => {\n    setAccountSecurityBusy(true);\n    setAccountSecurityMessage('');\n    try {\n      const state = await refreshEmailVerification();\n      setAccountEmail(state.email || accountEmail);\n      setWithdrawEmail(state.email || accountEmail);\n      setAccountEmailVerified(state.verified);\n      setAccountSecurityMessage(state.verified ? 'Email təsdiqləndi.' : 'Təsdiq hələ görünmür. Emaildəki linki açıb yenidən yoxla.');\n    } catch (err) {\n      setAccountSecurityMessage(err instanceof Error ? err.message : 'Email təsdiqi yoxlanmadı.');\n    } finally {\n      setAccountSecurityBusy(false);\n    }\n  };\n\n  const handleCreateWithdrawal = async (event: React.FormEvent<HTMLFormElement>) => {\n    event.preventDefault();\n    if (!accountEmailVerified) {\n      setWithdrawMessage('Pul çıxarışı üçün Firebase hesabının emailini əvvəlcə təsdiqlə.');\n      return;\n    }\n    const amount = Number(withdrawAmount);\n    if (!Number.isSafeInteger(amount) || amount < 10) {\n      setWithdrawMessage('Minimum çıxarış məbləği 10 AZN-dir.');\n      return;\n    }\n    setWithdrawBusy(true);\n    setWithdrawMessage('');\n    try {\n      await refreshEmailVerification();\n      const result = await callSecureFunction<\n        { userId: string; amount: number; paymentEmail: string; legalName: string },\n        { requestId: string; amount: number; status: string; availableAt: number }\n      >('createWithdrawalRequest', {\n        userId: currentUser.id,\n        amount,\n        paymentEmail: withdrawEmail.trim(),\n        legalName: `${currentUser.name} ${currentUser.surname}`.trim(),\n      });\n      setWithdrawMessage(`${result.amount} AZN üçün sorğu yaradıldı. 48 saatdan sonra yoxlanış mərhələsinə keçəcək.`);\n      setWithdrawAmount('10');\n    } catch (err) {\n      setWithdrawMessage(err instanceof Error ? err.message : 'Pul çıxarışı sorğusu yaradılmadı.');\n    } finally {\n      setWithdrawBusy(false);\n    }\n  };\n\n  const handleLoadReferralCode = async () => {\n    setReferralBusy(true);\n    setReferralMessage('');\n    try {\n      const installationId = await getFirebaseInstallationId();\n      const result = await callSecureFunction<\n        { userId: string; installationId: string },\n        { code: string }\n      >('getMyReferralCode', { userId: currentUser.id, installationId });\n      setMyReferralCode(result.code);\n    } catch (err) {\n      setReferralMessage(err instanceof Error ? err.message : 'Referral kodu alınmadı.');\n    } finally {\n      setReferralBusy(false);\n    }\n  };\n\n  const handleApplyReferralCode = async (event: React.FormEvent<HTMLFormElement>) => {\n    event.preventDefault();\n    if (!accountEmailVerified) {\n      setReferralMessage('Referral üçün Firebase hesabının emaili təsdiqlənməlidir.');\n      return;\n    }\n    setReferralBusy(true);\n    setReferralMessage('');\n    try {\n      await refreshEmailVerification();\n      const installationId = await getFirebaseInstallationId();\n      const result = await callSecureFunction<\n        { userId: string; code: string; installationId: string },\n        { status: string; eligibleAt: number }\n      >('applyReferral', { userId: currentUser.id, code: applyReferralCode, installationId });\n      setReferralMessage(`Dəvət qeydə alındı, 7 günlük yoxlanışdan sonra baxılacaq (${result.status}).`);\n      setApplyReferralCode('');\n    } catch (err) {\n      setReferralMessage(err instanceof Error ? err.message : 'Referral kodu tətbiq edilmədi.');\n    } finally {\n      setReferralBusy(false);\n    }\n  };\n\n  useEffect(() => {\n    if (!isDiscoverBoostActive(discoverBoostUntil)) return;\n    const timer = window.setInterval(() => setBoostNow(Date.now()), 1000);\n    return () => window.clearInterval(timer);\n  }, [discoverBoostUntil]);\n\n  useEffect(() => {\n    if (!xpModeNotice) return;\n    const timer = window.setTimeout(() => setXpModeNotice(null), 2400);\n    return () => window.clearTimeout(timer);\n  }, [xpModeNotice]);\n\n  useEffect(() => {\n    setXpModeOn(playerProfile?.proPanelActive !== true);\n  }, [playerProfile?.proPanelActive]);\n  const [newCommentText, setNewCommentText] = useState('');\n  const [viewerComments, setViewerComments] = useState<PostComment[]>([]);\n  const [commentSubmitting, setCommentSubmitting] = useState(false);\n  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);\n  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);\n  const [newPostTitle, setNewPostTitle] = useState('');\n  const [newPostType, setNewPostType] = useState<'video' | 'image'>('image');\n  const [selectedFile, setSelectedFile] = useState<File | null>(null);\n  const [uploadReadyFile, setUploadReadyFile] = useState<File | null>(null);\n  const [isPreparingFile, setIsPreparingFile] = useState(false);\n  const [filePreviewUrl, setFilePreviewUrl] = useState('');\n\n  const postGalleryInputRef = useRef<HTMLInputElement>(null);\n  const postCameraInputRef = useRef<HTMLInputElement>(null);\n  const [isUploadingPost, setIsUploadingPost] = useState(false);\n  const [postsLoadError, setPostsLoadError] = useState('');\n  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());\n  const likedPostIdsRef = useRef(likedPostIds);\n  likedPostIdsRef.current = likedPostIds;\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    return listenUserLikedPostIds(currentUser.id, setLikedPostIds);\n  }, [currentUser.id, isRegistered]);\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    setPosts((prev) =>\n      prev.map((p) => ({ ...p, isLiked: likedPostIds.has(p.id) }))\n    );\n  }, [likedPostIds, currentUser.id, isRegistered]);\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    setPostsLoadError('');\n    return listenUserPosts(\n      currentUser.id,\n      (firebasePosts: SocialPost[]) => {\n        setPosts(firebasePosts.map((p) => ({\n          id: p.id,\n          userId: p.userId,\n          title: p.title,\n          mediaUrl: p.mediaUrl,\n          thumbnail: p.mediaUrl,\n          mediaType: p.mediaType,\n          views: p.views,\n          likes: p.likes,\n          isLiked: likedPostIdsRef.current.has(p.id),\n          isSaved: false,\n          receivedGifts: [],\n          createdAt: p.createdAt,\n        })));\n      },\n      setPostsLoadError\n    );\n  }, [currentUser.id, isRegistered]);\n\n  useEffect(() => {\n    if (!currentUser.id || !isRegistered) return;\n    const live = posts.reduce((sum, post) => sum + (Number(post.likes) || 0), 0);\n    if (live <= 0) return;\n    setStats((prev) => (live > prev.likes ? { ...prev, likes: live } : prev));\n    const stored = readCachedLikesReceived(currentUser.id);\n    if (live > stored) {\n      writeCachedLikesReceived(currentUser.id, live);\n      void ensureMinLikesReceived(currentUser.id, live);\n    }\n  }, [posts, currentUser.id, isRegistered]);\n\n  const closePostViewer = () => setSelectedPostId(null);\n\n  useEffect(() => {\n    if (!selectedPostId) return;\n    const onKey = (e: KeyboardEvent) => {\n      if (e.key === 'Escape') closePostViewer();\n    };\n    window.addEventListener('keydown', onKey);\n    return () => window.removeEventListener('keydown', onKey);\n  }, [selectedPostId]);\n\n  useEffect(() => {\n    if (!selectedPostId) {\n      setViewerComments([]);\n      setNewCommentText('');\n      return;\n    }\n    return listenPostComments(selectedPostId, setViewerComments);\n  }, [selectedPostId]);\n\n  const activePost = posts.find(p => p.id === selectedPostId);\n  const allReceivedGifts = posts.flatMap(p => p.receivedGifts);\n\n  const handleLike = async (id: string) => {\n    const post = posts.find((p) => p.id === id);\n    if (!post) return;\n    if (post.isLiked || likedPostIds.has(id)) {\n      alert('Bu paylaşımı artıq bəyənmisiniz.');\n      return;\n    }\n    try {\n      const result = await toggleLikePost(id, currentUser.id);\n      setLikedPostIds((prev) => new Set(prev).add(id));\n      setPosts((prev) =>\n        prev.map((p) =>\n          p.id === id ? { ...p, isLiked: true, likes: result.likes } : p\n        )\n      );\n      if (!result.alreadyLiked) {\n        setStats((prev) => {\n          const nextLikes = prev.likes + 1;\n          writeCachedLikesReceived(currentUser.id, nextLikes);\n          return { ...prev, likes: nextLikes };\n        });\n      }\n    } catch (err) {\n      console.error(err);\n      alert('Bəyənmə qeydə alınmadı.');\n    }\n  };\n\n  const handleSharePost = async (postId: string, title: string) => {\n    const url = `${window.location.origin}/profile?user=${currentUser.id}`;\n    const text = `${currentUser.name} — ${title}`;\n    try {\n      if (navigator.share) {\n        await navigator.share({ title: text, text, url });\n        return;\n      }\n      await navigator.clipboard.writeText(url);\n      alert('Paylaşım linki kopyalandı.');\n    } catch {\n      /* ləğv */\n    }\n  };\n\n  const handleSave = (id: string) => {\n    setPosts(prev => prev.map(p => {\n      if (p.id === id) {\n        const newIsSaved = !p.isSaved;\n        alert(newIsSaved ? 'Paylaşım yaddaşa saxlandı! 💾' : 'Paylaşım yaddaşdan çıxarıldı.');\n        return { ...p, isSaved: newIsSaved };\n      }\n      return p;\n    }));\n  };\n\n  const handleReport = async () => {\n    if (!activePost) return;\n    const reason = prompt('Şikayət səbəbini qeyd edin:');\n    if (!reason?.trim()) return;\n    try {\n      await reportContent({\n        reporterId: currentUser.id,\n        targetUserId: activePost.userId,\n        targetPostId: activePost.id,\n        reason: reason.trim(),\n        type: 'post',\n      });\n      alert('Şikayətiniz admin panelə göndərildi.');\n    } catch (err) {\n      console.error(err);\n      alert('Şikayət göndərilmədi. Yenidən cəhd edin.');\n    }\n  };\n\n  const handleAddComment = async (e: React.FormEvent) => {\n    e.preventDefault();\n    if (!newCommentText.trim() || selectedPostId === null || commentSubmitting) return;\n\n    setCommentSubmitting(true);\n    try {\n      await addPostComment(\n        selectedPostId,\n        {\n          id: currentUser.id,\n          name: `${currentUser.name || 'Sən'} ${currentUser.surname || ''}`.trim(),\n          avatar: currentUser.avatar,\n        },\n        newCommentText.trim()\n      );\n      setNewCommentText('');\n    } catch (err) {\n      console.error(err);\n      alert(err instanceof Error ? err.message : 'Şərh göndərilmədi.');\n    } finally {\n      setCommentSubmitting(false);\n    }\n  };\n\n  const handleSendGift = async (gift: GiftItem) => {\n    if (manat < gift.price) {\n      alert("Balansınızda kifayət qədər manat yoxdur! ₼");\n      return;\n    }\n\n    const ok = await spendManat(gift.price);\n    if (!ok) {\n      alert("Balansınızda kifayət qədər manat yoxdur! ₼");\n      return;\n    }\n\n    setPosts(prev => prev.map(p => {\n      if (p.id === selectedPostId) {\n        return {\n          ...p,\n          receivedGifts: [gift, ...p.receivedGifts]\n        };\n      }\n      return p;\n    }));\n\n    setIsGiftModalOpen(false);\n    alert(`Uğurla ${gift.name} hədiyyəsi göndərildi! 🎉`);\n  };\n\n  const handleOpenUploadModal = () => {\n    setNewPostTitle('');\n    setSelectedFile(null);\n    setUploadReadyFile(null);\n    setIsPreparingFile(false);\n    setFilePreviewUrl('');\n    setIsUploadModalOpen(true);\n    void ensureFirebaseAuth();\n  };\n\n  const handlePostFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {\n    const file = e.target.files?.[0];\n    e.target.value = '';\n    if (!file) return;\n\n    if (file.type.startsWith('video/') && file.size > 25 * 1024 * 1024) {\n      alert('Video çox böyükdür (maks. 25 MB).');\n      return;\n    }\n    if (file.type.startsWith('image/') && file.size > 8 * 1024 * 1024) {\n      alert('Şəkil çox böyükdür (maks. 8 MB).');\n      return;\n    }\n\n    setSelectedFile(file);\n    setUploadReadyFile(file.type.startsWith('video/') ? file : null);\n    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);\n    const fileUrl = URL.createObjectURL(file);\n    setFilePreviewUrl(fileUrl);\n    setNewPostType(file.type.startsWith('video/') ? 'video' : 'image');\n\n    if (file.type.startsWith('image/')) {\n      setIsPreparingFile(true);\n      void preparePostMediaFile(file)\n        .then((prepared) => setUploadReadyFile(prepared))\n        .catch(() => setUploadReadyFile(file))\n        .finally(() => setIsPreparingFile(false));\n    }\n  };\n\n  const handleCreatePost = async (e: React.FormEvent) => {\n    e.preventDefault();\n    if (!isRegistered || !currentUser.id) {\n      alert('Paylaşım üçün əvvəlcə profil qeydiyyatını tamamlayın.');\n      return;\n    }\n    if (!newPostTitle.trim() || !selectedFile) {\n      alert("Zəhmət olmasa başlıq daxil edin və fayl seçin.");\n      return;\n    }\n    if (isPreparingFile) {\n      alert('Fayl hazırlanır, bir neçə saniyə gözləyin.');\n      return;\n    }\n    if (isUploadingPost) return;\n\n    const fileToUpload = uploadReadyFile ?? selectedFile;\n\n    setIsUploadingPost(true);\n    try {\n      await createPost(\n        {\n          id: currentUser.id,\n          name: currentUser.name,\n          surname: currentUser.surname,\n          handle: currentUser.handle,\n          gender: currentUser.gender,\n          birthDate: currentUser.birthDate,\n          avatar: currentUser.avatar,\n          region: (currentUser as { region?: string }).region,\n        },\n        newPostTitle.trim(),\n        fileToUpload,\n        newPostType\n      );\n\n      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);\n      setNewPostTitle('');\n      setSelectedFile(null);\n      setUploadReadyFile(null);\n      setFilePreviewUrl('');\n      setIsUploadModalOpen(false);\n      alert('Paylaşım uğurla yerləşdirildi! Kəşf et səhifəsində hamı görə bilər (24 saat).');\n    } catch (err) {\n      console.error('Paylaşım xətası:', err);\n      const msg = err instanceof Error ? err.message : 'Paylaşım yüklənmədi.';\n      alert(msg);\n    } finally {\n      setIsUploadingPost(false);\n    }\n  };\n\n  if (profileBooting) {\n    return <ProfileBootSkeleton />;\n  }\n\n  if (!isRegistered) {\n    return (\n      <div className={profileStyles.registerWorld}>\n        <div className={profileStyles.registerCard}>\n          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>\n            <h2 className={profileStyles.registerTitle}>{t.registerTitle}</h2>\n            <div style={{ display: 'flex', gap: '5px' }}>\n              <button type="button" onClick={() => setSettingsLang('az')} style={{ ...langBtnStyle, fontWeight: language === 'az' ? 800 : 400, backgroundColor: language === 'az' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>AZ</button>\n              <button type="button" onClick={() => setSettingsLang('ru')} style={{ ...langBtnStyle, fontWeight: language === 'ru' ? 800 : 400, backgroundColor: language === 'ru' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>RU</button>\n              <button type="button" onClick={() => setSettingsLang('en')} style={{ ...langBtnStyle, fontWeight: language === 'en' ? 800 : 400, backgroundColor: language === 'en' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>EN</button>\n              <button type="button" onClick={() => setSettingsLang('tr')} style={{ ...langBtnStyle, fontWeight: language === 'tr' ? 800 : 400, backgroundColor: language === 'tr' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>TR</button>\n            </div>\n          </div>\n          <p className={profileStyles.registerSub}>{t.registerSubtitle}</p>\n\n          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>\n            <div>\n              <label className={profileStyles.registerLabel}>{t.name}</label>\n              <input type="text" placeholder="Məs: Sədi" value={inputName} onChange={(e) => setInputName(e.target.value)} className={profileStyles.registerInput} required />\n            </div>\n            <div>\n              <label className={profileStyles.registerLabel}>{t.surname}</label>\n              <input type="text" placeholder="Məs: Məmmədov" value={inputSurname} onChange={(e) => setInputSurname(e.target.value)} className={profileStyles.registerInput} required />\n            </div>\n            <div>\n              <label className={profileStyles.registerLabel}>{t.handle}</label>\n              <input type="text" placeholder="Məs: @sadi" value={inputHandle} onChange={(e) => setInputHandle(e.target.value)} className={profileStyles.registerInput} />\n            </div>\n            <div>\n              <label className={profileStyles.registerLabel}>{t.gender}</label>\n              <select value={inputGender} onChange={(e) => setInputGender(e.target.value)} className={profileStyles.registerInput}>\n                <option value="Kişi">{t.male}</option>\n                <option value="Qadın">{t.female}</option>\n              </select>\n            </div>\n            <div>\n              <label className={profileStyles.registerLabel}>{t.birthDate}</label>\n              <input type="date" value={inputBirthDate} onChange={(e) => setInputBirthDate(e.target.value)} className={profileStyles.registerInput} required />\n            </div>\n\n            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>\n              <input type="checkbox" id="terms" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} required />\n              <label htmlFor="terms" style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0', cursor: 'pointer' }}>{t.termsAccept}</label>\n            </div>\n            <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>\n              <Link href="/terms">İstifadə şərtləri</Link>\n              <Link href="/privacy">Məxfilik siyasəti</Link>\n            </div>\n\n            <button type="submit" className={profileStyles.registerSubmit}>{t.submitBtn}</button>\n          </form>\n        </div>\n      </div>\n    );\n  }\n\n  if (viewUserId && viewUserId !== currentUser.id) {\n    return <OtherUserProfile targetUserId={viewUserId} myId={userId} />;\n  }\n\n  return (\n    <div className={profileStyles.profileWorld}>\n      <div className={profileStyles.profileGlow} aria-hidden />\n      <header className={profileStyles.profileTopBar}>\n        <div className={profileStyles.profileTopLeft}>\n          <div className={profileStyles.profileAdBoltWrap}>\n            <GoogleAdButton\n              variant="bolt"\n              className={isDiscoverBoostActive(discoverBoostUntil, boostNow) ? profileStyles.profileAdBoltOn : undefined}\n              onReward={async () => {\n                try {\n                  await activateDiscoverBoost(currentUser.id);\n                  setXpModeNotice('Videoların və şəkillərin 2 dəqiqə kəşfdə öndədir');\n                } catch (err) {\n                  alert(err instanceof Error ? err.message : 'Kəşf boostu alınmadı');\n                }\n              }}\n            />\n            {isDiscoverBoostActive(discoverBoostUntil, boostNow) ? (\n              <span className={profileStyles.profileAdBoltTimer}>\n                {Math.ceil((discoverBoostUntil - boostNow) / 1000)}s\n              </span>\n            ) : null}\n          </div>\n        </div>\n        <div className={profileStyles.profileTopActions}>\n          <button\n            type="button"\n            className={profileStyles.walletPill}\n            onClick={() => setShowWalletModal(true)}\n            title={t.wallet}\n          >\n            ₼ {isBalanceVisible ? manat.toLocaleString('az-AZ') : '•••'}\n          </button>\n          <AppLink href="/settings" className={profileStyles.settingsBtn} title="Ayarlar">\n            ⚙️\n          </AppLink>\n        </div>\n      </header>\n\n      <ProfileHeroDisplay\n        name={currentUser.name}\n        surname={currentUser.surname}\n        avatar={currentUser.avatar}\n        handle={currentUser.handle}\n        metaExtra={`${currentUser.gender} · ID ${currentUser.id}`}\n        cosmetics={playerProfile?.cosmetics}\n        bannerFallback={currentUser.bannerGradient}\n        bannerImage={currentUser.bannerImage || undefined}\n        editable={isRegistered}\n        uploadingAvatar={uploadingAvatar}\n        uploadingBanner={uploadingBanner}\n        onEditAvatar={() => avatarInputRef.current?.click()}\n        onEditBanner={() => bannerInputRef.current?.click()}\n        bannerActions={\n          <div className={profileStyles.xpModeControl}>\n            <button\n              type="button"\n              className={`${profileStyles.xpModeBtn} ${xpModeOn ? profileStyles.xpModeBtnOn : profileStyles.xpModeBtnOff}`}\n              aria-pressed={xpModeOn}\n              disabled={xpModeToggling || !userId}\n              aria-label={xpModeOn ? 'XP rejimi aktivdir' : 'XP rejimi sönülüdür'}\n              onClick={() => {\n                if (!userId || xpModeToggling) return;\n                const next = !xpModeOn;\n                setXpModeOn(next);\n                setXpModeToggling(true);\n                setXpModeNotice(next ? 'XP rejimi aktivləşdirildi' : 'XP rejimini söndürdünüz');\n                void setProPanelActive(userId, !next)\n                  .catch((err) => {\n                    setXpModeOn(!next);\n                    setXpModeNotice(null);\n                    alert(err instanceof Error ? err.message : 'XP rejimi dəyişmədi');\n                  })\n                  .finally(() => setXpModeToggling(false));\n              }}\n            >\n              <svg className={profileStyles.xpModeIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">\n                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />\n                <circle cx="9" cy="7" r="4" />\n                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />\n                <path d="M16 3.13a4 4 0 0 1 0 7.75" />\n              </svg>\n            </button>\n            {xpModeNotice ? (\n              <p className={`${profileStyles.xpModeHint} text-[11px]`} role="status" aria-live="polite">\n                {xpModeNotice}\n              </p>\n            ) : null}\n          </div>\n        }\n      >\n        <div className={profileStyles.statPills}>\n          <button\n            type="button"\n            className={`${profileStyles.statPill} ${profileStyles.statPillBtn}`}\n            onClick={() => setFollowListMode('followers')}\n          >\n            <span className={profileStyles.statPillValue}>{stats.followers}</span>\n            <span className={profileStyles.statPillLabel}>{t.followers}</span>\n          </button>\n          <button\n            type="button"\n            className={`${profileStyles.statPill} ${profileStyles.statPillBtn}`}\n            onClick={() => setFollowListMode('following')}\n          >\n            <span className={profileStyles.statPillValue}>{stats.following}</span>\n            <span className={profileStyles.statPillLabel}>{t.following}</span>\n          </button>\n          <div className={profileStyles.statPill}>\n            <span className={profileStyles.statPillValue}>{stats.likes}</span>\n            <span className={profileStyles.statPillLabel}>{t.likes}</span>\n          </div>\n          <div className={profileStyles.statPill}>\n            <span className={profileStyles.statPillValue}>{stats.viewsReceived}</span>\n            <span className={profileStyles.statPillLabel}>{t.views}</span>\n          </div>\n        </div>\n      </ProfileHeroDisplay>\n\n      <input\n        ref={avatarInputRef}\n        type="file"\n        accept="image/*"\n        hidden\n        onChange={handleAvatarFile}\n      />\n      <input\n        ref={bannerInputRef}\n        type="file"\n        accept="image/*"\n        hidden\n        onChange={handleBannerFile}\n      />\n\n      <ProfilePhotoEditorModal\n        open={photoEditor !== null}\n        kind={photoEditor?.kind ?? 'avatar'}\n        file={photoEditor?.file ?? null}\n        onClose={closePhotoEditor}\n        onConfirm={(file) => {\n          const kind = photoEditor?.kind ?? 'avatar';\n          void uploadProfilePhoto(kind, file);\n        }}\n      />\n\n      <div className={profileStyles.profileQuickRow}>\n        <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickAlliance}`} onClick={() => setShowAllianceModal(true)}>\n          <span className={profileStyles.actionIcon} aria-hidden="true"><ShieldCheck size={21} strokeWidth={2.2} /></span>\n          <span className={profileStyles.actionLabel}>İttifaq</span>\n        </button>\n        <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickRank}`} onClick={() => setShowRankModal(true)}>\n          <span className={profileStyles.actionIcon} aria-hidden="true"><Trophy size={21} strokeWidth={2.2} /></span>\n          <span className={profileStyles.actionLabel}>Reytinq</span>\n        </button>\n        <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickGifts}`} onClick={() => setShowGiftsModal(true)}>\n          <span className={profileStyles.actionIcon} aria-hidden="true"><Gift size={21} strokeWidth={2.2} /></span>\n          <span className={profileStyles.actionLabel}>Hədiyyələr</span>\n        </button>\n      </div>\n\n      <div className={profileStyles.contentStack}>\n        <section className={profileStyles.postsPanel}>\n          <div className={profileStyles.postsSectionHead}>\n            <h2 className={profileStyles.postsSectionTitle}>{t.postsTitle}</h2>\n            <span className={profileStyles.postsSectionCount}>{posts.length} paylaşım</span>\n          </div>\n          <p className={profileStyles.postsSectionSub}>{t.postsSubtitle} Kəşf et-də görünür.</p>\n          {postsLoadError ? (\n            <div style={{ textAlign: 'center', padding: 16, color: '#f87171', fontSize: 13 }}>{postsLoadError}</div>\n          ) : null}\n          {posts.length === 0 ? (\n            <div className={profileStyles.postsEmpty}>\n              <p className={profileStyles.postsEmptyTitle}>{t.noPosts}</p>\n              <p className={profileStyles.postsEmptyHint}>{t.noPostsHint}</p>\n            </div>\n          ) : (\n            <div className={profileStyles.postGridPremium}>\n              {posts.map((post) => (\n                <div key={post.id} className={profileStyles.postTile} onClick={() => setSelectedPostId(post.id)}>\n                  {post.mediaType === 'video' ? (\n                    <video src={post.mediaUrl} muted />\n                  ) : (\n                    <img src={post.mediaUrl} alt={post.title} />\n                  )}\n                </div>\n              ))}\n            </div>\n          )}\n        </section>\n      </div>\n\n      <button type="button" className={profileStyles.uploadFabPremium} onClick={handleOpenUploadModal} aria-label="Paylaş">+</button>\n\n      <FollowListSheet\n        open={followListMode !== null}\n        onClose={() => setFollowListMode(null)}\n        userId={currentUser.id}\n        mode={followListMode ?? 'followers'}\n        title={followListMode === 'following' ? t.followingList : t.followersList}\n        emptyText={followListMode === 'following' ? t.emptyFollowing : t.emptyFollowers}\n      />\n\n      {isSuperAdmin(currentUser.id) && (\n        <AdminPanel userId={currentUser.id} displayName={`${currentUser.name} ${currentUser.surname}`.trim()} />\n      )}\n\n      <AppBottomNav activeTab="profile" />\n\n      {activePost && (\n        <div\n          className={`${socialStyles.modalOverlay} ${profileStyles.postViewerOverlay}`}\n          onClick={closePostViewer}\n          role="dialog"\n          aria-modal="true"\n          aria-label="Paylaşım"\n        >\n          <div className={profileStyles.postViewerSheet} onClick={(e) => e.stopPropagation()}>\n            <div className={profileStyles.postViewerHeader}>\n              <h3 className={profileStyles.postViewerTitle}>{activePost.title}</h3>\n              <button type="button" className={profileStyles.profileModalClose} onClick={closePostViewer} aria-label="Bağla">✕</button>\n            </div>\n\n            <div className={profileStyles.postViewerMedia}>\n              {activePost.mediaType === 'video' ? (\n                <video src={activePost.mediaUrl} controls playsInline />\n              ) : (\n                <img src={activePost.mediaUrl} alt={activePost.title} />\n              )}\n            </div>\n\n            <div className={profileStyles.postViewerBody}>\n              <div className={profileStyles.postViewerActions}>\n                <div className={profileStyles.postViewerActionGroup}>\n                  <button\n                    type="button"\n                    className={profileStyles.postViewerActionBtn}\n                    onClick={() => handleLike(activePost.id)}\n                    disabled={activePost.isLiked}\n                    aria-label="Bəyən"\n                  >\n                    <PostActionIcon kind={activePost.isLiked ? 'like-active' : 'like'} alt="Bəyən" size="sm" />\n                    <span>{activePost.likes}</span>\n                  </button>\n                  <button type="button" className={profileStyles.postViewerActionBtn} onClick={() => setIsGiftModalOpen(true)}>\n                    🎁 Hədiyyə\n                  </button>\n                </div>\n                <div className={profileStyles.postViewerActionGroup}>\n                  <button\n                    type="button"\n                    className={profileStyles.postViewerActionBtn}\n                    onClick={() => void handleSharePost(activePost.id, activePost.title)}\n                    aria-label="Paylaş"\n                  >\n                    <PostActionIcon kind="share" alt="Paylaş" size="sm" />\n                  </button>\n                  <button type="button" className={profileStyles.postViewerActionBtn} onClick={handleReport} title="Bildir" aria-label="Bildir">\n                    <PostActionIcon kind="report" alt="Bildir" size="sm" />\n                  </button>\n                </div>\n              </div>\n\n              <div className={profileStyles.postViewerSection}>\n                Alınan hədiyyələr ({activePost.receivedGifts.length})\n              </div>\n              <div className={profileStyles.postViewerGifts}>\n                {activePost.receivedGifts.length === 0 ? (\n                  <span style={{ fontSize: 11, color: '#64748b' }}>Hələ hədiyyə yoxdur</span>\n                ) : (\n                  activePost.receivedGifts.map((g, i) => (\n                    <span key={i} title={`${g.name} (${g.price} ₼)`} style={{ fontSize: 22 }}>{g.icon}</span>\n                  ))\n                )}\n              </div>\n\n              <div className={profileStyles.postViewerComments}>\n                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#e2e8f0' }}>\n                  Şərhlər ({viewerComments.length})\n                </div>\n                {viewerComments.length === 0 ? (\n                  <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center' }}>İlk şərh yazan sən ol!</div>\n                ) : (\n                  viewerComments.map((c) => (\n                    <div key={c.id} className={profileStyles.postViewerCommentItem}>\n                      <span style={{ fontWeight: 800, color: '#a5b4fc', marginRight: 6 }}>{c.userName}:</span>\n                      {c.text}\n                    </div>\n                  ))\n                )}\n              </div>\n            </div>\n\n            <form\n              className={profileStyles.postViewerCommentForm}\n              onSubmit={handleAddComment}\n            >\n              <input\n                type="text"\n                placeholder="Şərh yaz..."\n                value={newCommentText}\n                onChange={(e) => setNewCommentText(e.target.value)}\n                className={profileStyles.postViewerCommentInput}\n              />\n              <button type="submit" className={profileStyles.postViewerCommentSubmit} disabled={commentSubmitting}>\n                {commentSubmitting ? '...' : 'Göndər'}\n              </button>\n            </form>\n\n            <div className={profileStyles.postViewerCloseBar}>\n              <button type="button" className={profileStyles.postViewerCloseBtn} onClick={closePostViewer}>\n                Bağla\n              </button>\n            </div>\n          </div>\n        </div>\n      )}\n\n      {showWalletModal && (\n        <div className={socialStyles.modalOverlay} onClick={() => setShowWalletModal(false)}>\n          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>\n            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>\n              <h2 className={socialStyles.modalTitle}>₼ {t.wallet}</h2>\n              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowWalletModal(false)} aria-label="Bağla">✕</button>\n            </div>\n            <div className={profileStyles.walletModalAmount}>\n              {isBalanceVisible ? `${manat.toLocaleString('az-AZ')} Manat` : '••••••'}\n            </div>\n            <div className={profileStyles.walletModalActions}>\n              <button type="button" className={socialStyles.secondaryBtn} onClick={() => setIsBalanceVisible(!isBalanceVisible)}>\n                {isBalanceVisible ? t.hide : t.show}\n              </button>\n              <AppLink href="/shop" className={socialStyles.primaryBtn} style={{ textDecoration: 'none', textAlign: 'center', flex: 1 }}>\n                ⚔️ Mağazaya get\n              </AppLink>\n            </div>\n            <section style={{ marginTop: 18, padding: 14, borderRadius: 16, border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(15,23,42,0.55)' }}>\n              <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Təsdiqlənmiş email</h3>\n              <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>\n                Referral və pul çıxarışı üçün hesab emailini bağla və təsdiqlə.\n              </p>\n              <input\n                type="email"\n                value={accountEmail}\n                onChange={(event) => setAccountEmail(event.target.value)}\n                placeholder="Email ünvanı"\n                autoComplete="email"\n                className={profileStyles.registerInput}\n                disabled={accountEmailVerified}\n              />\n              {!accountEmailVerified ? (\n                <input\n                  type="password"\n                  value={accountPassword}\n                  onChange={(event) => setAccountPassword(event.target.value)}\n                  placeholder="Şifrə (ən azı 6 simvol)"\n                  autoComplete="new-password"\n                  className={profileStyles.registerInput}\n                  style={{ marginTop: 8 }}\n                />\n              ) : null}\n              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>\n                {!accountEmailVerified ? (\n                  <button type="button" className={socialStyles.primaryBtn} disabled={accountSecurityBusy} onClick={() => void handleLinkAndVerifyEmail()}>\n                    {accountSecurityBusy ? 'Gözlə…' : auth.currentUser?.email ? 'Təsdiq linkini göndər' : 'Emaili hesaba bağla'}\n                  </button>\n                ) : <span style={{ color: '#67e8f9', fontWeight: 700 }}>Email təsdiqlənib</span>}\n                <button type="button" className={socialStyles.secondaryBtn} disabled={accountSecurityBusy} onClick={() => void handleCheckEmailVerification()}>\n                  Təsdiqi yoxla\n                </button>\n              </div>\n              {accountSecurityMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{accountSecurityMessage}</p> : null}\n            </section>\n\n            <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(15,23,42,0.55)' }}>\n              <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 800 }}>Dost dəvəti</h3>\n              <button type="button" className={socialStyles.secondaryBtn} disabled={referralBusy} onClick={() => void handleLoadReferralCode()}>\n                {referralBusy ? 'Gözlə…' : 'Dəvət kodumu göstər'}\n              </button>\n              {myReferralCode ? <p style={{ margin: '8px 0', color: '#c4b5fd', fontWeight: 800, letterSpacing: 2 }}>{myReferralCode}</p> : null}\n              <form onSubmit={handleApplyReferralCode} style={{ display: 'flex', gap: 8, marginTop: 8 }}>\n                <input\n                  value={applyReferralCode}\n                  onChange={(event) => setApplyReferralCode(event.target.value.toUpperCase())}\n                  placeholder="Dəvət kodu"\n                  maxLength={20}\n                  className={profileStyles.registerInput}\n                />\n                <button type="submit" className={socialStyles.primaryBtn} disabled={referralBusy || !applyReferralCode.trim()}>\n                  Tətbiq et\n                </button>\n              </form>\n              {referralMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{referralMessage}</p> : null}\n            </section>\n\n            <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(15,23,42,0.55)' }}>\n              <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Manatı çıxar</h3>\n              <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>\n                Minimum 10 AZN. Sorğu balansdan ayrılır, 48 saatlıq gözləmə və yoxlamadan sonra işlənir.\n              </p>\n              <form onSubmit={handleCreateWithdrawal} style={{ display: 'grid', gap: 8 }}>\n                <input\n                  type="number"\n                  min={10}\n                  step={1}\n                  value={withdrawAmount}\n                  onChange={(event) => setWithdrawAmount(event.target.value)}\n                  className={profileStyles.registerInput}\n                  aria-label="Çıxarış məbləği, AZN"\n                />\n                <input\n                  type="email"\n                  value={withdrawEmail}\n                  onChange={(event) => setWithdrawEmail(event.target.value)}\n                  placeholder="Təsdiqlənmiş PayPal emaili"\n                  className={profileStyles.registerInput}\n                  required\n                />\n                <button type="submit" className={socialStyles.primaryBtn} disabled={withdrawBusy || !accountEmailVerified}>\n                  {withdrawBusy ? 'Sorğu göndərilir…' : 'Çıxarış sorğusu yarat'}\n                </button>\n              </form>\n              {withdrawMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{withdrawMessage}</p> : null}\n            </section>\n          </div>\n        </div>\n      )}\n\n      {showAllianceModal && (\n        <div className={socialStyles.modalOverlay} onClick={() => setShowAllianceModal(false)}>\n          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>\n            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>\n              <h2 className={socialStyles.modalTitle}>🛡️ {t.allianceTitle}</h2>\n              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowAllianceModal(false)} aria-label="Bağla">✕</button>\n            </div>\n            <AllianceProfileCard title={t.allianceTitle} />\n          </div>\n        </div>\n      )}\n\n      {showRankModal && (\n        <div className={socialStyles.modalOverlay} onClick={() => setShowRankModal(false)}>\n          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>\n            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>\n              <h2 className={socialStyles.modalTitle}>🏆 {t.rankTitle}</h2>\n              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowRankModal(false)} aria-label="Bağla">✕</button>\n            </div>\n            <div className={profileStyles.glassCardBody} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 16, background: 'rgba(15,23,42,0.5)' }}>\n              <div>\n                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>{t.activeSeason}</div>\n                <div style={{ fontSize: 30, fontWeight: 900, color: '#f1f5f9', margin: '4px 0' }}>Unranked</div>\n                <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.score}: <strong style={{ color: '#f472b6' }}>{stats.activeSeasonScore}</strong></div>\n              </div>\n              <div className={profileStyles.rankBadge}>🛡️</div>\n            </div>\n          </div>\n        </div>\n      )}\n\n      {showGiftsModal && (\n        <div className={socialStyles.modalOverlay} onClick={() => setShowGiftsModal(false)}>\n          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>\n            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>\n              <h2 className={socialStyles.modalTitle}>🎁 {t.giftGallery} ({allReceivedGifts.length})</h2>\n              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowGiftsModal(false)} aria-label="Bağla">✕</button>\n            </div>\n            {allReceivedGifts.length === 0 ? (\n              <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>{t.noGifts}</div>\n            ) : (\n              <div className={profileStyles.giftGrid}>\n                {allReceivedGifts.map((gift, idx) => (\n                  <div key={idx} className={profileStyles.giftItem}>\n                    <div className={profileStyles.giftIcon}>{gift.icon}</div>\n                    <div style={{ fontSize: 11, fontWeight: 700, color: '#e2e8f0' }}>{gift.name.split(' ')[0]}</div>\n                    <div style={{ fontSize: 10, color: '#f472b6', fontWeight: 600 }}>{gift.price} ₼</div>\n                  </div>\n                ))}\n              </div>\n            )}\n          </div>\n        </div>\n      )}\n\n      {isUploadModalOpen && (\n        <div className={socialStyles.modalOverlay} onClick={() => !isUploadingPost && setIsUploadModalOpen(false)}>\n          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>\n            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>\n              <h2 className={socialStyles.modalTitle}>Yeni Paylaşım</h2>\n              <button type="button" className={profileStyles.profileModalClose} onClick={() => setIsUploadModalOpen(false)} disabled={isUploadingPost} aria-label="Bağla">✕</button>\n            </div>\n            <form onSubmit={handleCreatePost}>\n              <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Başlıq</label>\n              <input\n                type="text"\n                placeholder="Paylaşım başlığı..."\n                value={newPostTitle}\n                onChange={(e) => setNewPostTitle(e.target.value)}\n                className={socialStyles.input}\n                required\n              />\n              <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Media</label>\n              <div className={profileStyles.postPickRow}>\n                <button type="button" className={profileStyles.postPickBtn} onClick={() => postGalleryInputRef.current?.click()}>\n                  🖼️ Qalereya\n                </button>\n                <button type="button" className={profileStyles.postPickBtn} onClick={() => postCameraInputRef.current?.click()}>\n                  📷 Kamera\n                </button>\n              </div>\n              <input\n                ref={postGalleryInputRef}\n                type="file"\n                accept="image/*,video/*"\n                className={profileStyles.hiddenFileInput}\n                onChange={handlePostFileChange}\n              />\n              <input\n                ref={postCameraInputRef}\n                type="file"\n                accept="image/*,video/*"\n                capture="environment"\n                className={profileStyles.hiddenFileInput}\n                onChange={handlePostFileChange}\n              />\n              {selectedFile && (\n                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, textAlign: 'center' }}>\n                  Seçildi: {selectedFile.name}\n                </div>\n              )}\n              {filePreviewUrl && (\n                <div style={{ textAlign: 'center', maxHeight: 180, overflow: 'hidden', borderRadius: 12, background: '#000', marginBottom: 12 }}>\n                  {newPostType === 'video' ? (\n                    <video src={filePreviewUrl} style={{ width: '100%', maxHeight: 180, objectFit: 'contain' }} controls muted />\n                  ) : (\n                    <img src={filePreviewUrl} alt="Preview" style={{ width: '100%', maxHeight: 180, objectFit: 'contain' }} />\n                  )}\n                </div>\n              )}\n              <button type="submit" className={socialStyles.primaryBtn} disabled={isUploadingPost || isPreparingFile || !selectedFile || !newPostTitle.trim()}>\n                {isUploadingPost ? 'Yüklənir...' : isPreparingFile ? 'Hazırlanır...' : 'Paylaş (24 saat)'}\n              </button>\n              {isPreparingFile ? (\n                <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 8 }}>\n                  Fayl optimizasiya olunur...\n                </p>\n              ) : null}\n              {isUploadingPost ? (\n                <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 8 }}>\n                  Paylaşım göndərilir, zəhmət olmasa gözləyin...\n                </p>\n              ) : null}\n            </form>\n          </div>\n        </div>\n      )}\n\n      {isGiftModalOpen && (\n        <div style={modalOverlayStyle}>\n          <div style={{ ...modalContentStyle, width: '90%', maxWidth: '400px', height: 'auto', padding: '20px' }}>\n            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>\n              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Hədiyyə Seçin</h3>\n              <button onClick={() => setIsGiftModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✕</button>\n            </div>\n            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '15px' }}>\n              {availableGifts.map(gift => (\n                <div \n                  key={gift.id} \n                  onClick={() => handleSendGift(gift)}\n                  style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', textAlign: 'center', cursor: 'pointer', background: '#f8fafc' }}\n                >\n                  <div style={{ fontSize: '30px', marginBottom: '5px' }}>{gift.icon}</div>\n                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a' }}>{gift.name}</div>\n                  <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 600, marginTop: '4px' }}>{gift.price} ₼</div>\n                </div>\n              ))}\n            </div>\n          </div>\n        </div>\n      )}\n    </div>\n  );\n}\n\nconst fullScreenWrapperStyle: React.CSSProperties = {\n  width: '100%',\n  minHeight: '100vh',\n  backgroundColor: '#ffffff',\n  position: 'relative',\n  paddingBottom: '80px',\n  boxSizing: 'border-box'\n};\n\nconst topHeaderStandardStyle: React.CSSProperties = {\n  display: 'flex',\n  justifyContent: 'space-between',\n  alignItems: 'center',\n  padding: '15px 20px',\n  borderBottom: '1px solid #f1f5f9',\n  backgroundColor: '#ffffff',\n  position: 'sticky',\n  top: 0,\n  zIndex: 80\n};\n\nconst mainContentContainerStyle: React.CSSProperties = {\n  width: '100%',\n  maxWidth: '800px',\n  margin: '0 auto',\n  boxSizing: 'border-box'\n};\n\nconst balanceHeaderContainerStyle: React.CSSProperties = {\n  display: 'flex',\n  justifyContent: 'space-between',\n  alignItems: 'center',\n  padding: '15px 20px',\n  borderBottom: '1px solid #f1f5f9',\n  flexWrap: 'wrap',\n  gap: '10px'\n};\n\nconst uploadHeaderBtnStyle: React.CSSProperties = {\n  backgroundColor: '#4f46e5',\n  color: '#fff',\n  border: 'none',\n  padding: '8px 14px',\n  borderRadius: '8px',\n  fontSize: '12px',\n  fontWeight: 700,\n  cursor: 'pointer'\n};\n\nconst toggleBalanceBtnStyle: React.CSSProperties = {\n  backgroundColor: '#f1f5f9',\n  color: '#334155',\n  border: 'none',\n  padding: '8px 12px',\n  borderRadius: '8px',\n  fontSize: '12px',\n  fontWeight: 600,\n  cursor: 'pointer'\n};\n\nconst headerBannerStyle: React.CSSProperties = {\n  height: '160px',\n  width: '100%'\n};\n\nconst profileInfoStyle: React.CSSProperties = {\n  padding: '0 20px 20px 20px',\n  position: 'relative',\n  borderBottom: '1px solid #f1f5f9'\n};\n\nconst avatarWrapperStyle: React.CSSProperties = {\n  width: '90px',\n  height: '90px',\n  borderRadius: '50%',\n  border: '4px solid #fff',\n  overflow: 'hidden',\n  marginTop: '-45px',\n  backgroundColor: '#fff',\n  boxShadow: '0 4px 10px rgba(0,0,0,0.1)'\n};\n\nconst avatarImgStyle: React.CSSProperties = {\n  width: '100%',\n  height: '100%',\n  objectFit: 'cover'\n};\n\nconst nameTitleStyle: React.CSSProperties = {\n  fontSize: '18px',\n  fontWeight: 900,\n  color: '#0f172a',\n  margin: '8px 0 2px 0'\n};\n\nconst handleTitleStyle: React.CSSProperties = {\n  fontSize: '12px',\n  color: '#64748b',\n  fontWeight: 600,\n  marginBottom: '15px'\n};\n\nconst statsContainerStyle: React.CSSProperties = {\n  display: 'flex',\n  gap: '20px',\n  fontSize: '12px',\n  color: '#64748b',\n  flexWrap: 'wrap'\n};\n\nconst gridContainerStyle: React.CSSProperties = {\n  display: 'grid',\n  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',\n  gap: '15px',\n  padding: '20px'\n};\n\nconst postsGridStyle: React.CSSProperties = {\n  display: 'grid',\n  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',\n  gap: '15px'\n};\n\nconst cardStyle: React.CSSProperties = {\n  backgroundColor: '#ffffff',\n  border: '1px solid #e2e8f0',\n  borderRadius: '12px',\n  overflow: 'hidden',\n  display: 'flex',\n  flexDirection: 'column'\n};\n\nconst cardHeaderStyle: React.CSSProperties = {\n  padding: '12px 16px',\n  backgroundColor: '#f8fafc',\n  borderBottom: '1px solid #e2e8f0',\n  fontSize: '11px',\n  fontWeight: 800,\n  color: '#475569',\n  letterSpacing: '0.5px'\n};\n\nconst cardBodyStyle: React.CSSProperties = {\n  padding: '16px',\n  display: 'flex',\n  flexDirection: 'column',\n  flex: 1\n};\n\nconst iconBoxStyle: React.CSSProperties = {\n  width: '36px',\n  height: '36px',\n  backgroundColor: '#f1f5f9',\n  borderRadius: '8px',\n  display: 'flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  fontSize: '18px',\n  flexShrink: 0\n};\n\nconst cardFooterStyle: React.CSSProperties = {\n  display: 'flex',\n  justifyContent: 'space-between',\n  fontSize: '11px',\n  color: '#64748b',\n  marginBottom: '12px'\n};\n\nconst actionButtonStyle: React.CSSProperties = {\n  width: '100%',\n  backgroundColor: '#4f46e5',\n  color: '#fff',\n  border: 'none',\n  padding: '10px',\n  borderRadius: '8px',\n  fontSize: '12px',\n  fontWeight: 700,\n  cursor: 'pointer'\n};\n\nconst registerContainerStyle: React.CSSProperties = {\n  display: 'flex',\n  justifyContent: 'center',\n  alignItems: 'center',\n  minHeight: '100vh',\n  width: '100%',\n  backgroundColor: '#f8fafc',\n  padding: '20px',\n  boxSizing: 'border-box'\n};\n\nconst registerCardStyle: React.CSSProperties = {\n  backgroundColor: '#ffffff',\n  padding: '24px',\n  borderRadius: '16px',\n  boxShadow: '0 10px 25px rgba(0,0,0,0.05)',\n  border: '1px solid #e2e8f0'\n};\n\nconst inputStyle: React.CSSProperties = {\n  width: '100%',\n  padding: '10px 12px',\n  borderRadius: '8px',\n  border: '1px solid #cbd5e1',\n  fontSize: '12px',\n  outline: 'none',\n  marginTop: '4px',\n  boxSizing: 'border-box'\n};\n\nconst langBtnStyle: React.CSSProperties = {\n  padding: '4px 8px',\n  borderRadius: '6px',\n  border: 'none',\n  cursor: 'pointer',\n  fontSize: '11px'\n};\n\nconst bottomNavBarStyle: React.CSSProperties = {\n  height: '65px',\n  width: '100%',\n  backgroundColor: '#ffffff',\n  borderTop: '1px solid #f1f5f9',\n  display: 'flex',\n  justifyContent: 'space-around',\n  alignItems: 'center',\n  position: 'fixed',\n  bottom: 0,\n  left: 0,\n  zIndex: 90,\n  boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.05)'\n};\n\nconst navItemStyle: React.CSSProperties = {\n  display: 'flex',\n  flexDirection: 'column',\n  alignItems: 'center',\n  textDecoration: 'none',\n  gap: '3px'\n};\n\nconst centerNavItemStyle: React.CSSProperties = {\n  width: '52px',\n  height: '52px',\n  backgroundColor: '#4f46e5',\n  borderRadius: '50%',\n  display: 'flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  boxShadow: '0 4px 15px rgba(79, 70, 229, 0.4)',\n  marginTop: '-8px'\n};\n\nconst modalOverlayStyle: React.CSSProperties = {\n  position: 'fixed',\n  top: 0,\n  left: 0,\n  width: '100vw',\n  height: '100vh',\n  backgroundColor: 'rgba(0,0,0,0.5)',\n  display: 'flex',\n  justifyContent: 'center',\n  alignItems: 'center',\n  zIndex: 100,\n  padding: '10px',\n  boxSizing: 'border-box'\n};\n\nconst modalContentStyle: React.CSSProperties = {\n  width: '100%',\n  maxWidth: '750px',\n  height: '500px',\n  backgroundColor: '#ffffff',\n  borderRadius: '16px',\n  overflow: 'hidden',\n  display: 'flex',\n  flexDirection: 'column',\n  boxSizing: 'border-box'\n};\n\nconst modalBodyGridStyle: React.CSSProperties = {\n  display: 'grid',\n  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',\n  height: 'calc(100% - 60px)'\n};\n
+"use client";
+
+import React, { useState, useEffect, Suspense, useRef } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Gift, ShieldCheck, Trophy } from 'lucide-react';
+import AllianceProfileCard from '@/app/components/alliance/AllianceProfileCard';
+import { useUser } from '@/context/UserContext';
+import { useSettings } from '@/context/SettingsContext';
+import { ensurePlayerProfile } from '@/app/components/alliance/allianceService';
+import { notifyUserIdChanged } from '@/app/lib/userId';
+import {
+  createPost,
+  listenUserPosts,
+  toggleLikePost,
+  listenUserLikedPostIds,
+  listenUserLikesReceived,
+  listenUserViewsReceived,
+  readCachedViewsReceived,
+  writeCachedViewsReceived,
+  ensureMinLikesReceived,
+  readCachedLikesReceived,
+  writeCachedLikesReceived,
+  addPostComment,
+  listenPostComments,
+  preparePostMediaFile,
+} from '@/app/lib/postsService';
+import {
+  ensureFirebaseAuth,
+  linkCurrentAccountToEmail,
+  refreshEmailVerification,
+} from '@/app/lib/firebaseAuth';
+import { PostComment, SocialPost } from '@/app/lib/socialTypes';
+import { listenFollowCounts, reportContent } from '@/app/lib/socialService';
+import AppBottomNav from '@/app/components/AppBottomNav';
+import AdminPanel from '@/app/components/admin/AdminPanel';
+import { isSuperAdmin } from '@/app/lib/adminConfig';
+import { allocateNextUserId, allocateNextUserIdFallback } from '@/app/lib/adminService';
+import {
+  listenUserProfileMedia,
+  updateProfileAvatar,
+  updateProfileBanner,
+} from '@/app/lib/profileMediaService';
+import PostActionIcon from '@/app/components/social/PostActionIcon';
+import OtherUserProfile from '@/app/components/social/OtherUserProfile';
+import FollowListSheet from '@/app/components/social/FollowListSheet';
+import AppLink from '@/app/components/AppLink';
+import ProfileHeroDisplay from '@/app/components/profile/ProfileHeroDisplay';
+import ProfilePhotoEditorModal from '@/app/components/profile/ProfilePhotoEditorModal';
+import { ProfileCropKind } from '@/app/lib/profileImageCrop';
+import socialStyles from '@/app/components/social/social.module.css';
+import profileStyles from '@/app/components/profile/profile.module.css';
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { auth, db } from '@/firebase';
+import { setProPanelActive } from '@/app/lib/userPlan';
+import { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
+import GoogleAdButton from '@/app/components/alliance/GoogleAdButton';
+import {
+  activateDiscoverBoost,
+  isDiscoverBoostActive,
+  listenUserDiscoverBoost,
+} from '@/app/lib/discoverBoost';
+
+interface GiftItem {
+  id: number;
+  name: string;
+  icon: string;
+  price: number;
+}
+
+interface PostItem {
+  id: string;
+  userId: string;
+  title: string;
+  mediaUrl: string;
+  thumbnail: string;
+  mediaType: 'video' | 'image';
+  views: number;
+  likes: number;
+  isLiked: boolean;
+  isSaved: boolean;
+  receivedGifts: GiftItem[];
+  createdAt: number;
+}
+
+interface Stats {
+  followers: number;
+  following: number;
+  likes: number;
+  viewsReceived: number;
+  activeSeasonScore: number;
+}
+
+const availableGifts: GiftItem[] = [
+  { id: 1, name: "Qızılgül 🌹", icon: "🌹", price: 10 },
+  { id: 2, name: "Ulduz ⭐", icon: "⭐", price: 25 },
+  { id: 3, name: "Super Avtomobil 🏎️", icon: "🏎️", price: 100 },
+  { id: 4, name: "Tac 👑", icon: "👑", price: 250 },
+  { id: 5, name: "Almaz 💎", icon: "💎", price: 500 }
+];
+
+const translations = {
+  az: {
+    registerTitle: "Profil Yarat & Qeydiyyat",
+    registerSubtitle: "Məlumatlarını doldur, şərtləri qəbul et və unikal ID qazan.",
+    name: "Ad",
+    surname: "Soyad",
+    handle: "Nickname (İstifadəçi adı)",
+    gender: "Cins",
+    male: "Kişi",
+    female: "Qadın",
+    birthDate: "Doğum Tarixi",
+    termsAccept: "İstifadəçi razılaşmasını oxudum və bütün şərtləri qəbul edirəm.",
+    submitBtn: "Qeydiyyatı Tamamla & Profil Yarat",
+    wallet: "Cüzdan Balansı",
+    newPost: "Yeni Paylaşım (24 saat)",
+    hide: "🙈 Gizlə",
+    show: "👁️ Göstər",
+    followers: "İzləyici",
+    following: "İzlənən",
+    followersList: "İzləyicilər",
+    followingList: "İzlənənlər",
+    emptyFollowers: "Hələ izləyici yoxdur.",
+    emptyFollowing: "Heç kimi izləmir.",
+    gifts: "Hədiyyələr",
+    likes: "Bəyənmə",
+    views: "İzlənmə sayı",
+    allianceTitle: "İTTİFAQ (ALLIANCE)",
+    noAllianceTitle: "Aktiv İttifaq yoxdur",
+    noAllianceDesc: "Hələ heç bir ittifaqa qoşulmamısan",
+    status: "STATUS",
+    free: "Sərbəst",
+    rating: "REYTİNQ",
+    joinAlliance: "🛡️ İttifaqa Qoşul",
+    rankTitle: "REYTİNQ VƏ NİŞAN",
+    activeSeason: "Aktiv Sezon",
+    score: "Xal",
+    giftGallery: "Hədiyyələr Sərgisi",
+    noGifts: "Hələ heç bir hədiyyə almamısan.",
+    postsTitle: "Paylaşımlər (24 Saatlıq)",
+    postsSubtitle: "Paylaşımlər 24 saat sonra avtomatik silinir.",
+    total: "Cəmi",
+    noPosts: "Aktiv paylaşımlarınız yoxdur",
+    noPostsHint: "İlk paylaşımını etmək üçün '+' düyməsini istifadə et!"
+  },
+  ru: {
+    registerTitle: "Создать профиль & Регистрация",
+    registerSubtitle: "Заполните данные, примите условия.",
+    name: "Имя",
+    surname: "Фамилия",
+    handle: "Никнейм",
+    gender: "Пол",
+    male: "Мужской",
+    female: "Женский",
+    birthDate: "Дата рождения",
+    termsAccept: "Я принимаю условия.",
+    submitBtn: "Завершить регистрацию",
+    wallet: "Баланс",
+    newPost: "Новый пост",
+    hide: "🙈 Скрыть",
+    show: "👁️ Показать",
+    followers: "Подписчики",
+    following: "Подписки",
+    followersList: "Подписчики",
+    followingList: "Подписки",
+    emptyFollowers: "Пока нет подписчиков.",
+    emptyFollowing: "Никого не отслеживает.",
+    gifts: "Подарки",
+    likes: "Лайки",
+    views: "Просмотры",
+    allianceTitle: "АЛЬЯНС",
+    noAllianceTitle: "Нет альянса",
+    noAllianceDesc: "Вы не состоите в альянсе",
+    status: "СТАТУС",
+    free: "Свободный",
+    rating: "РЕЙТИНГ",
+    joinAlliance: "🛡️ Вступить",
+    rankTitle: "РЕЙТИНГ",
+    activeSeason: "Сезон",
+    score: "Очки",
+    giftGallery: "Галерея подарков",
+    noGifts: "Нет подарков",
+    postsTitle: "Публикации",
+    postsSubtitle: "Удаляются через 24 часа",
+    total: "Всего",
+    noPosts: "Активных публикаций нет",
+    noPostsHint: "Нажми «+», чтобы сделать первую публикацию!"
+  },
+  en: {
+    registerTitle: "Create Profile & Register",
+    registerSubtitle: "Fill in your details.",
+    name: "First Name",
+    surname: "Last Name",
+    handle: "Username",
+    gender: "Gender",
+    male: "Male",
+    female: "Female",
+    birthDate: "Birth Date",
+    termsAccept: "I accept the terms.",
+    submitBtn: "Complete Registration",
+    wallet: "Wallet Balance",
+    newPost: "New Post",
+    hide: "🙈 Hide",
+    show: "👁️ Show",
+    followers: "Followers",
+    following: "Following",
+    followersList: "Followers",
+    followingList: "Following",
+    emptyFollowers: "No followers yet.",
+    emptyFollowing: "Not following anyone yet.",
+    gifts: "Gifts",
+    likes: "Likes",
+    views: "Views",
+    allianceTitle: "ALLIANCE",
+    noAllianceTitle: "No Alliance",
+    noAllianceDesc: "No active alliance",
+    status: "STATUS",
+    free: "Free",
+    rating: "RATING",
+    joinAlliance: "🛡️ Join Alliance",
+    rankTitle: "RATING",
+    activeSeason: "Season",
+    score: "Score",
+    giftGallery: "Gift Gallery",
+    noGifts: "No gifts",
+    postsTitle: "Posts",
+    postsSubtitle: "Deleted after 24 hours",
+    total: "Total",
+    noPosts: "You have no active posts",
+    noPostsHint: "Tap + to share your first post!"
+  },
+  tr: {
+    registerTitle: "Profil Oluştur & Kayıt",
+    registerSubtitle: "Bilgilerini doldur, şartları kabul et.",
+    name: "Ad",
+    surname: "Soyad",
+    handle: "Kullanıcı adı",
+    gender: "Cinsiyet",
+    male: "Erkek",
+    female: "Kadın",
+    birthDate: "Doğum tarihi",
+    termsAccept: "Şartları okudum ve kabul ediyorum.",
+    submitBtn: "Kaydı tamamla ve profil oluştur",
+    wallet: "Cüzdan bakiyesi",
+    newPost: "Yeni paylaşım",
+    hide: "🙈 Gizle",
+    show: "👁️ Göster",
+    followers: "Takipçi",
+    following: "Takip",
+    followersList: "Takipçiler",
+    followingList: "Takip edilenler",
+    emptyFollowers: "Henüz takipçi yok.",
+    emptyFollowing: "Kimseyi takip etmiyor.",
+    gifts: "Hediyeler",
+    likes: "Beğeni",
+    views: "Görüntülenme",
+    allianceTitle: "İTTİFAK",
+    noAllianceTitle: "Aktif ittifak yok",
+    noAllianceDesc: "Henüz bir ittifaka katılmadın",
+    status: "DURUM",
+    free: "Serbest",
+    rating: "SIRALAMA",
+    joinAlliance: "🛡️ İttifaka katıl",
+    rankTitle: "SIRALAMA VE ROZET",
+    activeSeason: "Aktif sezon",
+    score: "Puan",
+    giftGallery: "Hediye galerisi",
+    noGifts: "Henüz hediye yok.",
+    postsTitle: "Paylaşımlar (24 saat)",
+    postsSubtitle: "Paylaşımlar 24 saat sonra silinir.",
+    total: "Toplam",
+    noPosts: "Aktif paylaşımın yok",
+    noPostsHint: "İlk paylaşım için + düğmesini kullan!"
+  }
+};
+
+const DEFAULT_PROFILE_USER = {
+  id: '',
+  name: '',
+  surname: '',
+  handle: '',
+  gender: 'Kişi',
+  birthDate: '',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+  bannerImage: '',
+  bannerGradient: 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 45%, #06b6d4 100%)',
+  bio: 'Yeni başlanğıc 🚀',
+  allianceName: '',
+};
+
+function readStoredProfile() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const savedUser = localStorage.getItem('app_current_user_v6');
+    if (!savedUser) return null;
+    const parsed = JSON.parse(savedUser);
+    const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
+    return { ...parsed, allianceName: savedAlliance || parsed.allianceName || '' };
+  } catch {
+    return null;
+  }
+}
+
+function ProfileBootSkeleton() {
+  return (
+    <div className={profileStyles.bootSkeleton}>
+      <div className={profileStyles.bootPulse} />
+    </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<ProfileBootSkeleton />}>
+      <ProfilePageContent />
+    </Suspense>
+  );
+}
+
+function ProfilePageContent() {
+  const searchParams = useSearchParams();
+  const viewUserId = searchParams.get('user');
+
+  const { manat, playerProfile, spendManat, userId } = useUser();
+  const { language: settingsLang, setLanguage: setSettingsLang } = useSettings();
+  const language = settingsLang;
+  const t = translations[language] ?? translations.az;
+  const [stats, setStats] = useState<Stats>({ followers: 0, following: 0, likes: 0, viewsReceived: 0, activeSeasonScore: 0 });
+  const [followListMode, setFollowListMode] = useState<'followers' | 'following' | null>(null);
+
+  const [currentUser, setCurrentUser] = useState(DEFAULT_PROFILE_USER);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [profileBooting, setProfileBooting] = useState(true);
+  const [inputName, setInputName] = useState('');
+  const [inputSurname, setInputSurname] = useState('');
+  const [inputHandle, setInputHandle] = useState('');
+  const [inputGender, setInputGender] = useState('Kişi');
+  const [inputBirthDate, setInputBirthDate] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [photoEditor, setPhotoEditor] = useState<{ kind: ProfileCropKind; file: File } | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const mediaSyncPausedRef = useRef(false);
+
+  const restoreExistingProfile = async () => {
+    try {
+      const firebaseUser = await ensureFirebaseAuth();
+      if (!firebaseUser || firebaseUser.isAnonymous) return;
+
+      // Look for an existing player profile linked to this Firebase UID
+      const playersRef = collection(db, 'players');
+      const q = query(playersRef, where('firebaseUid', '==', firebaseUser.uid));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        const data = docSnap.data() as Record<string, unknown>;
+        const playerId = docSnap.id;
+        const privateProfile = await getDoc(doc(db, 'private_user_profiles', firebaseUser.uid));
+        const privateData = privateProfile.exists() ? privateProfile.data() : {};
+
+        const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
+
+        const restoredUser = {
+          id: playerId,
+          firebaseUid: firebaseUser.uid,
+          name: (data.name || data.displayName || '') as string,
+          surname: (data.surname || '') as string,
+          handle: (data.handle || '') as string,
+          gender: (data.gender || 'Kişi') as string,
+          birthDate: (privateData.birthDate || data.birthDate || '') as string,
+          avatar: (data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80') as string,
+          bannerImage: (data.bannerImage || '') as string,
+          bannerGradient: (data.bannerGradient || 'linear-gradient(135deg, #ec4899 0%, #8b5cf6 45%, #06b6d4 100%)') as string,
+          bio: (data.bio || 'Yeni başlayançı 🚀') as string,
+          allianceName: (savedAlliance || (data.allianceName || '') as string) as string,
+          role: (data.role || 'user') as string,
+          createdAt: (data.createdAt || Date.now()) as number,
+        };
+
+        setCurrentUser(restoredUser);
+        setIsRegistered(true);
+        localStorage.setItem('app_current_user_v6', JSON.stringify(restoredUser));
+        notifyUserIdChanged();
+      }
+    } catch (err) {
+      console.error('Profil bərpası xətası:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (viewUserId) {
+      setProfileBooting(false);
+      return;
+    }
+    const stored = readStoredProfile();
+    if (stored) {
+      setCurrentUser(stored);
+      setIsRegistered(true);
+      localStorage.setItem('app_current_user_v6', JSON.stringify(stored));
+      notifyUserIdChanged();
+    } else {
+      void restoreExistingProfile();
+    }
+    setProfileBooting(false);
+  }, [viewUserId]);
+
+  useEffect(() => {
+    if (isRegistered) void ensureFirebaseAuth();
+  }, [isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    return listenFollowCounts(currentUser.id, (followers, following) => {
+      setStats((prev) => ({ ...prev, followers, following }));
+    });
+  }, [currentUser.id, isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    const cached = readCachedLikesReceived(currentUser.id);
+    if (cached > 0) {
+      setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, cached) }));
+    }
+    return listenUserLikesReceived(currentUser.id, (likes) => {
+      writeCachedLikesReceived(currentUser.id, likes);
+      setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, likes) }));
+    });
+  }, [currentUser.id, isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    const cached = readCachedViewsReceived(currentUser.id);
+    if (cached > 0) {
+      setStats((prev) => ({ ...prev, viewsReceived: cached }));
+    }
+    return listenUserViewsReceived(currentUser.id, (viewsReceived) => {
+      writeCachedViewsReceived(currentUser.id, viewsReceived);
+      setStats((prev) => ({ ...prev, viewsReceived }));
+    });
+  }, [currentUser.id, isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    return listenUserProfileMedia(
+      currentUser.id,
+      (media) => {
+        setCurrentUser((prev) => {
+          const next = {
+            ...prev,
+            ...(media.avatar ? { avatar: media.avatar } : {}),
+            ...(media.bannerImage !== undefined ? { bannerImage: media.bannerImage || '' } : {}),
+            ...(media.bannerGradient ? { bannerGradient: media.bannerGradient } : {}),
+          };
+          localStorage.setItem('app_current_user_v6', JSON.stringify(next));
+          return next;
+        });
+      },
+      { paused: () => mediaSyncPausedRef.current }
+    );
+  }, [currentUser.id, isRegistered]);
+
+  const persistProfile = (patch: Partial<typeof currentUser>) => {
+    setCurrentUser((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem('app_current_user_v6', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const openPhotoEditor = (kind: ProfileCropKind, file: File) => {
+    setPhotoEditor({ kind, file });
+  };
+
+  const closePhotoEditor = () => {
+    setPhotoEditor(null);
+  };
+
+  const uploadProfilePhoto = async (kind: ProfileCropKind, file: File) => {
+    if (!currentUser.id) return;
+
+    const isAvatar = kind === 'avatar';
+    const previous = isAvatar ? currentUser.avatar : currentUser.bannerImage;
+    const preview = URL.createObjectURL(file);
+    if (isAvatar) {
+      persistProfile({ avatar: preview });
+      setUploadingAvatar(true);
+    } else {
+      persistProfile({ bannerImage: preview });
+      setUploadingBanner(true);
+    }
+    mediaSyncPausedRef.current = true;
+
+    try {
+      void ensureFirebaseAuth();
+      const url = isAvatar
+        ? await updateProfileAvatar(currentUser.id, file)
+        : await updateProfileBanner(currentUser.id, file);
+      if (isAvatar) {
+        persistProfile({ avatar: url });
+      } else {
+        persistProfile({ bannerImage: url });
+      }
+      closePhotoEditor();
+    } catch (err) {
+      if (isAvatar) {
+        persistProfile({ avatar: previous });
+      } else {
+        persistProfile({ bannerImage: previous });
+      }
+      console.error(err);
+      alert(err instanceof Error ? err.message : isAvatar ? 'Profil şəkli saxlanmadı.' : 'Qapaq şəkli saxlanmadı.');
+    } finally {
+      URL.revokeObjectURL(preview);
+      if (isAvatar) setUploadingAvatar(false);
+      else setUploadingBanner(false);
+      window.setTimeout(() => {
+        mediaSyncPausedRef.current = false;
+      }, 2000);
+    }
+  };
+
+  const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !currentUser.id) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Yalnız şəkil faylı seçin.');
+      return;
+    }
+    openPhotoEditor('avatar', file);
+  };
+
+  const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !currentUser.id) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Yalnız şəkil faylı seçin.');
+      return;
+    }
+    openPhotoEditor('banner', file);
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputName.trim() || !inputSurname.trim() || !inputBirthDate) return;
+
+    if (!acceptedTerms) {
+      alert("Zəhmət olmasa İstifadəçi Razılaşmasını qəbul edin.");
+      return;
+    }
+
+    let accountUid: string | null = null;
+    try {
+      const firebaseUser = await ensureFirebaseAuth();
+      if (!firebaseUser) throw new Error('Firebase hesabı yaradılmadı. İnternet bağlantısını yoxlayın.');
+      accountUid = firebaseUser.uid;
+      const generatedId = await allocateNextUserId();
+      const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;
+      const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
+
+      const newUser = {
+        id: generatedId,
+        firebaseUid: accountUid,
+        name: inputName,
+        surname: inputSurname,
+        handle: formattedHandle,
+        gender: inputGender,
+        birthDate: inputBirthDate,
+        role: 'user',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+        bannerImage: '',
+        bannerGradient: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #3b82f6 100%)',
+        bio: 'Yeni başlanğıc 🚀',
+        allianceName: savedAlliance,
+        createdAt: Date.now(),
+        likesReceived: 0,
+        viewsReceived: 0,
+      };
+
+      const { birthDate: privateBirthDate, ...publicUser } = newUser;
+      await Promise.all([
+        setDoc(doc(db, 'users', generatedId), publicUser),
+        setDoc(doc(db, 'private_user_profiles', accountUid), {
+          birthDate: privateBirthDate,
+          updatedAt: Date.now(),
+        }),
+      ]);
+      await ensurePlayerProfile(generatedId, `${inputName} ${inputSurname}`.trim(), accountUid);
+
+      localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
+      const idNum = parseInt(generatedId, 10);
+      if (!Number.isNaN(idNum)) {
+        const prev = parseInt(localStorage.getItem('app_last_id_num_v6') || '1', 10);
+        localStorage.setItem('app_last_id_num_v6', String(Math.max(prev, idNum)));
+      }
+      setCurrentUser(newUser);
+      setIsRegistered(true);
+      notifyUserIdChanged();
+    } catch (error) {
+      if (accountUid) {
+        alert(error instanceof Error ? error.message : 'Hesab təhlükəsiz şəkildə qoşulmadı.');
+        return;
+      }
+      console.error("Firebase ID xətası, lokal rejimə keçid edilir:", error);
+      const generatedId = await allocateNextUserIdFallback();
+      const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;
+      const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
+
+      const newUser = {
+        id: generatedId,
+        name: inputName,
+        surname: inputSurname,
+        handle: formattedHandle,
+        gender: inputGender,
+        birthDate: inputBirthDate,
+        role: 'user',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+        bannerImage: '',
+        bannerGradient: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #3b82f6 100%)',
+        bio: 'Yeni başlanğıc 🚀',
+        allianceName: savedAlliance,
+        createdAt: Date.now(),
+        likesReceived: 0,
+        viewsReceived: 0,
+      };
+
+      localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
+      setCurrentUser(newUser);
+      setIsRegistered(true);
+      notifyUserIdChanged();
+    }
+  };
+
+  const [isBalanceVisible, setIsBalanceVisible] = useState<boolean>(true);
+  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [showAllianceModal, setShowAllianceModal] = useState(false);
+  const [showRankModal, setShowRankModal] = useState(false);
+  const [showGiftsModal, setShowGiftsModal] = useState(false);
+  const [xpModeNotice, setXpModeNotice] = useState<string | null>(null);
+  const [xpModeToggling, setXpModeToggling] = useState(false);
+  const [xpModeOn, setXpModeOn] = useState(true);
+  const [discoverBoostUntil, setDiscoverBoostUntil] = useState(0);
+  const [boostNow, setBoostNow] = useState(() => Date.now());
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [accountEmail, setAccountEmail] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [accountEmailVerified, setAccountEmailVerified] = useState(false);
+  const [accountSecurityBusy, setAccountSecurityBusy] = useState(false);
+  const [accountSecurityMessage, setAccountSecurityMessage] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('10');
+  const [withdrawEmail, setWithdrawEmail] = useState('');
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawMessage, setWithdrawMessage] = useState('');
+  const [myReferralCode, setMyReferralCode] = useState('');
+  const [applyReferralCode, setApplyReferralCode] = useState('');
+  const [referralBusy, setReferralBusy] = useState(false);
+  const [referralMessage, setReferralMessage] = useState('');
+
+  useEffect(() => {
+    if (!currentUser.id) return;
+    return listenUserDiscoverBoost(currentUser.id, setDiscoverBoostUntil);
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    if (!showWalletModal) return;
+    const email = auth.currentUser?.email || '';
+    setAccountEmail(email);
+    setWithdrawEmail(email);
+    setAccountEmailVerified(auth.currentUser?.emailVerified === true);
+  }, [showWalletModal]);
+
+  const handleLinkAndVerifyEmail = async () => {
+    setAccountSecurityBusy(true);
+    setAccountSecurityMessage('');
+    try {
+      const user = await linkCurrentAccountToEmail(accountEmail, accountPassword);
+      setAccountEmail(user.email || accountEmail.trim());
+      setWithdrawEmail(user.email || accountEmail.trim());
+      setAccountEmailVerified(user.emailVerified);
+      setAccountPassword('');
+      setAccountSecurityMessage('Təsdiq linki emailə göndərildi. Linki açdıqdan sonra “Təsdiqi yoxla” düyməsinə vur.');
+    } catch (err) {
+      setAccountSecurityMessage(err instanceof Error ? err.message : 'Email hesaba bağlanmadı.');
+    } finally {
+      setAccountSecurityBusy(false);
+    }
+  };
+
+  const handleCheckEmailVerification = async () => {
+    setAccountSecurityBusy(true);
+    setAccountSecurityMessage('');
+    try {
+      const state = await refreshEmailVerification();
+      setAccountEmail(state.email || accountEmail);
+      setWithdrawEmail(state.email || accountEmail);
+      setAccountEmailVerified(state.verified);
+      setAccountSecurityMessage(state.verified ? 'Email təsdiqləndi.' : 'Təsdiq hələ görünmür. Emaildəki linki açıb yenidən yoxla.');
+    } catch (err) {
+      setAccountSecurityMessage(err instanceof Error ? err.message : 'Email təsdiqi yoxlanmadı.');
+    } finally {
+      setAccountSecurityBusy(false);
+    }
+  };
+
+  const handleCreateWithdrawal = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accountEmailVerified) {
+      setWithdrawMessage('Pul çıxarışı üçün Firebase hesabının emailini əvvəlcə təsdiqlə.');
+      return;
+    }
+    const amount = Number(withdrawAmount);
+    if (!Number.isSafeInteger(amount) || amount < 10) {
+      setWithdrawMessage('Minimum çıxarış məbləği 10 AZN-dir.');
+      return;
+    }
+    setWithdrawBusy(true);
+    setWithdrawMessage('');
+    try {
+      await refreshEmailVerification();
+      const result = await callSecureFunction<
+        { userId: string; amount: number; paymentEmail: string; legalName: string },
+        { requestId: string; amount: number; status: string; availableAt: number }
+      >('createWithdrawalRequest', {
+        userId: currentUser.id,
+        amount,
+        paymentEmail: withdrawEmail.trim(),
+        legalName: `${currentUser.name} ${currentUser.surname}`.trim(),
+      });
+      setWithdrawMessage(`${result.amount} AZN üçün sorğu yaradıldı. 48 saatdan sonra yoxlanış mərhələsinə keçəcək.`);
+      setWithdrawAmount('10');
+    } catch (err) {
+      setWithdrawMessage(err instanceof Error ? err.message : 'Pul çıxarışı sorğusu yaradılmadı.');
+    } finally {
+      setWithdrawBusy(false);
+    }
+  };
+
+  const handleLoadReferralCode = async () => {
+    setReferralBusy(true);
+    setReferralMessage('');
+    try {
+      const installationId = await getFirebaseInstallationId();
+      const result = await callSecureFunction<
+        { userId: string; installationId: string },
+        { code: string }
+      >('getMyReferralCode', { userId: currentUser.id, installationId });
+      setMyReferralCode(result.code);
+    } catch (err) {
+      setReferralMessage(err instanceof Error ? err.message : 'Referral kodu alınmadı.');
+    } finally {
+      setReferralBusy(false);
+    }
+  };
+
+  const handleApplyReferralCode = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accountEmailVerified) {
+      setReferralMessage('Referral üçün Firebase hesabının emaili təsdiqlənməlidir.');
+      return;
+    }
+    setReferralBusy(true);
+    setReferralMessage('');
+    try {
+      await refreshEmailVerification();
+      const installationId = await getFirebaseInstallationId();
+      const result = await callSecureFunction<
+        { userId: string; code: string; installationId: string },
+        { status: string; eligibleAt: number }
+      >('applyReferral', { userId: currentUser.id, code: applyReferralCode, installationId });
+      setReferralMessage(`Dəvət qeydə alındı, 7 günlük yoxlanışdan sonra baxılacaq (${result.status}).`);
+      setApplyReferralCode('');
+    } catch (err) {
+      setReferralMessage(err instanceof Error ? err.message : 'Referral kodu tətbiq edilmədi.');
+    } finally {
+      setReferralBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isDiscoverBoostActive(discoverBoostUntil)) return;
+    const timer = window.setInterval(() => setBoostNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [discoverBoostUntil]);
+
+  useEffect(() => {
+    if (!xpModeNotice) return;
+    const timer = window.setTimeout(() => setXpModeNotice(null), 2400);
+    return () => window.clearTimeout(timer);
+  }, [xpModeNotice]);
+
+  useEffect(() => {
+    setXpModeOn(playerProfile?.proPanelActive !== true);
+  }, [playerProfile?.proPanelActive]);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [viewerComments, setViewerComments] = useState<PostComment[]>([]);
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
+  const [newPostTitle, setNewPostTitle] = useState('');
+  const [newPostType, setNewPostType] = useState<'video' | 'image'>('image');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadReadyFile, setUploadReadyFile] = useState<File | null>(null);
+  const [isPreparingFile, setIsPreparingFile] = useState(false);
+  const [filePreviewUrl, setFilePreviewUrl] = useState('');
+
+  const postGalleryInputRef = useRef<HTMLInputElement>(null);
+  const postCameraInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingPost, setIsUploadingPost] = useState(false);
+  const [postsLoadError, setPostsLoadError] = useState('');
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
+  const likedPostIdsRef = useRef(likedPostIds);
+  likedPostIdsRef.current = likedPostIds;
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    return listenUserLikedPostIds(currentUser.id, setLikedPostIds);
+  }, [currentUser.id, isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    setPosts((prev) =>
+      prev.map((p) => ({ ...p, isLiked: likedPostIds.has(p.id) }))
+    );
+  }, [likedPostIds, currentUser.id, isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    setPostsLoadError('');
+    return listenUserPosts(
+      currentUser.id,
+      (firebasePosts: SocialPost[]) => {
+        setPosts(firebasePosts.map((p) => ({
+          id: p.id,
+          userId: p.userId,
+          title: p.title,
+          mediaUrl: p.mediaUrl,
+          thumbnail: p.mediaUrl,
+          mediaType: p.mediaType,
+          views: p.views,
+          likes: p.likes,
+          isLiked: likedPostIdsRef.current.has(p.id),
+          isSaved: false,
+          receivedGifts: [],
+          createdAt: p.createdAt,
+        })));
+      },
+      setPostsLoadError
+    );
+  }, [currentUser.id, isRegistered]);
+
+  useEffect(() => {
+    if (!currentUser.id || !isRegistered) return;
+    const live = posts.reduce((sum, post) => sum + (Number(post.likes) || 0), 0);
+    if (live <= 0) return;
+    setStats((prev) => (live > prev.likes ? { ...prev, likes: live } : prev));
+    const stored = readCachedLikesReceived(currentUser.id);
+    if (live > stored) {
+      writeCachedLikesReceived(currentUser.id, live);
+      void ensureMinLikesReceived(currentUser.id, live);
+    }
+  }, [posts, currentUser.id, isRegistered]);
+
+  const closePostViewer = () => setSelectedPostId(null);
+
+  useEffect(() => {
+    if (!selectedPostId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closePostViewer();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedPostId]);
+
+  useEffect(() => {
+    if (!selectedPostId) {
+      setViewerComments([]);
+      setNewCommentText('');
+      return;
+    }
+    return listenPostComments(selectedPostId, setViewerComments);
+  }, [selectedPostId]);
+
+  const activePost = posts.find(p => p.id === selectedPostId);
+  const allReceivedGifts = posts.flatMap(p => p.receivedGifts);
+
+  const handleLike = async (id: string) => {
+    const post = posts.find((p) => p.id === id);
+    if (!post) return;
+    if (post.isLiked || likedPostIds.has(id)) {
+      alert('Bu paylaşımı artıq bəyənmisiniz.');
+      return;
+    }
+    try {
+      const result = await toggleLikePost(id, currentUser.id);
+      setLikedPostIds((prev) => new Set(prev).add(id));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, isLiked: true, likes: result.likes } : p
+        )
+      );
+      if (!result.alreadyLiked) {
+        setStats((prev) => {
+          const nextLikes = prev.likes + 1;
+          writeCachedLikesReceived(currentUser.id, nextLikes);
+          return { ...prev, likes: nextLikes };
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Bəyənmə qeydə alınmadı.');
+    }
+  };
+
+  const handleSharePost = async (postId: string, title: string) => {
+    const url = `${window.location.origin}/profile?user=${currentUser.id}`;
+    const text = `${currentUser.name} — ${title}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: text, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      alert('Paylaşım linki kopyalandı.');
+    } catch {
+      /* ləğv */
+    }
+  };
+
+  const handleSave = (id: string) => {
+    setPosts(prev => prev.map(p => {
+      if (p.id === id) {
+        const newIsSaved = !p.isSaved;
+        alert(newIsSaved ? 'Paylaşım yaddaşa saxlandı! 💾' : 'Paylaşım yaddaşdan çıxarıldı.');
+        return { ...p, isSaved: newIsSaved };
+      }
+      return p;
+    }));
+  };
+
+  const handleReport = async () => {
+    if (!activePost) return;
+    const reason = prompt('Şikayət səbəbini qeyd edin:');
+    if (!reason?.trim()) return;
+    try {
+      await reportContent({
+        reporterId: currentUser.id,
+        targetUserId: activePost.userId,
+        targetPostId: activePost.id,
+        reason: reason.trim(),
+        type: 'post',
+      });
+      alert('Şikayətiniz admin panelə göndərildi.');
+    } catch (err) {
+      console.error(err);
+      alert('Şikayət göndərilmədi. Yenidən cəhd edin.');
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCommentText.trim() || selectedPostId === null || commentSubmitting) return;
+
+    setCommentSubmitting(true);
+    try {
+      await addPostComment(
+        selectedPostId,
+        {
+          id: currentUser.id,
+          name: `${currentUser.name || 'Sən'} ${currentUser.surname || ''}`.trim(),
+          avatar: currentUser.avatar,
+        },
+        newCommentText.trim()
+      );
+      setNewCommentText('');
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'Şərh göndərilmədi.');
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const handleSendGift = async (gift: GiftItem) => {
+    if (manat < gift.price) {
+      alert("Balansınızda kifayət qədər manat yoxdur! ₼");
+      return;
+    }
+
+    const ok = await spendManat(gift.price);
+    if (!ok) {
+      alert("Balansınızda kifayət qədər manat yoxdur! ₼");
+      return;
+    }
+
+    setPosts(prev => prev.map(p => {
+      if (p.id === selectedPostId) {
+        return {
+          ...p,
+          receivedGifts: [gift, ...p.receivedGifts]
+        };
+      }
+      return p;
+    }));
+
+    setIsGiftModalOpen(false);
+    alert(`Uğurla ${gift.name} hədiyyəsi göndərildi! 🎉`);
+  };
+
+  const handleOpenUploadModal = () => {
+    setNewPostTitle('');
+    setSelectedFile(null);
+    setUploadReadyFile(null);
+    setIsPreparingFile(false);
+    setFilePreviewUrl('');
+    setIsUploadModalOpen(true);
+    void ensureFirebaseAuth();
+  };
+
+  const handlePostFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (file.type.startsWith('video/') && file.size > 25 * 1024 * 1024) {
+      alert('Video çox böyükdür (maks. 25 MB).');
+      return;
+    }
+    if (file.type.startsWith('image/') && file.size > 8 * 1024 * 1024) {
+      alert('Şəkil çox böyükdür (maks. 8 MB).');
+      return;
+    }
+
+    setSelectedFile(file);
+    setUploadReadyFile(file.type.startsWith('video/') ? file : null);
+    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    const fileUrl = URL.createObjectURL(file);
+    setFilePreviewUrl(fileUrl);
+    setNewPostType(file.type.startsWith('video/') ? 'video' : 'image');
+
+    if (file.type.startsWith('image/')) {
+      setIsPreparingFile(true);
+      void preparePostMediaFile(file)
+        .then((prepared) => setUploadReadyFile(prepared))
+        .catch(() => setUploadReadyFile(file))
+        .finally(() => setIsPreparingFile(false));
+    }
+  };
+
+  const handleCreatePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isRegistered || !currentUser.id) {
+      alert('Paylaşım üçün əvvəlcə profil qeydiyyatını tamamlayın.');
+      return;
+    }
+    if (!newPostTitle.trim() || !selectedFile) {
+      alert("Zəhmət olmasa başlıq daxil edin və fayl seçin.");
+      return;
+    }
+    if (isPreparingFile) {
+      alert('Fayl hazırlanır, bir neçə saniyə gözləyin.');
+      return;
+    }
+    if (isUploadingPost) return;
+
+    const fileToUpload = uploadReadyFile ?? selectedFile;
+
+    setIsUploadingPost(true);
+    try {
+      await createPost(
+        {
+          id: currentUser.id,
+          name: currentUser.name,
+          surname: currentUser.surname,
+          handle: currentUser.handle,
+          gender: currentUser.gender,
+          birthDate: currentUser.birthDate,
+          avatar: currentUser.avatar,
+          region: (currentUser as { region?: string }).region,
+        },
+        newPostTitle.trim(),
+        fileToUpload,
+        newPostType
+      );
+
+      if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+      setNewPostTitle('');
+      setSelectedFile(null);
+      setUploadReadyFile(null);
+      setFilePreviewUrl('');
+      setIsUploadModalOpen(false);
+      alert('Paylaşım uğurla yerləşdirildi! Kəşf et səhifəsində hamı görə bilər (24 saat).');
+    } catch (err) {
+      console.error('Paylaşım xətası:', err);
+      const msg = err instanceof Error ? err.message : 'Paylaşım yüklənmədi.';
+      alert(msg);
+    } finally {
+      setIsUploadingPost(false);
+    }
+  };
+
+  if (profileBooting) {
+    return <ProfileBootSkeleton />;
+  }
+
+  if (!isRegistered) {
+    return (
+      <div className={profileStyles.registerWorld}>
+        <div className={profileStyles.registerCard}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h2 className={profileStyles.registerTitle}>{t.registerTitle}</h2>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <button type="button" onClick={() => setSettingsLang('az')} style={{ ...langBtnStyle, fontWeight: language === 'az' ? 800 : 400, backgroundColor: language === 'az' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>AZ</button>
+              <button type="button" onClick={() => setSettingsLang('ru')} style={{ ...langBtnStyle, fontWeight: language === 'ru' ? 800 : 400, backgroundColor: language === 'ru' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>RU</button>
+              <button type="button" onClick={() => setSettingsLang('en')} style={{ ...langBtnStyle, fontWeight: language === 'en' ? 800 : 400, backgroundColor: language === 'en' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>EN</button>
+              <button type="button" onClick={() => setSettingsLang('tr')} style={{ ...langBtnStyle, fontWeight: language === 'tr' ? 800 : 400, backgroundColor: language === 'tr' ? 'rgba(236,72,153,0.3)' : 'rgba(30,41,59,0.8)', color: '#e2e8f0' }}>TR</button>
+            </div>
+          </div>
+          <p className={profileStyles.registerSub}>{t.registerSubtitle}</p>
+
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div>
+              <label className={profileStyles.registerLabel}>{t.name}</label>
+              <input type="text" placeholder="Məs: Sədi" value={inputName} onChange={(e) => setInputName(e.target.value)} className={profileStyles.registerInput} required />
+            </div>
+            <div>
+              <label className={profileStyles.registerLabel}>{t.surname}</label>
+              <input type="text" placeholder="Məs: Məmmədov" value={inputSurname} onChange={(e) => setInputSurname(e.target.value)} className={profileStyles.registerInput} required />
+            </div>
+            <div>
+              <label className={profileStyles.registerLabel}>{t.handle}</label>
+              <input type="text" placeholder="Məs: @sadi" value={inputHandle} onChange={(e) => setInputHandle(e.target.value)} className={profileStyles.registerInput} />
+            </div>
+            <div>
+              <label className={profileStyles.registerLabel}>{t.gender}</label>
+              <select value={inputGender} onChange={(e) => setInputGender(e.target.value)} className={profileStyles.registerInput}>
+                <option value="Kişi">{t.male}</option>
+                <option value="Qadın">{t.female}</option>
+              </select>
+            </div>
+            <div>
+              <label className={profileStyles.registerLabel}>{t.birthDate}</label>
+              <input type="date" value={inputBirthDate} onChange={(e) => setInputBirthDate(e.target.value)} className={profileStyles.registerInput} required />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <input type="checkbox" id="terms" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} required />
+              <label htmlFor="terms" style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0', cursor: 'pointer' }}>{t.termsAccept}</label>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
+              <Link href="/terms">İstifadə şərtləri</Link>
+              <Link href="/privacy">Məxfilik siyasəti</Link>
+            </div>
+
+            <button type="submit" className={profileStyles.registerSubmit}>{t.submitBtn}</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (viewUserId && viewUserId !== currentUser.id) {
+    return <OtherUserProfile targetUserId={viewUserId} myId={userId} />;
+  }
+
+  return (
+    <div className={profileStyles.profileWorld}>
+      <div className={profileStyles.profileGlow} aria-hidden />
+      <header className={profileStyles.profileTopBar}>
+        <div className={profileStyles.profileTopLeft}>
+          <div className={profileStyles.profileAdBoltWrap}>
+            <GoogleAdButton
+              variant="bolt"
+              className={isDiscoverBoostActive(discoverBoostUntil, boostNow) ? profileStyles.profileAdBoltOn : undefined}
+              onReward={async () => {
+                try {
+                  await activateDiscoverBoost(currentUser.id);
+                  setXpModeNotice('Videoların və şəkillərin 2 dəqiqə kəşfdə öndədir');
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : 'Kəşf boostu alınmadı');
+                }
+              }}
+            />
+            {isDiscoverBoostActive(discoverBoostUntil, boostNow) ? (
+              <span className={profileStyles.profileAdBoltTimer}>
+                {Math.ceil((discoverBoostUntil - boostNow) / 1000)}s
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div className={profileStyles.profileTopActions}>
+          <button
+            type="button"
+            className={profileStyles.walletPill}
+            onClick={() => setShowWalletModal(true)}
+            title={t.wallet}
+          >
+            ₼ {isBalanceVisible ? manat.toLocaleString('az-AZ') : '•••'}
+          </button>
+          <AppLink href="/settings" className={profileStyles.settingsBtn} title="Ayarlar">
+            ⚙️
+          </AppLink>
+        </div>
+      </header>
+
+      <ProfileHeroDisplay
+        name={currentUser.name}
+        surname={currentUser.surname}
+        avatar={currentUser.avatar}
+        handle={currentUser.handle}
+        metaExtra={`${currentUser.gender} · ID ${currentUser.id}`}
+        cosmetics={playerProfile?.cosmetics}
+        bannerFallback={currentUser.bannerGradient}
+        bannerImage={currentUser.bannerImage || undefined}
+        editable={isRegistered}
+        uploadingAvatar={uploadingAvatar}
+        uploadingBanner={uploadingBanner}
+        onEditAvatar={() => avatarInputRef.current?.click()}
+        onEditBanner={() => bannerInputRef.current?.click()}
+        bannerActions={
+          <div className={profileStyles.xpModeControl}>
+            <button
+              type="button"
+              className={`${profileStyles.xpModeBtn} ${xpModeOn ? profileStyles.xpModeBtnOn : profileStyles.xpModeBtnOff}`}
+              aria-pressed={xpModeOn}
+              disabled={xpModeToggling || !userId}
+              aria-label={xpModeOn ? 'XP rejimi aktivdir' : 'XP rejimi sönülüdür'}
+              onClick={() => {
+                if (!userId || xpModeToggling) return;
+                const next = !xpModeOn;
+                setXpModeOn(next);
+                setXpModeToggling(true);
+                setXpModeNotice(next ? 'XP rejimi aktivləşdirildi' : 'XP rejimini söndürdünüz');
+                void setProPanelActive(userId, !next)
+                  .catch((err) => {
+                    setXpModeOn(!next);
+                    setXpModeNotice(null);
+                    alert(err instanceof Error ? err.message : 'XP rejimi dəyişmədi');
+                  })
+                  .finally(() => setXpModeToggling(false));
+              }}
+            >
+              <svg className={profileStyles.xpModeIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </button>
+            {xpModeNotice ? (
+              <p className={`${profileStyles.xpModeHint} text-[11px]`} role="status" aria-live="polite">
+                {xpModeNotice}
+              </p>
+            ) : null}
+          </div>
+        }
+      >
+        <div className={profileStyles.statPills}>
+          <button
+            type="button"
+            className={`${profileStyles.statPill} ${profileStyles.statPillBtn}`}
+            onClick={() => setFollowListMode('followers')}
+          >
+            <span className={profileStyles.statPillValue}>{stats.followers}</span>
+            <span className={profileStyles.statPillLabel}>{t.followers}</span>
+          </button>
+          <button
+            type="button"
+            className={`${profileStyles.statPill} ${profileStyles.statPillBtn}`}
+            onClick={() => setFollowListMode('following')}
+          >
+            <span className={profileStyles.statPillValue}>{stats.following}</span>
+            <span className={profileStyles.statPillLabel}>{t.following}</span>
+          </button>
+          <div className={profileStyles.statPill}>
+            <span className={profileStyles.statPillValue}>{stats.likes}</span>
+            <span className={profileStyles.statPillLabel}>{t.likes}</span>
+          </div>
+          <div className={profileStyles.statPill}>
+            <span className={profileStyles.statPillValue}>{stats.viewsReceived}</span>
+            <span className={profileStyles.statPillLabel}>{t.views}</span>
+          </div>
+        </div>
+      </ProfileHeroDisplay>
+
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={handleAvatarFile}
+      />
+      <input
+        ref={bannerInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={handleBannerFile}
+      />
+
+      <ProfilePhotoEditorModal
+        open={photoEditor !== null}
+        kind={photoEditor?.kind ?? 'avatar'}
+        file={photoEditor?.file ?? null}
+        onClose={closePhotoEditor}
+        onConfirm={(file) => {
+          const kind = photoEditor?.kind ?? 'avatar';
+          void uploadProfilePhoto(kind, file);
+        }}
+      />
+
+      <div className={profileStyles.profileQuickRow}>
+        <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickAlliance}`} onClick={() => setShowAllianceModal(true)}>
+          <span className={profileStyles.actionIcon} aria-hidden="true"><ShieldCheck size={21} strokeWidth={2.2} /></span>
+          <span className={profileStyles.actionLabel}>İttifaq</span>
+        </button>
+        <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickRank}`} onClick={() => setShowRankModal(true)}>
+          <span className={profileStyles.actionIcon} aria-hidden="true"><Trophy size={21} strokeWidth={2.2} /></span>
+          <span className={profileStyles.actionLabel}>Reytinq</span>
+        </button>
+        <button type="button" className={`${profileStyles.profileQuickBtn} ${profileStyles.quickGifts}`} onClick={() => setShowGiftsModal(true)}>
+          <span className={profileStyles.actionIcon} aria-hidden="true"><Gift size={21} strokeWidth={2.2} /></span>
+          <span className={profileStyles.actionLabel}>Hədiyyələr</span>
+        </button>
+      </div>
+
+      <div className={profileStyles.contentStack}>
+        <section className={profileStyles.postsPanel}>
+          <div className={profileStyles.postsSectionHead}>
+            <h2 className={profileStyles.postsSectionTitle}>{t.postsTitle}</h2>
+            <span className={profileStyles.postsSectionCount}>{posts.length} paylaşım</span>
+          </div>
+          <p className={profileStyles.postsSectionSub}>{t.postsSubtitle} Kəşf et-də görünür.</p>
+          {postsLoadError ? (
+            <div style={{ textAlign: 'center', padding: 16, color: '#f87171', fontSize: 13 }}>{postsLoadError}</div>
+          ) : null}
+          {posts.length === 0 ? (
+            <div className={profileStyles.postsEmpty}>
+              <p className={profileStyles.postsEmptyTitle}>{t.noPosts}</p>
+              <p className={profileStyles.postsEmptyHint}>{t.noPostsHint}</p>
+            </div>
+          ) : (
+            <div className={profileStyles.postGridPremium}>
+              {posts.map((post) => (
+                <div key={post.id} className={profileStyles.postTile} onClick={() => setSelectedPostId(post.id)}>
+                  {post.mediaType === 'video' ? (
+                    <video src={post.mediaUrl} muted />
+                  ) : (
+                    <img src={post.mediaUrl} alt={post.title} />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <button type="button" className={profileStyles.uploadFabPremium} onClick={handleOpenUploadModal} aria-label="Paylaş">+</button>
+
+      <FollowListSheet
+        open={followListMode !== null}
+        onClose={() => setFollowListMode(null)}
+        userId={currentUser.id}
+        mode={followListMode ?? 'followers'}
+        title={followListMode === 'following' ? t.followingList : t.followersList}
+        emptyText={followListMode === 'following' ? t.emptyFollowing : t.emptyFollowers}
+      />
+
+      {isSuperAdmin(currentUser.id) && (
+        <AdminPanel userId={currentUser.id} displayName={`${currentUser.name} ${currentUser.surname}`.trim()} />
+      )}
+
+      <AppBottomNav activeTab="profile" />
+
+      {activePost && (
+        <div
+          className={`${socialStyles.modalOverlay} ${profileStyles.postViewerOverlay}`}
+          onClick={closePostViewer}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Paylaşım"
+        >
+          <div className={profileStyles.postViewerSheet} onClick={(e) => e.stopPropagation()}>
+            <div className={profileStyles.postViewerHeader}>
+              <h3 className={profileStyles.postViewerTitle}>{activePost.title}</h3>
+              <button type="button" className={profileStyles.profileModalClose} onClick={closePostViewer} aria-label="Bağla">✕</button>
+            </div>
+
+            <div className={profileStyles.postViewerMedia}>
+              {activePost.mediaType === 'video' ? (
+                <video src={activePost.mediaUrl} controls playsInline />
+              ) : (
+                <img src={activePost.mediaUrl} alt={activePost.title} />
+              )}
+            </div>
+
+            <div className={profileStyles.postViewerBody}>
+              <div className={profileStyles.postViewerActions}>
+                <div className={profileStyles.postViewerActionGroup}>
+                  <button
+                    type="button"
+                    className={profileStyles.postViewerActionBtn}
+                    onClick={() => handleLike(activePost.id)}
+                    disabled={activePost.isLiked}
+                    aria-label="Bəyən"
+                  >
+                    <PostActionIcon kind={activePost.isLiked ? 'like-active' : 'like'} alt="Bəyən" size="sm" />
+                    <span>{activePost.likes}</span>
+                  </button>
+                  <button type="button" className={profileStyles.postViewerActionBtn} onClick={() => setIsGiftModalOpen(true)}>
+                    🎁 Hədiyyə
+                  </button>
+                </div>
+                <div className={profileStyles.postViewerActionGroup}>
+                  <button
+                    type="button"
+                    className={profileStyles.postViewerActionBtn}
+                    onClick={() => void handleSharePost(activePost.id, activePost.title)}
+                    aria-label="Paylaş"
+                  >
+                    <PostActionIcon kind="share" alt="Paylaş" size="sm" />
+                  </button>
+                  <button type="button" className={profileStyles.postViewerActionBtn} onClick={handleReport} title="Bildir" aria-label="Bildir">
+                    <PostActionIcon kind="report" alt="Bildir" size="sm" />
+                  </button>
+                </div>
+              </div>
+
+              <div className={profileStyles.postViewerSection}>
+                Alınan hədiyyələr ({activePost.receivedGifts.length})
+              </div>
+              <div className={profileStyles.postViewerGifts}>
+                {activePost.receivedGifts.length === 0 ? (
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Hələ hədiyyə yoxdur</span>
+                ) : (
+                  activePost.receivedGifts.map((g, i) => (
+                    <span key={i} title={`${g.name} (${g.price} ₼)`} style={{ fontSize: 22 }}>{g.icon}</span>
+                  ))
+                )}
+              </div>
+
+              <div className={profileStyles.postViewerComments}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#e2e8f0' }}>
+                  Şərhlər ({viewerComments.length})
+                </div>
+                {viewerComments.length === 0 ? (
+                  <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center' }}>İlk şərh yazan sən ol!</div>
+                ) : (
+                  viewerComments.map((c) => (
+                    <div key={c.id} className={profileStyles.postViewerCommentItem}>
+                      <span style={{ fontWeight: 800, color: '#a5b4fc', marginRight: 6 }}>{c.userName}:</span>
+                      {c.text}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <form
+              className={profileStyles.postViewerCommentForm}
+              onSubmit={handleAddComment}
+            >
+              <input
+                type="text"
+                placeholder="Şərh yaz..."
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
+                className={profileStyles.postViewerCommentInput}
+              />
+              <button type="submit" className={profileStyles.postViewerCommentSubmit} disabled={commentSubmitting}>
+                {commentSubmitting ? '...' : 'Göndər'}
+              </button>
+            </form>
+
+            <div className={profileStyles.postViewerCloseBar}>
+              <button type="button" className={profileStyles.postViewerCloseBtn} onClick={closePostViewer}>
+                Bağla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWalletModal && (
+        <div className={socialStyles.modalOverlay} onClick={() => setShowWalletModal(false)}>
+          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h2 className={socialStyles.modalTitle}>₼ {t.wallet}</h2>
+              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowWalletModal(false)} aria-label="Bağla">✕</button>
+            </div>
+            <div className={profileStyles.walletModalAmount}>
+              {isBalanceVisible ? `${manat.toLocaleString('az-AZ')} Manat` : '••••••'}
+            </div>
+            <div className={profileStyles.walletModalActions}>
+              <button type="button" className={socialStyles.secondaryBtn} onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
+                {isBalanceVisible ? t.hide : t.show}
+              </button>
+              <AppLink href="/shop" className={socialStyles.primaryBtn} style={{ textDecoration: 'none', textAlign: 'center', flex: 1 }}>
+                ⚔️ Mağazaya get
+              </AppLink>
+            </div>
+            <section style={{ marginTop: 18, padding: 14, borderRadius: 16, border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(15,23,42,0.55)' }}>
+              <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Təsdiqlənmiş email</h3>
+              <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>
+                Referral və pul çıxarışı üçün hesab emailini bağla və təsdiqlə.
+              </p>
+              <input
+                type="email"
+                value={accountEmail}
+                onChange={(event) => setAccountEmail(event.target.value)}
+                placeholder="Email ünvanı"
+                autoComplete="email"
+                className={profileStyles.registerInput}
+                disabled={accountEmailVerified}
+              />
+              {!accountEmailVerified ? (
+                <input
+                  type="password"
+                  value={accountPassword}
+                  onChange={(event) => setAccountPassword(event.target.value)}
+                  placeholder="Şifrə (ən azı 6 simvol)"
+                  autoComplete="new-password"
+                  className={profileStyles.registerInput}
+                  style={{ marginTop: 8 }}
+                />
+              ) : null}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                {!accountEmailVerified ? (
+                  <button type="button" className={socialStyles.primaryBtn} disabled={accountSecurityBusy} onClick={() => void handleLinkAndVerifyEmail()}>
+                    {accountSecurityBusy ? 'Gözlə…' : auth.currentUser?.email ? 'Təsdiq linkini göndər' : 'Emaili hesaba bağla'}
+                  </button>
+                ) : <span style={{ color: '#67e8f9', fontWeight: 700 }}>Email təsdiqlənib</span>}
+                <button type="button" className={socialStyles.secondaryBtn} disabled={accountSecurityBusy} onClick={() => void handleCheckEmailVerification()}>
+                  Təsdiqi yoxla
+                </button>
+              </div>
+              {accountSecurityMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{accountSecurityMessage}</p> : null}
+            </section>
+
+            <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(15,23,42,0.55)' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 800 }}>Dost dəvəti</h3>
+              <button type="button" className={socialStyles.secondaryBtn} disabled={referralBusy} onClick={() => void handleLoadReferralCode()}>
+                {referralBusy ? 'Gözlə…' : 'Dəvət kodumu göstər'}
+              </button>
+              {myReferralCode ? <p style={{ margin: '8px 0', color: '#c4b5fd', fontWeight: 800, letterSpacing: 2 }}>{myReferralCode}</p> : null}
+              <form onSubmit={handleApplyReferralCode} style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input
+                  value={applyReferralCode}
+                  onChange={(event) => setApplyReferralCode(event.target.value.toUpperCase())}
+                  placeholder="Dəvət kodu"
+                  maxLength={20}
+                  className={profileStyles.registerInput}
+                />
+                <button type="submit" className={socialStyles.primaryBtn} disabled={referralBusy || !applyReferralCode.trim()}>
+                  Tətbiq et
+                </button>
+              </form>
+              {referralMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{referralMessage}</p> : null}
+            </section>
+
+            <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(15,23,42,0.55)' }}>
+              <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Manatı çıxar</h3>
+              <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>
+                Minimum 10 AZN. Sorğu balansdan ayrılır, 48 saatlıq gözləmə və yoxlamadan sonra işlənir.
+              </p>
+              <form onSubmit={handleCreateWithdrawal} style={{ display: 'grid', gap: 8 }}>
+                <input
+                  type="number"
+                  min={10}
+                  step={1}
+                  value={withdrawAmount}
+                  onChange={(event) => setWithdrawAmount(event.target.value)}
+                  className={profileStyles.registerInput}
+                  aria-label="Çıxarış məbləği, AZN"
+                />
+                <input
+                  type="email"
+                  value={withdrawEmail}
+                  onChange={(event) => setWithdrawEmail(event.target.value)}
+                  placeholder="Təsdiqlənmiş PayPal emaili"
+                  className={profileStyles.registerInput}
+                  required
+                />
+                <button type="submit" className={socialStyles.primaryBtn} disabled={withdrawBusy || !accountEmailVerified}>
+                  {withdrawBusy ? 'Sorğu göndərilir…' : 'Çıxarış sorğusu yarat'}
+                </button>
+              </form>
+              {withdrawMessage ? <p role="status" style={{ margin: '8px 0 0', color: '#cbd5e1', fontSize: 12 }}>{withdrawMessage}</p> : null}
+            </section>
+          </div>
+        </div>
+      )}
+
+      {showAllianceModal && (
+        <div className={socialStyles.modalOverlay} onClick={() => setShowAllianceModal(false)}>
+          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h2 className={socialStyles.modalTitle}>🛡️ {t.allianceTitle}</h2>
+              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowAllianceModal(false)} aria-label="Bağla">✕</button>
+            </div>
+            <AllianceProfileCard title={t.allianceTitle} />
+          </div>
+        </div>
+      )}
+
+      {showRankModal && (
+        <div className={socialStyles.modalOverlay} onClick={() => setShowRankModal(false)}>
+          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h2 className={socialStyles.modalTitle}>🏆 {t.rankTitle}</h2>
+              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowRankModal(false)} aria-label="Bağla">✕</button>
+            </div>
+            <div className={profileStyles.glassCardBody} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 16, background: 'rgba(15,23,42,0.5)' }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>{t.activeSeason}</div>
+                <div style={{ fontSize: 30, fontWeight: 900, color: '#f1f5f9', margin: '4px 0' }}>Unranked</div>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.score}: <strong style={{ color: '#f472b6' }}>{stats.activeSeasonScore}</strong></div>
+              </div>
+              <div className={profileStyles.rankBadge}>🛡️</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGiftsModal && (
+        <div className={socialStyles.modalOverlay} onClick={() => setShowGiftsModal(false)}>
+          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h2 className={socialStyles.modalTitle}>🎁 {t.giftGallery} ({allReceivedGifts.length})</h2>
+              <button type="button" className={profileStyles.profileModalClose} onClick={() => setShowGiftsModal(false)} aria-label="Bağla">✕</button>
+            </div>
+            {allReceivedGifts.length === 0 ? (
+              <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>{t.noGifts}</div>
+            ) : (
+              <div className={profileStyles.giftGrid}>
+                {allReceivedGifts.map((gift, idx) => (
+                  <div key={idx} className={profileStyles.giftItem}>
+                    <div className={profileStyles.giftIcon}>{gift.icon}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#e2e8f0' }}>{gift.name.split(' ')[0]}</div>
+                    <div style={{ fontSize: 10, color: '#f472b6', fontWeight: 600 }}>{gift.price} ₼</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isUploadModalOpen && (
+        <div className={socialStyles.modalOverlay} onClick={() => !isUploadingPost && setIsUploadModalOpen(false)}>
+          <div className={socialStyles.modalSheet} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 className={socialStyles.modalTitle}>Yeni Paylaşım</h2>
+              <button type="button" className={profileStyles.profileModalClose} onClick={() => setIsUploadModalOpen(false)} disabled={isUploadingPost} aria-label="Bağla">✕</button>
+            </div>
+            <form onSubmit={handleCreatePost}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Başlıq</label>
+              <input
+                type="text"
+                placeholder="Paylaşım başlığı..."
+                value={newPostTitle}
+                onChange={(e) => setNewPostTitle(e.target.value)}
+                className={socialStyles.input}
+                required
+              />
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', display: 'block', marginBottom: 6 }}>Media</label>
+              <div className={profileStyles.postPickRow}>
+                <button type="button" className={profileStyles.postPickBtn} onClick={() => postGalleryInputRef.current?.click()}>
+                  🖼️ Qalereya
+                </button>
+                <button type="button" className={profileStyles.postPickBtn} onClick={() => postCameraInputRef.current?.click()}>
+                  📷 Kamera
+                </button>
+              </div>
+              <input
+                ref={postGalleryInputRef}
+                type="file"
+                accept="image/*,video/*"
+                className={profileStyles.hiddenFileInput}
+                onChange={handlePostFileChange}
+              />
+              <input
+                ref={postCameraInputRef}
+                type="file"
+                accept="image/*,video/*"
+                capture="environment"
+                className={profileStyles.hiddenFileInput}
+                onChange={handlePostFileChange}
+              />
+              {selectedFile && (
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, textAlign: 'center' }}>
+                  Seçildi: {selectedFile.name}
+                </div>
+              )}
+              {filePreviewUrl && (
+                <div style={{ textAlign: 'center', maxHeight: 180, overflow: 'hidden', borderRadius: 12, background: '#000', marginBottom: 12 }}>
+                  {newPostType === 'video' ? (
+                    <video src={filePreviewUrl} style={{ width: '100%', maxHeight: 180, objectFit: 'contain' }} controls muted />
+                  ) : (
+                    <img src={filePreviewUrl} alt="Preview" style={{ width: '100%', maxHeight: 180, objectFit: 'contain' }} />
+                  )}
+                </div>
+              )}
+              <button type="submit" className={socialStyles.primaryBtn} disabled={isUploadingPost || isPreparingFile || !selectedFile || !newPostTitle.trim()}>
+                {isUploadingPost ? 'Yüklənir...' : isPreparingFile ? 'Hazırlanır...' : 'Paylaş (24 saat)'}
+              </button>
+              {isPreparingFile ? (
+                <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 8 }}>
+                  Fayl optimizasiya olunur...
+                </p>
+              ) : null}
+              {isUploadingPost ? (
+                <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 8 }}>
+                  Paylaşım göndərilir, zəhmət olmasa gözləyin...
+                </p>
+              ) : null}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isGiftModalOpen && (
+        <div style={modalOverlayStyle}>
+          <div style={{ ...modalContentStyle, width: '90%', maxWidth: '400px', height: 'auto', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Hədiyyə Seçin</h3>
+              <button onClick={() => setIsGiftModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '15px' }}>
+              {availableGifts.map(gift => (
+                <div 
+                  key={gift.id} 
+                  onClick={() => handleSendGift(gift)}
+                  style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px', textAlign: 'center', cursor: 'pointer', background: '#f8fafc' }}
+                >
+                  <div style={{ fontSize: '30px', marginBottom: '5px' }}>{gift.icon}</div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a' }}>{gift.name}</div>
+                  <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 600, marginTop: '4px' }}>{gift.price} ₼</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const fullScreenWrapperStyle: React.CSSProperties = {
+  width: '100%',
+  minHeight: '100vh',
+  backgroundColor: '#ffffff',
+  position: 'relative',
+  paddingBottom: '80px',
+  boxSizing: 'border-box'
+};
+
+const topHeaderStandardStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '15px 20px',
+  borderBottom: '1px solid #f1f5f9',
+  backgroundColor: '#ffffff',
+  position: 'sticky',
+  top: 0,
+  zIndex: 80
+};
+
+const mainContentContainerStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '800px',
+  margin: '0 auto',
+  boxSizing: 'border-box'
+};
+
+const balanceHeaderContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '15px 20px',
+  borderBottom: '1px solid #f1f5f9',
+  flexWrap: 'wrap',
+  gap: '10px'
+};
+
+const uploadHeaderBtnStyle: React.CSSProperties = {
+  backgroundColor: '#4f46e5',
+  color: '#fff',
+  border: 'none',
+  padding: '8px 14px',
+  borderRadius: '8px',
+  fontSize: '12px',
+  fontWeight: 700,
+  cursor: 'pointer'
+};
+
+const toggleBalanceBtnStyle: React.CSSProperties = {
+  backgroundColor: '#f1f5f9',
+  color: '#334155',
+  border: 'none',
+  padding: '8px 12px',
+  borderRadius: '8px',
+  fontSize: '12px',
+  fontWeight: 600,
+  cursor: 'pointer'
+};
+
+const headerBannerStyle: React.CSSProperties = {
+  height: '160px',
+  width: '100%'
+};
+
+const profileInfoStyle: React.CSSProperties = {
+  padding: '0 20px 20px 20px',
+  position: 'relative',
+  borderBottom: '1px solid #f1f5f9'
+};
+
+const avatarWrapperStyle: React.CSSProperties = {
+  width: '90px',
+  height: '90px',
+  borderRadius: '50%',
+  border: '4px solid #fff',
+  overflow: 'hidden',
+  marginTop: '-45px',
+  backgroundColor: '#fff',
+  boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+};
+
+const avatarImgStyle: React.CSSProperties = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover'
+};
+
+const nameTitleStyle: React.CSSProperties = {
+  fontSize: '18px',
+  fontWeight: 900,
+  color: '#0f172a',
+  margin: '8px 0 2px 0'
+};
+
+const handleTitleStyle: React.CSSProperties = {
+  fontSize: '12px',
+  color: '#64748b',
+  fontWeight: 600,
+  marginBottom: '15px'
+};
+
+const statsContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '20px',
+  fontSize: '12px',
+  color: '#64748b',
+  flexWrap: 'wrap'
+};
+
+const gridContainerStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: '15px',
+  padding: '20px'
+};
+
+const postsGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+  gap: '15px'
+};
+
+const cardStyle: React.CSSProperties = {
+  backgroundColor: '#ffffff',
+  border: '1px solid #e2e8f0',
+  borderRadius: '12px',
+  overflow: 'hidden',
+  display: 'flex',
+  flexDirection: 'column'
+};
+
+const cardHeaderStyle: React.CSSProperties = {
+  padding: '12px 16px',
+  backgroundColor: '#f8fafc',
+  borderBottom: '1px solid #e2e8f0',
+  fontSize: '11px',
+  fontWeight: 800,
+  color: '#475569',
+  letterSpacing: '0.5px'
+};
+
+const cardBodyStyle: React.CSSProperties = {
+  padding: '16px',
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1
+};
+
+const iconBoxStyle: React.CSSProperties = {
+  width: '36px',
+  height: '36px',
+  backgroundColor: '#f1f5f9',
+  borderRadius: '8px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '18px',
+  flexShrink: 0
+};
+
+const cardFooterStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  fontSize: '11px',
+  color: '#64748b',
+  marginBottom: '12px'
+};
+
+const actionButtonStyle: React.CSSProperties = {
+  width: '100%',
+  backgroundColor: '#4f46e5',
+  color: '#fff',
+  border: 'none',
+  padding: '10px',
+  borderRadius: '8px',
+  fontSize: '12px',
+  fontWeight: 700,
+  cursor: 'pointer'
+};
+
+const registerContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  minHeight: '100vh',
+  width: '100%',
+  backgroundColor: '#f8fafc',
+  padding: '20px',
+  boxSizing: 'border-box'
+};
+
+const registerCardStyle: React.CSSProperties = {
+  backgroundColor: '#ffffff',
+  padding: '24px',
+  borderRadius: '16px',
+  boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
+  border: '1px solid #e2e8f0'
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 12px',
+  borderRadius: '8px',
+  border: '1px solid #cbd5e1',
+  fontSize: '12px',
+  outline: 'none',
+  marginTop: '4px',
+  boxSizing: 'border-box'
+};
+
+const langBtnStyle: React.CSSProperties = {
+  padding: '4px 8px',
+  borderRadius: '6px',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: '11px'
+};
+
+const bottomNavBarStyle: React.CSSProperties = {
+  height: '65px',
+  width: '100%',
+  backgroundColor: '#ffffff',
+  borderTop: '1px solid #f1f5f9',
+  display: 'flex',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  position: 'fixed',
+  bottom: 0,
+  left: 0,
+  zIndex: 90,
+  boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.05)'
+};
+
+const navItemStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  textDecoration: 'none',
+  gap: '3px'
+};
+
+const centerNavItemStyle: React.CSSProperties = {
+  width: '52px',
+  height: '52px',
+  backgroundColor: '#4f46e5',
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 4px 15px rgba(79, 70, 229, 0.4)',
+  marginTop: '-8px'
+};
+
+const modalOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100vw',
+  height: '100vh',
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 100,
+  padding: '10px',
+  boxSizing: 'border-box'
+};
+
+const modalContentStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '750px',
+  height: '500px',
+  backgroundColor: '#ffffff',
+  borderRadius: '16px',
+  overflow: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+  boxSizing: 'border-box'
+};
+
+const modalBodyGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  height: 'calc(100% - 60px)'
+};
