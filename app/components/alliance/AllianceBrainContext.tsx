@@ -31,6 +31,7 @@ import {
   updateAllianceName,
 } from './allianceService';
 import { getAllianceSocket, emitAllianceHubEvent } from './allianceSocket';
+import { isSocketConfigured } from '@/app/lib/realtimeConfig';
 import {
   AllianceData,
   AllianceFlagConfig,
@@ -329,6 +330,15 @@ export function AllianceBrainProvider({ userId, userName, firebaseUid = null, ch
 
   // Socket.IO: mərkəzi beyin sinxronizasiyası
   useEffect(() => {
+    if (!isSocketConfigured()) {
+      void ensurePlayerProfile(userId, userName, firebaseUid);
+      try {
+        localStorage.removeItem('alliance_battle_cards');
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     const socket = getAllianceSocket();
 
     const onConnect = () => {

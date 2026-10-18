@@ -1,6 +1,5 @@
 const express = require('express');
 const http = require('http');
-const crypto = require('crypto');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { Server } = require('socket.io');
@@ -51,47 +50,7 @@ const io = new Server(server, {
 // ─────────────────────────────────────────────────────────────
 // Zego tokeni: base64( HMAC-SHA256(secret_hash, payload) )
 // Sənəd: https://docs.zegocloud.com/article/11649
-const ZEGO_APP_ID = Number(process.env.ZEGO_APP_ID || process.env.NEXT_PUBLIC_ZEGO_APP_ID || 0);
-const ZEGO_SERVER_SECRET = String(process.env.ZEGO_SERVER_SECRET || '').trim();
-const ZEGO_TOKEN_TTL_SEC = 3600;
-
-function makeZegoToken(userId, roomId, ttlSec) {
-  if (!ZEGO_APP_ID || !ZEGO_SERVER_SECRET) {
-    throw new Error('Zego server konfiqurasiyası yoxdur (ZEGO_APP_ID / ZEGO_SERVER_SECRET)');
-  }
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    app_id: ZEGO_APP_ID,
-    user_id: String(userId),
-    nonce: Math.floor(Math.random() * 2147483647) + 1,
-    ctime: now,
-    expire: now + (Number(ttlSec) > 0 ? Number(ttlSec) : ZEGO_TOKEN_TTL_SEC),
-    payload: JSON.stringify({ room_id: String(roomId || '') }),
-  };
-  const secretHash = crypto.createHash('sha256').update(ZEGO_SERVER_SECRET).digest();
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', secretHash, iv);
-  const encrypted = Buffer.concat([
-    cipher.update(JSON.stringify(payload), 'utf8'),
-    cipher.final(),
-  ]);
-  return Buffer.concat([iv, encrypted]).toString('base64');
-}
-
-app.post('/api/zego/token', (req, res) => {
-  try {
-    const userId = String(req.body?.userId || '').trim();
-    const roomId = String(req.body?.roomId || '').trim();
-    if (!userId || !roomId) {
-      return res.status(400).json({ error: 'userId və roomId tələb olunur' });
-    }
-    const token = makeZegoToken(userId, roomId, req.body?.ttlSec);
-    return res.json({ token, appId: ZEGO_APP_ID, expireSec: ZEGO_TOKEN_TTL_SEC });
-  } catch (error) {
-    console.error('Zego token xətası:', error.message);
-    return res.status(500).json({ error: 'Token yaradıla bilmədi' });
-  }
-});
+// Zego tokens are issued by the authenticated Firebase callable in functions/src/zegoToken.js.
 
 // 1. MONGODB BAZASINA QOŞULMA
 // DIQQƏT: Firebase artıq əsas backenddir. MongoDB yalnız köhnə REST endpointləri üçün

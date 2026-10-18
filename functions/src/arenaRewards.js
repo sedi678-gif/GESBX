@@ -1,6 +1,7 @@
 /* eslint @typescript-eslint/no-require-imports: off */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore } = require('firebase-admin/firestore');
+const { ADMIN_UIDS, adminUid } = require('./security');
 
 const db = getFirestore();
 const REGION = 'us-central1';
@@ -67,33 +68,8 @@ exports.awardArenaMatchRewards = onCall({ region: REGION, enforceAppCheck: true 
   return { rewards: [{ ...saved.data(), rewardId: id }] };
 });
 
-exports.settleArenaWeeklyRewards = onCall({ region: REGION, enforceAppCheck: true }, async (request) => {
+exports.settleArenaWeeklyRewards = onCall({ region: REGION, enforceAppCheck: true, secrets: [ADMIN_UIDS] }, async (request) => {
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Giriş tələb olunur.');
-  const periodId = String(request.data?.periodId || '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(periodId)) throw new HttpsError('invalid-argument', 'Period etibarsızdır.');
-  const [board, reset] = await Promise.all([
-    db.doc(`leaderboard_weekly/${periodId}`).get(),
-    db.doc(`leaderboard_resets/weekly_${periodId}`).get(),
-  ]);
-  if (!board.exists || board.data()?.status !== 'closed' || !reset.exists || reset.data()?.status !== 'done' || reset.data()?.kind !== 'weekly') return null;
-  const settlementId = `${periodId}_AZ`;
-  const ref = db.doc(`arena_reward_settlements/${settlementId}`);
-  const now = Date.now();
-  await db.runTransaction(async (tx) => {
-    const existing = await tx.get(ref);
-    if (existing.exists) return;
-    tx.create(ref, {
-      settlementId, periodId, countryCode: 'AZ', status: 'completed', allocatedCount: 0,
-      createdAt: now, sourceType: 'WEEKLY_RANKING', schemaVersion: 1, walletCredited: false,
-    });
-    tx.create(ref.collection('reward_events').doc('REWARD_ALLOCATION_STARTED'), {
-      type: 'REWARD_ALLOCATION_STARTED', rewardId: settlementId, matchId: '', sourceId: periodId,
-      periodId, status: 'COMPLETED', timestamp: now,
-    });
-    tx.create(ref.collection('reward_events').doc('REWARD_ALLOCATION_COMPLETED'), {
-      type: 'REWARD_ALLOCATION_COMPLETED', rewardId: settlementId, matchId: '', sourceId: periodId,
-      periodId, status: 'COMPLETED', timestamp: now,
-    });
-  });
-  return { settlementId, periodId, countryCode: 'AZ', status: 'completed', allocatedCount: 0, createdAt: now };
+  if (!adminUid(request.auth.uid)) throw new HttpsError('permission-denied', 'Həftəlik mükafat hesablaşması yalnız admin üçündür.');
+  throw new HttpsError('failed-precondition', 'Wallet bölgüsü və rank mükafatları konfiqurasiya edilməyib. Yanlış hesablaşma qəbzi yaradılmadı.');
 });

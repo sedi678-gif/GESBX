@@ -49,7 +49,6 @@ import {
   rollLeaderboardIfNeeded as rollLeaderboardIfNeededWork,
 } from './leaderboardService';
 import { previousOfficialWeekKey as previousWeekFromKey } from './leaderboardConfig';
-import { settleWeeklyRankingRewards } from '@/app/game/arena/match/reward/settlement';
 import { runArenaRewardPayoutChecks } from '@/app/game/arena/match/reward/payoutCheck';
 
 export type { BattleLeaderboardAward } from './leaderboardService';
@@ -78,7 +77,8 @@ async function settleClosedWeeklyPeriod(weekKey: string): Promise<WeeklySettleme
   };
 
   try {
-    await settleWeeklyRankingRewards({ periodId });
+    // Client calls are not allowed to run the admin-only settlement.
+    throw new Error('Weekly settlement is admin-only and is not configured for client execution.');
   } catch (err) {
     report.settlementOk = false;
     const message = err instanceof Error ? err.message : String(err);

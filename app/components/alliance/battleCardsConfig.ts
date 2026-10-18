@@ -1,12 +1,13 @@
 import { isSuperAdmin } from '@/app/lib/adminConfig';
 import { BattleCard, BattleCardId, BattleCardsMap } from './types';
 import { BATTLE_CARD_ASSETS } from './battleCardAssets';
+import { resolveSocketUrl } from '@/app/lib/realtimeConfig';
 
 
 
 export const ALLIANCE_SOCKET_URL =
 
-  process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+  resolveSocketUrl();
 
 
 
