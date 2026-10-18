@@ -5,7 +5,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
 let env;
 
@@ -72,6 +72,50 @@ test('clients cannot create or rewrite alliance membership documents', async () 
   await assertFails(updateDoc(doc(db, 'alliances/real'), {
     leaderId: 'player-1', members: ['player-1'],
   }));
+});
+
+test('only alliance leader or promoted assistant can create a map battle', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'alliances/attacker'), {
+      leaderId: '1', members: ['1', '2', '3'], assistantLeaderIds: ['2'],
+    });
+    await setDoc(doc(db, 'alliances/defender'), { leaderId: '4', members: ['4'] });
+    for (const id of ['1', '2', '3']) {
+      await setDoc(doc(db, `players/${id}`), { allianceId: 'attacker' });
+    }
+  });
+
+  const createBattle = (uid, playerId) => setDoc(
+    doc(env.authenticatedContext(uid).firestore(), `battles/test-${playerId}`),
+    {
+      createdBy: playerId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      status: 'joining',
+      eventSeq: 1,
+      participantIds: [playerId],
+      schemaVersion: 1,
+      kind: 'alliance_map',
+      attackerAllianceId: 'attacker',
+      defenderAllianceId: 'defender',
+      attackerAllianceName: 'A',
+      defenderAllianceName: 'B',
+      attackerPlayerIds: [playerId],
+      defenderPlayerIds: [],
+      attackerUids: [uid],
+      defenderUids: [],
+      joinDurationMs: 15000,
+      attackerScore: 0,
+      defenderScore: 0,
+      scoreVersion: 0,
+      lastScoreRequestId: null,
+    },
+  );
+
+  await assertSucceeds(createBattle('leader-uid', '1'));
+  await assertSucceeds(createBattle('assistant-uid', '2'));
+  await assertFails(createBattle('member-uid', '3'));
 });
 
 test('authenticated clients can read alliance attacks but cannot write them directly', async () => {

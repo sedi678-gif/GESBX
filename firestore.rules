@@ -97,6 +97,14 @@ service cloud.firestore {
         && isAllianceMemberOrLeader(allianceId, playerId);
     }
 
+    function isAllianceBattleLeaderOrAssistant(playerId, allianceId) {
+      let alliance = get(/databases/$(database)/documents/alliances/$(allianceId)).data;
+      return alliance.leaderId == playerId
+        || (alliance.keys().hasAny(['assistantLeaderIds'])
+          && alliance.assistantLeaderIds is list
+          && playerId in alliance.assistantLeaderIds);
+    }
+
     function isUidAllianceMember(allianceId) {
       return request.auth != null
         && allianceId is string
@@ -225,7 +233,8 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/alliances/$(d.defenderAllianceId))
         && exists(/databases/$(database)/documents/alliances/$(d.attackerAllianceId))
         && d.createdBy == d.attackerPlayerIds[0]
-        && playerBelongsToAlliance(d.createdBy, d.attackerAllianceId);
+        && playerBelongsToAlliance(d.createdBy, d.attackerAllianceId)
+        && isAllianceBattleLeaderOrAssistant(d.createdBy, d.attackerAllianceId);
     }
 
     function isValidLegacySeqBump() {

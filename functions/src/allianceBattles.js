@@ -44,6 +44,12 @@ async function startAllianceAttack({ uid, payload }) {
     }
     const attacker = attackerSnap.data();
     const defender = defenderSnap.data();
+    const assistantLeaderIds = Array.isArray(attacker.assistantLeaderIds)
+      ? attacker.assistantLeaderIds.map(String)
+      : [];
+    if (String(attacker.leaderId) !== owned.playerId && !assistantLeaderIds.includes(owned.playerId)) {
+      throw new HttpsError('permission-denied', 'Hücumu yalnız lider və onun təyin etdiyi köməkçi lider başlada bilər.');
+    }
     const members = Array.isArray(defender.members) ? defender.members.length : 1;
     const raid = isRaid(payload.cardId);
     const rawDamage = raid ? raidValues(payload.cardId, members).damage : POWER[payload.cardId] * payload.cardCount;

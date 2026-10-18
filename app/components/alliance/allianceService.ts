@@ -173,6 +173,19 @@ export const leaveOrDeleteAlliance = async (
   );
 };
 
+export async function setAllianceAssistantLeader(
+  allianceId: string,
+  userId: string,
+  assistantLeaderId: string,
+  promote: boolean,
+): Promise<string[]> {
+  const result = await callSecureFunction<
+    { allianceId: string; userId: string; assistantLeaderId: string; promote: boolean },
+    { assistantLeaderIds: string[] }
+  >('setAllianceAssistantLeader', { allianceId, userId, assistantLeaderId, promote });
+  return result.assistantLeaderIds;
+}
+
 export const sendChatMessage = async (
   text: string,
   currentUserName: string,

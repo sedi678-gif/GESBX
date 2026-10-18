@@ -48,6 +48,7 @@ exports.joinAlliance = alliances.joinAlliance;
 exports.leaveAlliance = alliances.leaveAlliance;
 exports.updateAllianceName = alliances.updateAllianceName;
 exports.updateAllianceFlag = alliances.updateAllianceFlag;
+exports.setAllianceAssistantLeader = alliances.setAllianceAssistantLeader;
 exports.startAllianceAttack = allianceBattles.startAllianceAttack;
 exports.registerAllianceRaidClick = allianceBattles.registerAllianceRaidClick;
 exports.finalizeAllianceRaid = allianceBattles.finalizeAllianceRaid;

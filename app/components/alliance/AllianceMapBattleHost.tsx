@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AllianceMapSheet from './AllianceMapSheet';
 import { useAllianceBrain } from './AllianceBrainContext';
 import type { AllianceData, PlayerProfile } from './types';
+import { setAllianceAssistantLeader } from './allianceService';
+import { canStartAllianceBattle } from '@/app/lib/allianceBattleAccess';
 import {
   ALLIANCE_BATTLE_MAX_PER_SIDE,
   identifyAlliance,
@@ -94,6 +96,8 @@ export default function AllianceMapBattleHost({
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assistantLeaderBusy, setAssistantLeaderBusy] = useState<string | null>(null);
+  const [assistantLeaderError, setAssistantLeaderError] = useState<string | null>(null);
   const [tableOpen, setTableOpen] = useState(false);
   const [arenaMatch, setArenaMatch] = useState<ArenaMatchState | null>(null);
   const attackLock = useRef(false);
@@ -238,13 +242,27 @@ export default function AllianceMapBattleHost({
   }, [lobbyId, view, now]);
 
   const ownTarget = Boolean(resolvedIdentified && activeAlliance && resolvedIdentified.id === activeAlliance.id);
-  const showAttack = Boolean(liveGate?.canAttack && resolvedIdentified && !ownTarget && activeAlliance);
+  const canStartAttack = Boolean(activeAlliance && canStartAllianceBattle(activeAlliance, userId));
+  const showAttack = Boolean(liveGate?.canAttack && resolvedIdentified && !ownTarget && canStartAttack);
   const alreadyIn =
     liveView &&
     [...(liveView.battle.attackerPlayerIds ?? []), ...(liveView.battle.defenderPlayerIds ?? [])].includes(userId);
 
+  const onToggleAssistantLeader = useCallback(async (assistantLeaderId: string, promote: boolean) => {
+    if (!activeAlliance || userId !== activeAlliance.leaderId || assistantLeaderBusy) return;
+    setAssistantLeaderBusy(assistantLeaderId);
+    setAssistantLeaderError(null);
+    try {
+      await setAllianceAssistantLeader(activeAlliance.id, userId, assistantLeaderId, promote);
+    } catch (err) {
+      setAssistantLeaderError(err instanceof Error ? err.message : 'Köməkçi lider statusu dəyişdirilmədi.');
+    } finally {
+      setAssistantLeaderBusy(null);
+    }
+  }, [activeAlliance, assistantLeaderBusy, userId]);
+
   const onAttack = useCallback(async () => {
-    if (!resolvedIdentified || !activeAlliance || attackLock.current || busy) return;
+    if (!resolvedIdentified || !activeAlliance || !canStartAllianceBattle(activeAlliance, userId) || attackLock.current || busy) return;
     attackLock.current = true;
     setBusy(true);
     setError(null);
@@ -341,8 +359,36 @@ export default function AllianceMapBattleHost({
           <p>İttifaq yoxlanır…</p>
         )}
 
-        {ownTarget ? <p className={styles.battleJoinHint}>Bu sənin ittifaqındır.</p> : null}
+        {ownTarget ? (
+          <>
+            <p className={styles.battleJoinHint}>Bu sənin ittifaqındır.</p>
+            {userId === activeAlliance?.leaderId && activeAlliance ? (
+              <div className={styles.battleTargetInfo}>
+                <strong>Hücum səlahiyyəti</strong>
+                <p>Lider və təyin etdiyi köməkçi liderlər hücum başlada bilər.</p>
+                {(activeAlliance.members ?? []).filter((id) => id !== activeAlliance.leaderId).map((id) => {
+                  const isAssistant = (activeAlliance.assistantLeaderIds ?? []).includes(id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={styles.searchModalJoinBtn}
+                      disabled={assistantLeaderBusy !== null}
+                      onClick={() => void onToggleAssistantLeader(id, !isAssistant)}
+                    >
+                      {assistantLeaderBusy === id ? 'Saxlanır…' : `${isAssistant ? 'Köməkçi lideri ləğv et' : 'Köməkçi lider təyin et'} · ${playerName(players, id)}`}
+                    </button>
+                  );
+                })}
+                {assistantLeaderError ? <p className={styles.battleJoinWarn}>{assistantLeaderError}</p> : null}
+              </div>
+            ) : null}
+          </>
+        ) : null}
         {!activeAlliance ? <p className={styles.battleJoinWarn}>Hücum üçün öz ittifaqın olmalıdır.</p> : null}
+        {activeAlliance && !canStartAttack && !ownTarget ? (
+          <p className={styles.battleJoinHint}>Hücum başlatmaq üçün ittifaq lideri və ya təyin olunmuş köməkçi lider olmalısan.</p>
+        ) : null}
         {liveGate && !liveGate.canAttack ? (
           <p className={styles.battleJoinHint}>
             Bu ittifaqa son 3 saat ərzində hücum edilib. Yenidən:{' '}

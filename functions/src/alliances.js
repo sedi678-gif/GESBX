@@ -13,6 +13,10 @@ const allianceSchema = z.object({
   userId: playerIdSchema,
   allianceId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
 }).strict();
+const assistantLeaderSchema = allianceSchema.extend({
+  assistantLeaderId: playerIdSchema,
+  promote: z.boolean(),
+}).strict();
 const flagSchema = z.object({
   backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
@@ -113,7 +117,9 @@ async function leaveAlliance({ uid, payload }) {
       });
       memberSnaps.forEach((snap) => snap.docs.forEach((member) => tx.delete(member.ref)));
     } else {
-      tx.update(allianceRef, { members: updatedMembers });
+      const assistantLeaderIds = (Array.isArray(alliance.assistantLeaderIds) ? alliance.assistantLeaderIds : [])
+        .filter((id) => String(id) !== owned.playerId);
+      tx.update(allianceRef, { members: updatedMembers, assistantLeaderIds });
       tx.delete(db.doc(`alliance_members/${payload.allianceId}/members/${uid}`));
     }
     tx.update(owned.playerRef, { allianceId: null, allianceName: null, isLeader: false, score: 0, updatedAt: now });
@@ -157,8 +163,45 @@ async function updateAllianceFlag({ uid, payload }) {
   });
 }
 
+async function setAllianceAssistantLeader({ uid, payload }) {
+  return db.runTransaction(async (tx) => {
+    const owned = await getOwnedPlayer(uid, payload.userId, tx);
+    const allianceRef = db.doc(`alliances/${payload.allianceId}`);
+    const assistantRef = db.doc(`players/${payload.assistantLeaderId}`);
+    const [allianceSnap, assistantSnap] = await Promise.all([
+      tx.get(allianceRef),
+      tx.get(assistantRef),
+    ]);
+    if (!allianceSnap.exists) throw new HttpsError('not-found', 'İttifaq tapılmadı.');
+    const alliance = allianceSnap.data();
+    if (String(alliance.leaderId) !== owned.playerId) {
+      throw new HttpsError('permission-denied', 'Köməkçi lideri yalnız ittifaq lideri təyin edə bilər.');
+    }
+    if (!assistantSnap.exists || assistantSnap.data().allianceId !== payload.allianceId) {
+      throw new HttpsError('failed-precondition', 'Köməkçi lider yalnız mövcud ittifaq üzvü ola bilər.');
+    }
+    if (payload.assistantLeaderId === owned.playerId) {
+      throw new HttpsError('invalid-argument', 'Lider özünü köməkçi lider təyin edə bilməz.');
+    }
+
+    const members = Array.isArray(alliance.members) ? alliance.members.map(String) : [];
+    if (!members.includes(payload.assistantLeaderId)) {
+      throw new HttpsError('failed-precondition', 'İstifadəçi bu ittifaqın üzvü deyil.');
+    }
+    const current = Array.isArray(alliance.assistantLeaderIds)
+      ? [...new Set(alliance.assistantLeaderIds.map(String))]
+      : [];
+    const next = payload.promote
+      ? [...new Set([...current, payload.assistantLeaderId])]
+      : current.filter((id) => id !== payload.assistantLeaderId);
+    tx.update(allianceRef, { assistantLeaderIds: next });
+    return { assistantLeaderIds: next };
+  });
+}
+
 exports.createAlliance = secureCallable('createAlliance', createSchema, createAlliance, { max: 5, windowMs: 60_000 });
 exports.joinAlliance = secureCallable('joinAlliance', allianceSchema, joinAlliance, { max: 10, windowMs: 60_000 });
 exports.leaveAlliance = secureCallable('leaveAlliance', allianceSchema, leaveAlliance, { max: 10, windowMs: 60_000 });
 exports.updateAllianceName = secureCallable('updateAllianceName', updateNameSchema, updateAllianceName, { max: 5, windowMs: 60_000 });
 exports.updateAllianceFlag = secureCallable('updateAllianceFlag', updateFlagSchema, updateAllianceFlag, { max: 10, windowMs: 60_000 });
+exports.setAllianceAssistantLeader = secureCallable('setAllianceAssistantLeader', assistantLeaderSchema, setAllianceAssistantLeader, { max: 20, windowMs: 60_000 });

@@ -22,6 +22,8 @@ export interface AllianceData {
   leader: string;
   score: number;
   members: string[];
+  /** Liderin döyüş başlatmaq səlahiyyəti verdiyi üzvlər. */
+  assistantLeaderIds?: string[];
   createdAt: number;
   flag?: AllianceFlagConfig;
   /** Qala binası səviyyəsi (1–6) */

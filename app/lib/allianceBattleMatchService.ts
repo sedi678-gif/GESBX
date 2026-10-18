@@ -33,6 +33,7 @@ import { readStoredDefenseLoadout } from '@/app/lib/battleDefense/battleDefenseC
 import { stampDefenseSnapshot } from '@/app/lib/battleDefense/battleDefenseService';
 import { serverNowMs, syncServerClock } from '@/app/lib/battlePlay/battleServerClock';
 import type { AllianceData } from '@/app/components/alliance/types';
+import { canReuseActiveAllianceBattle, canStartAllianceBattle } from '@/app/lib/allianceBattleAccess';
 
 export const ALLIANCE_BATTLE_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 export const ALLIANCE_BATTLE_JOIN_MS = 15_000;
@@ -212,9 +213,8 @@ export async function startAllianceMapBattle(input: {
 
         const attacker = attackerSnap.data();
         const defender = defenderSnap.data();
-        const attackerMembers: string[] = Array.isArray(attacker.members) ? attacker.members.map(String) : [];
-        if (!attackerMembers.includes(playerId) && attacker.leaderId !== playerId) {
-          throw new Error('Yalnız öz ittifaqın adından hücum edə bilərsən');
+        if (!canStartAllianceBattle(attacker, playerId)) {
+          throw new Error('Hücumu yalnız lider və onun təyin etdiyi köməkçi lider başlada bilər.');
         }
 
         const cdRef = cooldownRef(defenderAllianceId);
@@ -230,14 +230,21 @@ export async function startAllianceMapBattle(input: {
             const arenaSnap = await tx.get(doc(db, ARENA_MATCH_COLLECTION, live.id));
             const arenaClosed =
               arenaSnap.exists() && (arenaSnap.data() as { status?: string }).status === 'closed';
-            if (!arenaClosed && live.status === 'joining' && live.attackerAllianceId === attackerAllianceId) {
+            if (canReuseActiveAllianceBattle({
+              status: live.status,
+              attackerAllianceId: String(live.attackerAllianceId || ''),
+              defenderAllianceId: String(live.defenderAllianceId || ''),
+              requestedAttackerAllianceId: attackerAllianceId,
+              requestedDefenderAllianceId: defenderAllianceId,
+              arenaClosed,
+            })) {
               return live;
             }
             if (
               !arenaClosed &&
               (live.status === 'joining' || live.status === 'locked' || live.status === 'active')
             ) {
-              throw new Error('Bu ittifaqda aktiv döyüş var');
+              throw new Error('Hədəf ittifaq hazırda aktiv döyüşdədir.');
             }
           }
         }
