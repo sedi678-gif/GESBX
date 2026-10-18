@@ -1,3 +1,4 @@
+/* eslint @typescript-eslint/no-require-imports: off */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore } = require('firebase-admin/firestore');
 

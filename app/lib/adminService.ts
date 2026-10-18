@@ -218,12 +218,13 @@ export async function allocateNextUserIdFallback(): Promise<string> {
 
 /** Yalnız brauzer counter (offline) */
 export function allocateNextUserIdLocal(): string {
-  if (typeof window === 'undefined') return '2';
-  const stored = parseInt(localStorage.getItem('app_last_id_num_v6') || '1', 10);
-  const next = Math.max(stored, 1) + 1;
-  const finalId = Math.max(2, next);
-  localStorage.setItem('app_last_id_num_v6', String(finalId));
-  return String(finalId);
+  if (typeof window === 'undefined') return 'offline_server';
+  const id = globalThis.crypto?.randomUUID?.();
+  if (id) return `offline_${id}`;
+  const random = Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)))
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
+  return `offline_${random}`;
 }
 
 export async function recordAdminSession(adminId: string, displayName: string, active: boolean) {
