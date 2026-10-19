@@ -6604,11 +6604,75 @@
 .soloArenaDock {
   position: fixed;
   z-index: 1200;
-  left: 50%;
-  bottom: calc(76px + env(safe-area-inset-bottom));
-  width: min(560px, calc(100vw - 24px));
-  transform: translateX(-50%);
+  right: max(8px, env(safe-area-inset-right, 0px));
+  bottom: calc(76px + 56px + 12px + env(safe-area-inset-bottom));
+  width: min(360px, calc(100vw - 88px));
   color: #f8fafc;
+}
+
+.soloArenaIdle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.soloArenaFab {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: 58px;
+  height: 58px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 2px solid rgba(125, 211, 252, 0.9);
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(8, 47, 73, 0.98), rgba(15, 23, 42, 0.98));
+  color: #e0f2fe;
+  cursor: pointer;
+  box-shadow: 0 0 11px rgba(56, 189, 248, 0.64), 0 0 22px rgba(168, 85, 247, 0.34), 0 4px 16px rgba(0, 0, 0, 0.42);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.soloArenaFab:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.04);
+  border-color: #67e8f9;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.82), 0 0 28px rgba(168, 85, 247, 0.5), 0 5px 18px rgba(0, 0, 0, 0.44);
+}
+
+.soloArenaFab:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.soloArenaFab svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  filter: drop-shadow(0 0 4px rgba(103, 232, 249, 0.65));
+}
+
+.soloArenaFab span {
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.soloArenaHint {
+  max-width: 82px;
+  border: 1px solid rgba(125, 211, 252, 0.3);
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: rgba(8, 20, 37, 0.86);
+  color: #bae6fd;
+  font-size: 8px !important;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .soloArenaPanel {
@@ -6673,6 +6737,60 @@
   background: rgba(127, 29, 29, 0.92);
   color: #fee2e2;
   font-size: 11px;
+}
+
+.soloArenaPanel {
+  border-color: rgba(34, 211, 238, 0.38);
+  box-shadow: 0 0 16px rgba(14, 165, 233, 0.18), 0 12px 36px rgba(2, 6, 23, 0.48);
+}
+
+.worldCastleHub .allianceChatStay {
+  left: 50%;
+  bottom: calc(var(--alliance-map-nav, 68px) + 10px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 148px));
+  height: min(270px, 38dvh);
+  min-height: 180px;
+}
+
+.worldCastleHub .allianceChatStayCollapsed {
+  min-height: 0;
+}
+
+.worldCastleHub .allianceChatPeek {
+  min-height: 48px;
+  gap: 4px;
+  border-color: rgba(34, 211, 238, 0.52);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(8, 26, 46, 0.96), rgba(15, 23, 42, 0.92));
+  box-shadow: 0 0 16px rgba(14, 165, 233, 0.16), 0 8px 24px rgba(2, 6, 23, 0.45);
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.worldCastleHub .allianceChatPeek:hover {
+  transform: translateY(-2px);
+  border-color: rgba(103, 232, 249, 0.85);
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.28), 0 10px 26px rgba(2, 6, 23, 0.48);
+}
+
+.worldCastleHub .allianceChatStay .mapChatPanel {
+  border: 1px solid rgba(103, 232, 249, 0.3);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(8, 20, 37, 0.97), rgba(15, 23, 42, 0.96));
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.52), 0 0 20px rgba(14, 165, 233, 0.12);
+  overflow: hidden;
+}
+
+@media (max-width: 520px) {
+  .soloArenaDock {
+    right: max(7px, env(safe-area-inset-right, 0px));
+    width: min(340px, calc(100vw - 82px));
+  }
+
+  .worldCastleHub .allianceChatStay {
+    left: 50%;
+    width: min(340px, calc(100vw - 108px));
+  }
 }
 
 @media (max-width: 520px) {

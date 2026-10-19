@@ -120,20 +120,21 @@ export default function SoloArenaMatchmaking() {
             )}
           </div>
         ) : (
-          <div className={styles.soloArenaPanel}>
-            <div>
-              <strong>Təsadüfi 1v1 XP döyüşü</strong>
-              <span>İttifaqsız oyunçular: qalib 50, digər oyunçu 10 XP. Gündə maksimum 100 XP.</span>
-            </div>
-            {activeAlliance ? (
-              <button type="button" className={styles.soloArenaButton} disabled>
-                Yalnız ittifaqsız oyunçular
-              </button>
-            ) : (
-              <button type="button" className={styles.soloArenaButton} disabled={busy} onClick={() => void startSearch()}>
-                {busy ? 'Axtarılır…' : 'Rəqib tap və döyüş'}
-              </button>
-            )}
+          <div className={styles.soloArenaIdle}>
+            <button
+              type="button"
+              className={styles.soloArenaFab}
+              disabled={busy || Boolean(activeAlliance)}
+              onClick={() => void startSearch()}
+              aria-label={activeAlliance ? 'Təsadüfi döyüş yalnız ittifaqsız oyunçular üçündür' : 'Rəqib tap və döyüş'}
+              title={activeAlliance ? 'Yalnız ittifaqsız oyunçular' : 'Rəqib tap və döyüş'}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="m3 2 5 1 2 5-3-2-3 3 2-3-3-4Zm18 0-5 1-2 5 3-2 3 3-2-3 3-4ZM6 8l10 10 2-2L8 6 6 8Zm12 0L8 18l-2-2L16 6l2 2Z" />
+              </svg>
+              <span>{busy ? 'Axtarılır' : 'Döyüş'}</span>
+            </button>
+            <span className={styles.soloArenaHint}>1v1 XP · 50 / 10 XP</span>
           </div>
         )}
         {error ? <p className={styles.soloArenaError}>{error}</p> : null}
