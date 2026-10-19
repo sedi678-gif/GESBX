@@ -1,7 +1,8 @@
 import { httpsCallable } from 'firebase/functions';
+import { getToken } from 'firebase/app-check';
 import { getId, getInstallations } from 'firebase/installations';
 import { Capacitor } from '@capacitor/core';
-import { app, auth, functions, requestPlayIntegrityToken } from '@/firebase';
+import { app, appCheck, auth, functions, requestPlayIntegrityToken } from '@/firebase';
 import { requireFirebaseAuth } from './firebaseAuth';
 
 type SecureEnvelope<T> = {
@@ -49,6 +50,17 @@ export async function callSecureFunction<TPayload extends Record<string, unknown
   operationId = createOperationId(),
 ): Promise<TResult> {
   const user = await requireFirebaseAuth();
+  if (!appCheck && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR !== '1') {
+    throw new Error('Firebase App Check aktiv deyil. NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY dəyərini təyin edib tətbiqi yenidən build edin.');
+  }
+  if (appCheck) {
+    try {
+      await getToken(appCheck);
+    } catch (error) {
+      const reason = error instanceof Error ? ` (${error.message})` : '';
+      throw new Error(`Firebase App Check təsdiqi alınmadı. reCAPTCHA açarını və domen icazəsini yoxlayın${reason}`);
+    }
+  }
   const uid = auth.currentUser?.uid || user.uid;
   const installationId = await getFirebaseInstallationId();
   const request: SecureEnvelope<TPayload> = { operationId, payload, installationId };
