@@ -6613,7 +6613,7 @@
 .soloArenaIdle {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   gap: 4px;
 }
 
@@ -6621,18 +6621,18 @@
   position: relative;
   isolation: isolate;
   display: flex;
-  width: 58px;
-  height: 58px;
+  width: 56px;
+  height: 56px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1px;
-  border: 2px solid rgba(125, 211, 252, 0.9);
+  border: 1.5px solid transparent;
   border-radius: 50%;
-  background: linear-gradient(145deg, rgba(8, 47, 73, 0.98), rgba(15, 23, 42, 0.98));
+  background: rgba(15, 23, 42, 0.9);
   color: #e0f2fe;
   cursor: pointer;
-  box-shadow: 0 0 11px rgba(56, 189, 248, 0.64), 0 0 22px rgba(168, 85, 247, 0.34), 0 4px 16px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35), 0 0 18px rgba(236, 72, 153, 0.22), 0 4px 14px rgba(0, 0, 0, 0.35);
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -6640,8 +6640,8 @@
 
 .soloArenaFab:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.04);
-  border-color: #67e8f9;
-  box-shadow: 0 0 14px rgba(34, 211, 238, 0.82), 0 0 28px rgba(168, 85, 247, 0.5), 0 5px 18px rgba(0, 0, 0, 0.44);
+  color: #fce7f3;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.5), 0 0 22px rgba(236, 72, 153, 0.35), 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .soloArenaFab:disabled {
@@ -6663,7 +6663,7 @@
 }
 
 .soloArenaHint {
-  max-width: 82px;
+  max-width: 88px;
   border: 1px solid rgba(125, 211, 252, 0.3);
   border-radius: 999px;
   padding: 3px 6px;
@@ -6748,9 +6748,9 @@
   left: 50%;
   bottom: calc(var(--alliance-map-nav, 68px) + 10px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(420px, calc(100vw - 148px));
-  height: min(270px, 38dvh);
-  min-height: 180px;
+  width: min(340px, calc(100vw - 180px));
+  height: min(220px, 30dvh);
+  min-height: 0;
 }
 
 .worldCastleHub .allianceChatStayCollapsed {
@@ -6774,6 +6774,10 @@
 }
 
 .worldCastleHub .allianceChatStay .mapChatPanel {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid rgba(103, 232, 249, 0.3);
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(8, 20, 37, 0.97), rgba(15, 23, 42, 0.96));
@@ -6789,7 +6793,8 @@
 
   .worldCastleHub .allianceChatStay {
     left: 50%;
-    width: min(340px, calc(100vw - 108px));
+    width: min(320px, calc(100vw - 112px));
+    height: min(210px, 32dvh);
   }
 }
 

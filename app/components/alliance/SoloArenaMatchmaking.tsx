@@ -123,7 +123,7 @@ export default function SoloArenaMatchmaking() {
           <div className={styles.soloArenaIdle}>
             <button
               type="button"
-              className={styles.soloArenaFab}
+              className={`${styles.mapRoundBtn} ${styles.soloArenaFab}`}
               disabled={busy || Boolean(activeAlliance)}
               onClick={() => void startSearch()}
               aria-label={activeAlliance ? 'Təsadüfi döyüş yalnız ittifaqsız oyunçular üçündür' : 'Rəqib tap və döyüş'}
