@@ -9,6 +9,7 @@ import AllianceMapSidebar from './AllianceMapSidebar';
 import AllianceMapRightPanel from './AllianceMapRightPanel';
 import AllianceChatDock from './AllianceChatDock';
 import AllianceMapBattleHost from './AllianceMapBattleHost';
+import SoloArenaMatchmaking from './SoloArenaMatchmaking';
 import { AllianceScreenBusyProvider } from './AllianceScreenBusy';
 import styles from './alliance.module.css';
 
@@ -54,6 +55,7 @@ function AlliancePageInner() {
         selectedAllianceId={selectedAllianceId}
         onClearSelected={() => setSelectedAllianceId(null)}
       />
+      <SoloArenaMatchmaking />
       <AppBottomNav activeTab="alliance" />
     </div>
   );

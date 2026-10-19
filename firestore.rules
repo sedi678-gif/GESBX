@@ -2994,6 +2994,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /solo_arena_queue/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
     match /withdrawal_requests/{requestId} {
       allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
       allow write: if false;

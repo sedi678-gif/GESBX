@@ -1,12 +1,150 @@
 /* eslint @typescript-eslint/no-require-imports: off */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore } = require('firebase-admin/firestore');
-const { ADMIN_UIDS, adminUid } = require('./security');
+const { ADMIN_UIDS, adminUid, operationDocId, writeXpLedger, storedXp } = require('./security');
 const { planWeeklyRewards } = require('./arenaWeeklyPlanner');
 
 const db = getFirestore();
 const REGION = 'us-central1';
 const eventTypes = ['REWARD_ELIGIBILITY_CHECKED', 'REWARD_CREATED', 'REWARD_SECURITY_CHECKED'];
+const SOLO_DAILY_XP_CAP = 100;
+const SOLO_WIN_XP = 50;
+const SOLO_LOSS_XP = 10;
+const SOLO_DRAW_XP = 20;
+
+async function awardSoloArenaXp(uid, matchId) {
+  const matchRef = db.doc(`arena_matches/${matchId}`);
+  const matchRewardRef = db.doc(`solo_arena_xp_rewards/${matchId}`);
+  const matchProofRef = db.doc(`solo_arena_matches/${matchId}`);
+  return db.runTransaction(async (tx) => {
+    const [matchSnap, matchProofSnap] = await Promise.all([tx.get(matchRef), tx.get(matchProofRef)]);
+    if (!matchSnap.exists) throw new HttpsError('not-found', 'Match tapılmadı.');
+    if (!matchProofSnap.exists) throw new HttpsError('permission-denied', 'Bu matç server tərəfindən yaradılmayıb.');
+    const match = matchSnap.data();
+    const proof = matchProofSnap.data();
+    if (!(match.participantIds || []).includes(uid)) {
+      throw new HttpsError('permission-denied', 'Bu match-ə çıxışınız yoxdur.');
+    }
+    if (!(proof.authUids || []).includes(uid)) {
+      throw new HttpsError('permission-denied', 'Bu matçda iştirakınız təsdiqlənmir.');
+    }
+    if (
+      match.matchType !== 'solo_random'
+      || match.gameMode !== '1v1'
+      || match.result?.gameMode !== '1v1'
+      || match.status !== 'closed'
+      || match.result?.status !== 'COMPLETED'
+    ) {
+      throw new HttpsError('failed-precondition', 'Təsadüfi döyüş yekunlaşmayıb.');
+    }
+
+    const homeIds = Array.isArray(match.homePlayerIds) ? match.homePlayerIds.filter((id) => typeof id === 'string') : [];
+    const awayIds = Array.isArray(match.awayPlayerIds) ? match.awayPlayerIds.filter((id) => typeof id === 'string') : [];
+    const homeId = homeIds.length === 1 ? homeIds[0] : null;
+    const awayId = awayIds.length === 1 ? awayIds[0] : null;
+    if (!homeId || !awayId || homeId === awayId || match.homeAllianceId || match.awayAllianceId) {
+      throw new HttpsError('failed-precondition', 'Təsadüfi 1v1 matçın iştirakçıları düzgün deyil.');
+    }
+    if (proof.matchId !== matchId || JSON.stringify(proof.playerIds) !== JSON.stringify([homeId, awayId])) {
+      throw new HttpsError('permission-denied', 'Təsadüfi matçın iştirakçıları uyğun gəlmir.');
+    }
+
+    const now = Date.now();
+    const dayKey = new Date(now).toISOString().slice(0, 10);
+    const pairKey = [homeId, awayId].sort().join('_');
+    const pairRef = db.doc(`solo_arena_pair_rewards/${dayKey}_${pairKey}`);
+    const homeRef = db.doc(`players/${homeId}`);
+    const awayRef = db.doc(`players/${awayId}`);
+    const [oldMatchReward, oldPairReward, homeSnap, awaySnap] = await Promise.all([
+      tx.get(matchRewardRef),
+      tx.get(pairRef),
+      tx.get(homeRef),
+      tx.get(awayRef),
+    ]);
+    if (oldMatchReward.exists) return oldMatchReward.data().xpRewards || [];
+    if (!homeSnap.exists || !awaySnap.exists) throw new HttpsError('not-found', 'Döyüşçü profili tapılmadı.');
+
+    const home = homeSnap.data();
+    const away = awaySnap.data();
+    const homeUid = String(home.firebaseUid || '');
+    const awayUid = String(away.firebaseUid || '');
+    if (!homeUid || !awayUid || homeUid === awayUid) {
+      throw new HttpsError('failed-precondition', 'Döyüşçü hesabları təsdiqlənmir.');
+    }
+    if (proof.authUids?.[0] !== homeUid || proof.authUids?.[1] !== awayUid) {
+      throw new HttpsError('permission-denied', 'Təsadüfi matçın hesab sahibləri uyğun gəlmir.');
+    }
+
+    const xpRewards = [];
+    const receipt = {
+      matchId,
+      pairKey,
+      dateKey: dayKey,
+      playerIds: [homeId, awayId],
+      xpRewards,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+    if (oldPairReward.exists) {
+      tx.create(matchRewardRef, { ...receipt, duplicatePair: true });
+      return [];
+    }
+
+    const dailyRefs = [
+      db.doc(`solo_arena_xp_daily/${homeId}_${dayKey}`),
+      db.doc(`solo_arena_xp_daily/${awayId}_${dayKey}`),
+    ];
+    const ledgerRefs = [
+      db.doc(`xp_ledger/${operationDocId(homeUid, `solo_arena_${matchId}`)}`),
+      db.doc(`xp_ledger/${operationDocId(awayUid, `solo_arena_${matchId}`)}`),
+    ];
+    const [homeDaily, awayDaily, homeLedger, awayLedger] = await Promise.all([
+      tx.get(dailyRefs[0]), tx.get(dailyRefs[1]), tx.get(ledgerRefs[0]), tx.get(ledgerRefs[1]),
+    ]);
+    const winnerId = String(match.result?.winnerPlayerId || '');
+    if (winnerId && winnerId !== homeId && winnerId !== awayId) {
+      throw new HttpsError('failed-precondition', 'Döyüş qalibi uyğun gəlmir.');
+    }
+    const draw = !winnerId;
+    const participants = [
+      { id: homeId, uid: homeUid, player: home, ref: homeRef, dailyRef: dailyRefs[0], dailySnap: homeDaily, ledgerRef: ledgerRefs[0], ledgerSnap: homeLedger },
+      { id: awayId, uid: awayUid, player: away, ref: awayRef, dailyRef: dailyRefs[1], dailySnap: awayDaily, ledgerRef: ledgerRefs[1], ledgerSnap: awayLedger },
+    ];
+    for (const item of participants) {
+      if (item.ledgerSnap.exists) continue;
+      const earned = item.dailySnap.exists ? Math.max(0, Number(item.dailySnap.data().earnedXp) || 0) : 0;
+      const baseAward = draw ? SOLO_DRAW_XP : item.id === winnerId ? SOLO_WIN_XP : SOLO_LOSS_XP;
+      const award = item.player.proPanelActive === true || item.player.banned === true || item.player.frozen === true
+        ? 0
+        : Math.min(baseAward, Math.max(0, SOLO_DAILY_XP_CAP - earned));
+      if (award <= 0) continue;
+      const xpAfter = storedXp(item.player) + award;
+      const result = { matchId, playerId: item.id, xp: award, dailyXp: earned + award, winnerPlayerId: winnerId || null };
+      tx.update(item.ref, { xp: xpAfter, updatedAt: now });
+      tx.set(item.dailyRef, {
+        authUid: item.uid,
+        playerId: item.id,
+        dateKey: dayKey,
+        earnedXp: earned + award,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      writeXpLedger(tx, item.ledgerRef, {
+        uid: item.uid,
+        playerId: item.id,
+        operationId: `solo_arena_${matchId}`,
+        type: 'solo_arena_match',
+        amount: award,
+        xpAfter,
+        source: matchId,
+        result,
+      });
+      xpRewards.push({ playerId: item.id, amount: award, xpAfter });
+    }
+
+    tx.create(pairRef, { ...receipt, xpRewards });
+    tx.create(matchRewardRef, { ...receipt, xpRewards });
+    return xpRewards;
+  });
+}
 
 function rewardId(periodId, sourceId, recipientType, recipientId) {
   return `${periodId}_${sourceId}_${recipientType}_${recipientId}_BATTLE_COMPLETION`
@@ -27,6 +165,9 @@ exports.awardArenaMatchRewards = onCall({ region: REGION, enforceAppCheck: true 
   const result = match.result || {};
   if (match.status !== 'closed' || result.status !== 'COMPLETED' || result.matchId !== matchId) {
     throw new HttpsError('failed-precondition', 'Match yekunlaşmayıb.');
+  }
+  if (match.matchType === 'solo_random') {
+    return { rewards: [], xpRewards: await awardSoloArenaXp(request.auth.uid, matchId) };
   }
   const recipientType = result.gameMode === '1v1' ? 'USER' : 'ALLIANCE';
   const recipientId = recipientType === 'USER' ? result.winnerPlayerId : result.winnerAllianceId;

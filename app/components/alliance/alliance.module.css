@@ -6601,6 +6601,93 @@
   cursor: default;
 }
 
+.soloArenaDock {
+  position: fixed;
+  z-index: 1200;
+  left: 50%;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  width: min(560px, calc(100vw - 24px));
+  transform: translateX(-50%);
+  color: #f8fafc;
+}
+
+.soloArenaPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 16px;
+  padding: 11px 13px;
+  background: linear-gradient(135deg, rgba(8, 47, 73, 0.96), rgba(15, 23, 42, 0.97));
+  box-shadow: 0 12px 36px rgba(2, 6, 23, 0.48);
+  backdrop-filter: blur(12px);
+}
+
+.soloArenaPanel strong,
+.soloArenaPanel span {
+  display: block;
+}
+
+.soloArenaPanel strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.soloArenaPanel span {
+  margin-top: 3px;
+  color: #bae6fd;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.soloArenaButton,
+.soloArenaCancel {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border: 1px solid rgba(125, 211, 252, 0.32);
+  border-radius: 11px;
+  padding: 0 12px;
+  background: linear-gradient(180deg, #0ea5e9, #0369a1);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.soloArenaCancel {
+  background: rgba(127, 29, 29, 0.72);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.soloArenaButton:disabled,
+.soloArenaCancel:disabled {
+  opacity: 0.58;
+  cursor: default;
+}
+
+.soloArenaError {
+  margin: 5px 0 0;
+  border-radius: 9px;
+  padding: 6px 9px;
+  background: rgba(127, 29, 29, 0.92);
+  color: #fee2e2;
+  font-size: 11px;
+}
+
+@media (max-width: 520px) {
+  .soloArenaPanel {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .soloArenaButton,
+  .soloArenaCancel {
+    width: 100%;
+  }
+}
+
 .battleJoinTimer {
   margin-bottom: 12px;
   border-radius: 10px;

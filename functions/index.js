@@ -14,6 +14,7 @@ const arenaRewards = require('./src/arenaRewards');
 const zegoToken = require('./src/zegoToken');
 const contentModeration = require('./src/contentModeration');
 const discoverBoost = require('./src/discoverBoost');
+const soloArena = require('./src/soloArena');
 
 exports.awardArenaMatchRewards = arenaRewards.awardArenaMatchRewards;
 exports.settleArenaWeeklyRewards = arenaRewards.settleArenaWeeklyRewards;
@@ -21,6 +22,8 @@ exports.createZegoToken = zegoToken.createZegoToken;
 exports.moderateUploadedPost = contentModeration.moderateUploadedPost;
 exports.autoHideReportedPost = contentModeration.autoHideReportedPost;
 exports.purchaseDiscoverBoost = discoverBoost.purchaseDiscoverBoost;
+exports.queueSoloArenaMatch = soloArena.queueSoloArenaMatch;
+exports.cancelSoloArenaQueue = soloArena.cancelSoloArenaQueue;
 
 exports.mintMobileAppCheckToken = mintMobileAppCheckToken;
 exports.purchaseBattleCard = economy.purchaseBattleCard;
