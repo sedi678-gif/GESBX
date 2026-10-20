@@ -48,7 +48,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string)
 
 let authReady: Promise<User | null> | null = null;
 let authFailure: string | null = null;
-const AUTH_TIMEOUT_MS = 12_000;
+const AUTH_STATE_TIMEOUT_MS = 4_000;
 const ANONYMOUS_AUTH_TIMEOUT_MS = 20_000;
 
 /** Anonim Firebase auth — vaxt bitərsə null qaytarır, prosesi bloklamır. */
@@ -62,14 +62,18 @@ export function ensureFirebaseAuth(): Promise<User | null> {
 
   if (!authReady) {
     const pending = (async () => {
-      // Wait for Firebase's persisted session to restore before creating a
-      // temporary anonymous one. Otherwise the first protected action after
-      // a cold load can race Auth initialization and look like a signed-out user.
-      await withTimeout(
-        auth.authStateReady(),
-        AUTH_TIMEOUT_MS,
-        'Firebase saxlanmış hesab sessiyasını bərpa edə bilmədi.'
-      );
+      // A stale/unavailable browser persistence store must not prevent the
+      // app from trying anonymous sign-in. The Firebase sign-in operation
+      // itself waits for Auth initialization and returns its real SDK error.
+      try {
+        await withTimeout(
+          auth.authStateReady(),
+          AUTH_STATE_TIMEOUT_MS,
+          'Firebase Auth sessiyasının bərpası gecikir.'
+        );
+      } catch (error) {
+        console.warn('[Firebase Auth] Persisted session restore timed out; trying anonymous sign-in.', error);
+      }
       if (auth.currentUser) {
         authFailure = null;
         return auth.currentUser;
@@ -100,8 +104,8 @@ export function ensureFirebaseAuth(): Promise<User | null> {
 export async function requireFirebaseAuth(): Promise<User> {
   const user = await ensureFirebaseAuth();
   if (!user) {
-    const detail = authFailure ? ` (${authFailure})` : '';
-    throw new Error(`Firebase hesabı bərpa olunmadı. Anonim girişin Firebase Console-da aktiv olduğunu və Auth domeninin icazəli olduğunu yoxlayın.${detail}`);
+    const detail = authFailure ? ` Firebase xətası: ${authFailure}` : '';
+    throw new Error(`Firebase girişi alınmadı. Firebase Console-da Anonymous girişin aktiv, sayt domeninin isə Authentication → Settings → Authorized domains siyahısında olduğunu yoxlayın.${detail}`);
   }
   return user;
 }
