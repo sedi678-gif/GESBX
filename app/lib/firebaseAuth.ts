@@ -16,6 +16,15 @@ function connectFirebaseEmulators() {
   if (emulatorsConnected || typeof window === 'undefined') return;
   if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR !== '1') return;
 
+  // Never route a deployed visitor's browser to their own localhost. This env
+  // flag is public/compile-time in a static Next build and can be accidentally
+  // enabled in Vercel; Auth then hangs until the sign-in timeout.
+  const host = window.location.hostname;
+  if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1') {
+    console.warn('[Firebase] Emulator flag ignored outside localhost.');
+    return;
+  }
+
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
   connectStorageEmulator(storage, '127.0.0.1', 9199);
@@ -40,6 +49,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string)
 let authReady: Promise<User | null> | null = null;
 let authFailure: string | null = null;
 const AUTH_TIMEOUT_MS = 12_000;
+const ANONYMOUS_AUTH_TIMEOUT_MS = 20_000;
 
 /** Anonim Firebase auth — vaxt bitərsə null qaytarır, prosesi bloklamır. */
 export function ensureFirebaseAuth(): Promise<User | null> {
@@ -51,24 +61,27 @@ export function ensureFirebaseAuth(): Promise<User | null> {
   }
 
   if (!authReady) {
-    const pending = withTimeout(
-      (async () => {
-        // Wait for Firebase's persisted session to restore before creating a
-        // temporary anonymous one. Otherwise the first protected action after
-        // a cold load can race Auth initialization and look like a signed-out user.
-        await auth.authStateReady();
-        if (auth.currentUser) {
-          authFailure = null;
-          return auth.currentUser;
-        }
-        const credential = await signInAnonymously(auth);
+    const pending = (async () => {
+      // Wait for Firebase's persisted session to restore before creating a
+      // temporary anonymous one. Otherwise the first protected action after
+      // a cold load can race Auth initialization and look like a signed-out user.
+      await withTimeout(
+        auth.authStateReady(),
+        AUTH_TIMEOUT_MS,
+        'Firebase saxlanmış hesab sessiyasını bərpa edə bilmədi.'
+      );
+      if (auth.currentUser) {
         authFailure = null;
-        return credential.user;
-      })(),
-      AUTH_TIMEOUT_MS,
-/** Auth vaxtı bitdikdə (yalnız server log) */
-      'Auth vaxtı bitdi.'
-    ).catch((err) => {
+        return auth.currentUser;
+      }
+      const credential = await withTimeout(
+        signInAnonymously(auth),
+        ANONYMOUS_AUTH_TIMEOUT_MS,
+        'Firebase anonim giriş sorğusuna cavab vermədi.'
+      );
+      authFailure = null;
+      return credential.user;
+    })().catch((err) => {
       console.warn('Anon auth:', err);
       authFailure = err instanceof Error ? err.message : String(err);
       authReady = null;
