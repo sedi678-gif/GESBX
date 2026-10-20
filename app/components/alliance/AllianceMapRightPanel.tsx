@@ -2,6 +2,7 @@
 
 import AllianceMapRoundBtn from './AllianceMapRoundBtn';
 import { IconMapFortress, IconMapGlobe } from './AllianceMapIcons';
+import SoloArenaMatchmaking from './SoloArenaMatchmaking';
 import styles from './alliance.module.css';
 
 interface AllianceMapRightPanelProps {
@@ -13,6 +14,7 @@ export default function AllianceMapRightPanel({ mapOpen, onToggleMap }: Alliance
   return (
     <aside className={styles.allianceMapRight}>
       <div className={styles.mapRoundBtnRow}>
+        <SoloArenaMatchmaking />
         <AllianceMapRoundBtn
           icon={mapOpen ? <IconMapFortress /> : <IconMapGlobe />}
           label={mapOpen ? 'Qala' : 'Xəritə'}
