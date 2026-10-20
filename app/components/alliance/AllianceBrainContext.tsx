@@ -191,17 +191,32 @@ export function AllianceBrainProvider({ userId, userName, firebaseUid = null, ch
     if (!activeAlliance?.id) return;
     const allianceId = activeAlliance.id;
     const unsub = onSnapshot(
-      query(collection(db, 'players'), where('allianceId', '==', allianceId)),
+      query(collection(db, 'public_players'), where('allianceId', '==', allianceId)),
       (snapshot) => {
         const list: PlayerProfile[] = [];
         snapshot.forEach((docSnap) => {
-          list.push({ odId: docSnap.id, ...docSnap.data() } as PlayerProfile);
+          const data = docSnap.data();
+          list.push({
+            odId: docSnap.id,
+            displayName: String(data.displayName || `Oyunçu ${docSnap.id}`),
+            allianceId: typeof data.allianceId === 'string' ? data.allianceId : null,
+            allianceName: typeof data.allianceName === 'string' ? data.allianceName : null,
+            isLeader: data.isLeader === true,
+            score: Number(data.score) || 0,
+            manat: 0,
+            battleCards: { zombi: 0, yarasa: 0, duman: 0, mutant: 0, standing: 0, it: 0 },
+            activeShields: [],
+            updatedAt: Number(data.updatedAt) || 0,
+          } as PlayerProfile);
         });
-        setPlayers(list);
+        setPlayers((current) => {
+          const self = current.find((player) => player.odId === userId);
+          return self ? [...list.filter((player) => player.odId !== userId), self] : list;
+        });
       }
     );
     return () => unsub();
-  }, [activeAlliance?.id]);
+  }, [activeAlliance?.id, userId]);
 
   // Firebase: qlobal çat (hamı görür/yazar)
   useEffect(() => {

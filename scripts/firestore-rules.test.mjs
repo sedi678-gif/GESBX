@@ -6,12 +6,16 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes } from 'firebase/storage';
 
 let env;
 
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-gesbx-rules',
+    storage: {
+      rules: await readFile(new URL('../storage.rules', import.meta.url), 'utf8'),
+    },
     firestore: {
       rules: await readFile(new URL('../firestore.rules', import.meta.url), 'utf8'),
     },
@@ -166,4 +170,75 @@ test('alliance chat is readable only while the Firebase UID is an alliance membe
   await assertSucceeds(getDoc(doc(memberDb, 'alliance_chat/message-1')));
   await assertFails(getDoc(doc(nonMemberDb, 'alliance_chat/message-1')));
   await assertFails(getDoc(doc(memberDb, 'alliance_members/alliance-1/members/member-uid')));
+});
+
+test('private player records stay private while public roster projection remains readable', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'players/player-2'), {
+      firebaseUid: 'owner-uid', manat: 9876, battleCards: { zombi: 99 }, allianceId: 'alliance-2',
+    });
+    await setDoc(doc(db, 'public_players/player-2'), {
+      playerId: 'player-2', displayName: 'Public name', allianceId: 'alliance-2', score: 10,
+    });
+  });
+  const client = env.authenticatedContext('other-uid').firestore();
+  await assertFails(getDoc(doc(client, 'players/player-2')));
+  await assertSucceeds(getDoc(doc(client, 'public_players/player-2')));
+});
+
+test('only the public Zego config is readable and reward event records remain moderator-only', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'app_config/private_config'), { secret: 'private' });
+    await setDoc(doc(db, 'arena_reward_settlements/settlement-1/reward_events/event-1'), { userId: 'player-1' });
+  });
+  const client = env.authenticatedContext('client-uid').firestore();
+  await assertFails(getDoc(doc(client, 'app_config/private_config')));
+  await assertFails(getDoc(doc(client, 'arena_reward_settlements/settlement-1/reward_events/event-1')));
+});
+
+test('clients cannot change server-maintained social counters', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'users/user-1'), {
+      id: 'user-1', firebaseUid: 'user-uid', likesReceived: 2, viewsReceived: 4,
+    });
+  });
+  const client = env.authenticatedContext('user-uid').firestore();
+  await assertFails(updateDoc(doc(client, 'users/user-1'), { likesReceived: 900 }));
+  await assertFails(updateDoc(doc(client, 'users/user-1'), { viewsReceived: 5 }));
+});
+
+test('private message writes reject extra or oversized client-controlled fields', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'users/user-1'), { id: 'user-1', firebaseUid: 'sender-uid' });
+    await setDoc(doc(db, 'users/user-2'), { id: 'user-2', firebaseUid: 'recipient-uid' });
+    await setDoc(doc(db, 'private_chats/chat-1'), { chatId: 'chat-1', participants: ['user-1', 'user-2'] });
+  });
+  const sender = env.authenticatedContext('sender-uid').firestore();
+  await assertSucceeds(setDoc(doc(sender, 'private_messages/message-valid'), {
+    id: 'message-valid', chatId: 'chat-1', senderId: 'user-1', recipientId: 'user-2',
+    type: 'text', text: 'Salam', createdAt: Date.now(),
+  }));
+  await assertFails(setDoc(doc(sender, 'private_messages/message-extra'), {
+    id: 'message-extra', chatId: 'chat-1', senderId: 'user-1', recipientId: 'user-2',
+    type: 'text', text: 'Salam', createdAt: Date.now(), isAdmin: true,
+  }));
+  await assertFails(setDoc(doc(sender, 'private_messages/message-long'), {
+    id: 'message-long', chatId: 'chat-1', senderId: 'user-1', recipientId: 'user-2',
+    type: 'text', text: 'x'.repeat(2001), createdAt: Date.now(),
+  }));
+});
+
+test('chat participants can upload chat media once but cannot overwrite an existing file', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'users/user-1'), { id: 'user-1', firebaseUid: 'user-uid' });
+    await setDoc(doc(db, 'private_chats/chat-1'), { participants: ['user-1', 'user-2'] });
+  });
+  const storage = env.authenticatedContext('user-uid').storage();
+  const file = ref(storage, 'chat_media/chat-1/image.png');
+  await assertSucceeds(uploadBytes(file, new Uint8Array([1, 2, 3]), { contentType: 'image/png' }));
+  await assertFails(uploadBytes(file, new Uint8Array([4, 5, 6]), { contentType: 'image/png' }));
 });

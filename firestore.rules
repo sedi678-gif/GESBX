@@ -2087,8 +2087,8 @@ service cloud.firestore {
     }
 
     match /players/{playerId} {
-      // Player records include balances, inventory and VIP flags; require a signed-in reader.
-      allow read: if request.auth != null;
+      // Balances, inventory and VIP flags are private to the owner and trusted moderators.
+      allow read: if isPlayerOwner(playerId) || isTrustedModerator();
       allow create: if isSafeNewPlayer(playerId);
       allow update: if isPlayerOwner(playerId)
         && request.resource.data.firebaseUid == resource.data.firebaseUid
@@ -2110,6 +2110,12 @@ service cloud.firestore {
           || isValidPlayerDefenseWrite()
         );
       allow delete: if false;
+    }
+
+    // Safe public subset for rosters, standings, and other-player labels.
+    match /public_players/{playerId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if false;
     }
 
     match /discover_boosts/{boostUserId} {
@@ -2724,7 +2730,7 @@ service cloud.firestore {
       allow update, delete: if false;
 
       match /reward_events/{eventId} {
-        allow read: if request.auth != null;
+        allow read: if isTrustedModerator();
         allow create: if false;
         allow update, delete: if false;
       }
@@ -2801,13 +2807,10 @@ service cloud.firestore {
         ]);
       allow update: if isSignedIn()
         && request.resource.data.id == userId
-        && (
-          resource.data.firebaseUid == request.auth.uid
-          || request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['likesReceived', 'viewsReceived', 'updatedAt'])
-        )
+        && resource.data.firebaseUid == request.auth.uid
         && request.resource.data.firebaseUid == resource.data.firebaseUid
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'likesReceived', 'viewsReceived',
           'manat', 'coins', 'firebaseUid', 'email', 'birthDate', 'parentalConsentVerified',
           'role', 'isAdmin', 'isModerator', 'banned', 'frozen', 'punishedUntil',
           'bannedBy', 'punishedBy', 'frozenBy', 'punishReason', 'vipTier', 'vipExpiresAt'
@@ -2851,7 +2854,7 @@ service cloud.firestore {
 
     // Public app config — yalnız oxu. Yazı serverdə edilir (secret burada saxlanılmır).
     match /app_config/{configId} {
-      allow read: if configId != 'zego';
+      allow read: if configId == 'zego_public';
       allow write: if false;
     }
 
@@ -2887,7 +2890,21 @@ service cloud.firestore {
         && request.resource.data.recipientId is string
         && request.resource.data.senderId != request.resource.data.recipientId
         && chatContainsProfile(request.resource.data.chatId, request.resource.data.senderId)
-        && chatContainsProfile(request.resource.data.chatId, request.resource.data.recipientId);
+        && chatContainsProfile(request.resource.data.chatId, request.resource.data.recipientId)
+        && request.resource.data.type in ['text', 'audio', 'call', 'image', 'video', 'file', 'location']
+        && request.resource.data.createdAt is int
+        && request.resource.data.keys().hasOnly([
+          'id', 'chatId', 'senderId', 'recipientId', 'type', 'text', 'audioUrl',
+          'audioDurationMs', 'mediaUrl', 'mediaMime', 'fileName', 'locationLat',
+          'locationLng', 'callType', 'callStatus', 'editedAt', 'createdAt'
+        ])
+        && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 2000))
+        && (!('audioUrl' in request.resource.data) || (request.resource.data.audioUrl is string && request.resource.data.audioUrl.size() <= 900000))
+        && (!('mediaUrl' in request.resource.data) || (request.resource.data.mediaUrl is string && request.resource.data.mediaUrl.size() <= 900000))
+        && (!('fileName' in request.resource.data) || (request.resource.data.fileName is string && request.resource.data.fileName.size() <= 255))
+        && (!('audioDurationMs' in request.resource.data) || (request.resource.data.audioDurationMs is int && request.resource.data.audioDurationMs >= 0 && request.resource.data.audioDurationMs <= 600000))
+        && (!('locationLat' in request.resource.data) || (request.resource.data.locationLat is number && request.resource.data.locationLat >= -90 && request.resource.data.locationLat <= 90))
+        && (!('locationLng' in request.resource.data) || (request.resource.data.locationLng is number && request.resource.data.locationLng >= -180 && request.resource.data.locationLng <= 180));
       allow update: if resource.data.chatId is string
         && canAccessChatId(resource.data.chatId)
         && ownsProfileId(resource.data.senderId)
@@ -2946,7 +2963,16 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(request.resource.data.userId))
         && get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.firebaseUid == request.auth.uid
         && isUidAllianceMember(request.resource.data.allianceId)
-        && playerBelongsToAlliance(request.resource.data.userId, request.resource.data.allianceId);
+        && playerBelongsToAlliance(request.resource.data.userId, request.resource.data.allianceId)
+        && request.resource.data.keys().hasOnly(['allianceId', 'userId', 'user', 'text', 'time', 'createdAt'])
+        && request.resource.data.user is string
+        && request.resource.data.user.size() <= 80
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.time is string
+        && request.resource.data.time.size() <= 16
+        && request.resource.data.createdAt is int;
       allow update: if false;
       allow delete: if isSignedIn()
         && resource.data.userId is string
@@ -3121,7 +3147,9 @@ service cloud.firestore {
         && request.resource.data.postId is string
         && likeId == request.resource.data.postId + '_' + request.resource.data.userId
         && exists(/databases/$(database)/documents/posts/$(request.resource.data.postId))
-        && request.resource.data.keys().hasOnly(['postId', 'userId', 'createdAt']);
+        && request.resource.data.keys().hasOnly(['postId', 'userId', 'ownerId', 'createdAt'])
+        && request.resource.data.ownerId == get(/databases/$(database)/documents/posts/$(request.resource.data.postId)).data.userId
+        && request.resource.data.createdAt is int;
       allow delete: if isSignedIn()
         && resource.data.userId is string
         && ownsProfileId(resource.data.userId);

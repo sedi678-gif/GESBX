@@ -505,10 +505,6 @@ export async function recordPostView(
       return false;
     }
 
-    const ownerRef = doc(db, 'users', postOwnerId);
-    const ownerSnap = await tx.get(ownerRef);
-    if (!ownerSnap.exists()) return false;
-
     const viewedAt = Date.now();
     tx.set(viewRef, {
       postId,
@@ -518,24 +514,7 @@ export async function recordPostView(
       viewedAt,
     });
     tx.update(postRef, { views: increment(1), lastViewMarker: viewId });
-    tx.update(ownerRef, { viewsReceived: increment(1) });
     return true;
-  });
-}
-
-/** Mövcud post bəyənmələrini profil cəminə yazır (azaltmır). */
-export async function ensureMinLikesReceived(userId: string, min: number): Promise<void> {
-  const floor = Math.floor(Number(min) || 0);
-  if (!userId || floor <= 0) return;
-  await ensureFirebaseAuth();
-  await runTransaction(db, async (tx) => {
-    const ref = doc(db, 'users', userId);
-    const snap = await tx.get(ref);
-    if (!snap.exists()) return;
-    const current = Number(snap.data()?.likesReceived) || 0;
-    if (floor > current) {
-      tx.update(ref, { likesReceived: floor });
-    }
   });
 }
 
@@ -564,14 +543,8 @@ export async function toggleLikePost(
     }
 
     const authorId = String(postSnap.data()?.userId || '');
-    const authorRef = authorId ? doc(db, 'users', authorId) : null;
-    const authorSnap = authorRef ? await tx.get(authorRef) : null;
-
-    tx.set(likeRef, { postId, userId, createdAt: Date.now() });
+    tx.set(likeRef, { postId, userId, ownerId: authorId, createdAt: Date.now() });
     tx.update(postRef, { likes: increment(1) });
-    if (authorRef && authorSnap?.exists()) {
-      tx.update(authorRef, { likesReceived: increment(1) });
-    }
 
     return { liked: true, likes: likes + 1, alreadyLiked: false };
   });

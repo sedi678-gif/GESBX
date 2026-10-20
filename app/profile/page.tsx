@@ -18,7 +18,6 @@ import {
   listenUserViewsReceived,
   readCachedViewsReceived,
   writeCachedViewsReceived,
-  ensureMinLikesReceived,
   readCachedLikesReceived,
   writeCachedLikesReceived,
   addPostComment,
@@ -838,7 +837,6 @@ function ProfilePageContent() {
     const stored = readCachedLikesReceived(currentUser.id);
     if (live > stored) {
       writeCachedLikesReceived(currentUser.id, live);
-      void ensureMinLikesReceived(currentUser.id, live);
     }
   }, [posts, currentUser.id, isRegistered]);
 

@@ -11,7 +11,6 @@ import {
   readCachedViewsReceived,
   writeCachedLikesReceived,
   writeCachedViewsReceived,
-  ensureMinLikesReceived,
   recordPostView,
 } from '@/app/lib/postsService';
 import {
@@ -158,7 +157,6 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
     setLikesReceived((prev) => Math.max(prev, live));
     if (live > readCachedLikesReceived(targetUserId)) {
       writeCachedLikesReceived(targetUserId, live);
-      void ensureMinLikesReceived(targetUserId, live);
     }
   }, [posts, targetUserId]);
 

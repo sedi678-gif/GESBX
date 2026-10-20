@@ -73,28 +73,30 @@ service firebase.storage {
 
     match /chat_media/{chatId}/{fileName} {
       allow read: if isChatParticipant(chatId);
-      allow create, update: if isChatParticipant(chatId)
+      allow create: if isChatParticipant(chatId)
         && request.resource != null
         && request.resource.size > 0
         && request.resource.size <= 100 * 1024 * 1024
         && (request.resource.contentType.matches('image/.*')
           || request.resource.contentType.matches('video/.*'));
+      allow update: if false;
       allow delete: if false;
     }
 
     match /voice_messages/{chatId}/{fileName} {
       allow read: if isChatParticipant(chatId);
-      allow create, update: if isChatParticipant(chatId)
+      allow create: if isChatParticipant(chatId)
         && request.resource != null
         && request.resource.size > 0
         && request.resource.size <= 25 * 1024 * 1024
         && request.resource.contentType.matches('audio/.*');
+      allow update: if false;
       allow delete: if false;
     }
 
     match /chat_files/{chatId}/{fileName} {
       allow read: if isChatParticipant(chatId);
-      allow create, update: if isChatParticipant(chatId)
+      allow create: if isChatParticipant(chatId)
         && request.resource != null
         && request.resource.size > 0
         && request.resource.size <= 25 * 1024 * 1024
@@ -104,6 +106,7 @@ service firebase.storage {
           || request.resource.contentType == 'application/pdf'
           || request.resource.contentType == 'text/plain'
           || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument/.*'));
+      allow update: if false;
       allow delete: if false;
     }
 

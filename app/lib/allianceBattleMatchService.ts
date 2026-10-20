@@ -554,8 +554,8 @@ export async function seatOfflineDefenders(battleId: string, actorId: string): P
         const candidates = [...new Set([leaderId, ...members].filter(Boolean))].filter(
           (player) => !defenders.includes(player)
         );
-        const snaps = await Promise.all(candidates.slice(0, 8).map((player) => tx.get(playerRef(player))));
-        const pick = snaps.find((snap) => snap.exists() && readStoredDefenseLoadout(snap.data() as Record<string, unknown>).length >= 1);
+        const snaps = await Promise.all(candidates.slice(0, 8).map((player) => tx.get(doc(db, 'public_players', player))));
+        const pick = snaps.find((snap) => snap.exists() && snap.data()?.hasDefenseLoadout === true);
         if (!pick) return false;
 
         const playerId = pick.id;
