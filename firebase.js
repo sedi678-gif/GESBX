@@ -28,12 +28,6 @@ const firebaseConfig = {
 // Initialize Firebase (təkrar inisializasiya xətasının qarşısını almaq üçün şərtlə)
 export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Auth və DB-ni buradan export edirik ki, səhifələr istifadə edə bilsin
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app, 'us-central1');
-
 const PlayIntegrity = registerPlugin('PlayIntegrity');
 
 async function sha256Base64Url(value) {
@@ -89,6 +83,13 @@ if (typeof window !== 'undefined') {
     });
   }
 }
+
+// App Check must be registered before Firebase services are initialized so
+// Auth, Firestore, Storage, and Functions all receive its token provider.
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+export const functions = getFunctions(app, 'us-central1');
 
 // Analitikanı təhlükəsiz şəkildə yalnız brauzerdə işə salırıq
 export let analytics = null;
