@@ -38,24 +38,45 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string)
 }
 
 let authReady: Promise<User | null> | null = null;
+let authFailure: string | null = null;
 const AUTH_TIMEOUT_MS = 12_000;
 
 /** Anonim Firebase auth — vaxt bitərsə null qaytarır, prosesi bloklamır. */
 export function ensureFirebaseAuth(): Promise<User | null> {
   connectFirebaseEmulators();
 
-  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  if (auth.currentUser) {
+    authFailure = null;
+    return Promise.resolve(auth.currentUser);
+  }
 
   if (!authReady) {
-    authReady = withTimeout(
-      signInAnonymously(auth).then((cred) => cred.user),
+    const pending = withTimeout(
+      (async () => {
+        // Wait for Firebase's persisted session to restore before creating a
+        // temporary anonymous one. Otherwise the first protected action after
+        // a cold load can race Auth initialization and look like a signed-out user.
+        await auth.authStateReady();
+        if (auth.currentUser) {
+          authFailure = null;
+          return auth.currentUser;
+        }
+        const credential = await signInAnonymously(auth);
+        authFailure = null;
+        return credential.user;
+      })(),
       AUTH_TIMEOUT_MS,
 /** Auth vaxtı bitdikdə (yalnız server log) */
       'Auth vaxtı bitdi.'
     ).catch((err) => {
       console.warn('Anon auth:', err);
+      authFailure = err instanceof Error ? err.message : String(err);
       authReady = null;
       return null;
+    });
+    authReady = pending;
+    void pending.finally(() => {
+      if (authReady === pending) authReady = null;
     });
   }
 
@@ -66,7 +87,8 @@ export function ensureFirebaseAuth(): Promise<User | null> {
 export async function requireFirebaseAuth(): Promise<User> {
   const user = await ensureFirebaseAuth();
   if (!user) {
-    throw new Error('Hesab sinxronizasiyası aktiv deyil. İnternet bağlantısını yoxlayın.');
+    const detail = authFailure ? ` (${authFailure})` : '';
+    throw new Error(`Firebase hesabı bərpa olunmadı. Anonim girişin Firebase Console-da aktiv olduğunu və Auth domeninin icazəli olduğunu yoxlayın.${detail}`);
   }
   return user;
 }

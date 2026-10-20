@@ -1,7 +1,7 @@
 import { callSecureFunction } from '@/app/lib/secureFunctions';
 import { db } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { ensureFirebaseAuth } from '@/app/lib/firebaseAuth';
+import { requireFirebaseAuth } from '@/app/lib/firebaseAuth';
 import { sanitizePlayerId } from '@/app/lib/battleEventLog/sanitizeBattleEventMeta';
 import {
   DEFAULT_USER_PLAN_STATE,
@@ -20,8 +20,7 @@ export async function setProPanelActive(playerId: string, active: boolean): Prom
   const id = sanitizePlayerId(playerId);
   // Auth restoration and the context's background identity bind can race the
   // profile toggle. Wait for auth and finish binding before the secured write.
-  const user = await ensureFirebaseAuth();
-  if (!user) throw new Error('XP rejimini dəyişmək üçün hesabınıza yenidən daxil olun.');
+  const user = await requireFirebaseAuth();
   const playerSnap = await getDoc(doc(db, 'players', id));
   if (playerSnap.exists()) {
     const player = playerSnap.data();
