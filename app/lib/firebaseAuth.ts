@@ -6,9 +6,10 @@ import {
   connectAuthEmulator,
   User,
 } from 'firebase/auth';
+import { getToken as getAppCheckToken } from 'firebase/app-check';
 import { connectFirestoreEmulator } from 'firebase/firestore';
 import { connectStorageEmulator } from 'firebase/storage';
-import { auth, db, storage } from '@/firebase';
+import { appCheck, auth, db, storage } from '@/firebase';
 
 let emulatorsConnected = false;
 
@@ -49,6 +50,7 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string)
 let authReady: Promise<User | null> | null = null;
 let authFailure: string | null = null;
 const AUTH_STATE_TIMEOUT_MS = 4_000;
+const APP_CHECK_TOKEN_TIMEOUT_MS = 12_000;
 const ANONYMOUS_AUTH_TIMEOUT_MS = 20_000;
 
 /** Anonim Firebase auth — vaxt bitərsə null qaytarır, prosesi bloklamır. */
@@ -77,6 +79,21 @@ export function ensureFirebaseAuth(): Promise<User | null> {
       if (auth.currentUser) {
         authFailure = null;
         return auth.currentUser;
+      }
+      // Firebase Auth attaches App Check to its sign-in request. Warm the
+      // token first so a stalled reCAPTCHA provider is reported as App Check,
+      // instead of looking like an anonymous Auth network timeout.
+      if (appCheck) {
+        try {
+          await withTimeout(
+            getAppCheckToken(appCheck),
+            APP_CHECK_TOKEN_TIMEOUT_MS,
+            'Firebase App Check reCAPTCHA tokeni vaxtında alınmadı. Sayt açarını, reCAPTCHA domen icazəsini və brauzerdə Google skriptlərinə çıxışı yoxlayın.'
+          );
+        } catch (error) {
+          const detail = error instanceof Error ? ` ${error.message}` : '';
+          throw new Error(`Firebase App Check tokeni hazırlaya bilmədi.${detail}`);
+        }
       }
       const credential = await withTimeout(
         signInAnonymously(auth),
