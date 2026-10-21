@@ -12,6 +12,7 @@ const {
   storedManat,
   adminUid,
   riskHash,
+  ADMIN_UIDS,
 } = require('./security');
 
 const playerIdSchema = z.string().regex(/^\d{1,20}$/);
@@ -246,12 +247,13 @@ async function listSecurityReviews({ uid, payload, rateLimit }) {
 }
 
 const createWithdrawalRequestCallable = secureCallable('createWithdrawalRequest', createSchema, createWithdrawalRequest, { max: 3, windowMs: 24 * 60 * 60 * 1000 });
-const reviewWithdrawalCallable = secureCallable('reviewWithdrawal', reviewSchema, reviewWithdrawal, { max: 30, windowMs: 60_000 });
+const reviewWithdrawalCallable = secureCallable('reviewWithdrawal', reviewSchema, reviewWithdrawal, { max: 30, windowMs: 60_000 }, [ADMIN_UIDS]);
 const listSecurityReviewsCallable = secureCallable(
   'listSecurityReviews',
   listReviewsSchema,
   listSecurityReviews,
   { max: 10, windowMs: 60_000 },
+  [ADMIN_UIDS],
 );
 
 module.exports = {

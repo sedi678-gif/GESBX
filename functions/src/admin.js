@@ -8,6 +8,7 @@ const {
   ensureRateLimitTx,
   adminUid,
   storedManat,
+  ADMIN_UIDS,
 } = require('./security');
 
 const ADMIN_PROFILE_ID = '1';
@@ -250,16 +251,19 @@ async function allocateUserId({ uid }) {
 
 exports.allocateUserId = secureCallable(
   'allocateUserId', z.object({}).strict(), allocateUserId, { max: 10, windowMs: 60_000 },
+  [ADMIN_UIDS],
 );
 
 exports.bootstrapSuperAdmin = secureCallable(
   'bootstrapSuperAdmin', bootstrapSchema, bootstrapSuperAdmin, { max: 5, windowMs: 60_000 },
+  [ADMIN_UIDS],
 );
 exports.recordAdminSession = secureCallable(
   'recordAdminSession', sessionSchema, recordAdminSession, { max: 30, windowMs: 60_000 },
+  [ADMIN_UIDS],
 );
-exports.adminResolveReport = secureCallable('adminResolveReport', reportSchema, adminResolveReport, { max: 60, windowMs: 60_000 });
-exports.adminPunishUser = secureCallable('adminPunishUser', punishSchema, adminPunishUser, { max: 30, windowMs: 60_000 });
-exports.adminBanUser = secureCallable('adminBanUser', banSchema, adminBanUser, { max: 30, windowMs: 60_000 });
-exports.adminDeleteUser = secureCallable('adminDeleteUser', deleteSchema, adminDeleteUser, { max: 10, windowMs: 60_000 });
-exports.adminGrantModerator = secureCallable('adminGrantModerator', moderatorSchema, adminGrantModerator, { max: 30, windowMs: 60_000 });
+exports.adminResolveReport = secureCallable('adminResolveReport', reportSchema, adminResolveReport, { max: 60, windowMs: 60_000 }, [ADMIN_UIDS]);
+exports.adminPunishUser = secureCallable('adminPunishUser', punishSchema, adminPunishUser, { max: 30, windowMs: 60_000 }, [ADMIN_UIDS]);
+exports.adminBanUser = secureCallable('adminBanUser', banSchema, adminBanUser, { max: 30, windowMs: 60_000 }, [ADMIN_UIDS]);
+exports.adminDeleteUser = secureCallable('adminDeleteUser', deleteSchema, adminDeleteUser, { max: 10, windowMs: 60_000 }, [ADMIN_UIDS]);
+exports.adminGrantModerator = secureCallable('adminGrantModerator', moderatorSchema, adminGrantModerator, { max: 30, windowMs: 60_000 }, [ADMIN_UIDS]);

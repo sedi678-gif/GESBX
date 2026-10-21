@@ -14,6 +14,7 @@ const {
   riskHash,
   RISK_HASH_SECRET,
   REFERRAL_CODE_SECRET,
+  ADMIN_UIDS,
 } = require('./security');
 
 const playerIdSchema = z.string().regex(/^\d{1,20}$/);
@@ -316,11 +317,12 @@ async function getMyReferrals({ uid, payload, operationId, rateLimit, ip }) {
   });
 }
 
-const getMyReferralCodeCallable = secureCallable('getMyReferralCode', getCodeSchema, getMyReferralCode, { max: 10, windowMs: 60_000 });
-const applyReferralCallable = secureCallable('applyReferral', applySchema, applyReferral, { max: 3, windowMs: 24 * 60 * 60 * 1000 });
-const reviewReferralCallable = secureCallable('reviewReferral', reviewSchema, reviewReferral, { max: 30, windowMs: 60_000 });
-const checkReferralActivationCallable = secureCallable('checkReferralActivation', checkActivationSchema, checkReferralActivation, { max: 10, windowMs: 60_000 });
-const getMyReferralsCallable = secureCallable('getMyReferrals', getMyReferralsSchema, getMyReferrals, { max: 10, windowMs: 60_000 });
+const referralSecrets = [REFERRAL_CODE_SECRET];
+const getMyReferralCodeCallable = secureCallable('getMyReferralCode', getCodeSchema, getMyReferralCode, { max: 10, windowMs: 60_000 }, referralSecrets);
+const applyReferralCallable = secureCallable('applyReferral', applySchema, applyReferral, { max: 3, windowMs: 24 * 60 * 60 * 1000 }, referralSecrets);
+const reviewReferralCallable = secureCallable('reviewReferral', reviewSchema, reviewReferral, { max: 30, windowMs: 60_000 }, [REFERRAL_CODE_SECRET, ADMIN_UIDS]);
+const checkReferralActivationCallable = secureCallable('checkReferralActivation', checkActivationSchema, checkReferralActivation, { max: 10, windowMs: 60_000 }, referralSecrets);
+const getMyReferralsCallable = secureCallable('getMyReferrals', getMyReferralsSchema, getMyReferrals, { max: 10, windowMs: 60_000 }, referralSecrets);
 
 module.exports = {
   getMyReferralCode: getMyReferralCodeCallable,

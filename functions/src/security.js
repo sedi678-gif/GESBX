@@ -7,7 +7,6 @@ const { defineSecret } = require('firebase-functions/params');
 const ADMIN_UIDS = defineSecret('ADMIN_UIDS');
 const RISK_HASH_SECRET = defineSecret('RISK_HASH_SECRET');
 const REFERRAL_CODE_SECRET = defineSecret('REFERRAL_CODE_SECRET');
-const SECURE_SECRETS = [ADMIN_UIDS, RISK_HASH_SECRET, REFERRAL_CODE_SECRET];
 
 const db = getFirestore();
 const REGION = 'us-central1';
@@ -140,9 +139,17 @@ async function enforceClientRateLimits(uid, installationId, ip, action) {
   });
 }
 
-function secureCallable(action, schema, handler, rateLimit = { max: 30, windowMs: 60_000 }) {
+function secureCallable(action, schema, handler, rateLimit = { max: 30, windowMs: 60_000 }, extraSecrets = []) {
   return onCall(
-    { region: REGION, enforceAppCheck: true, maxInstances: 40, secrets: SECURE_SECRETS },
+    {
+      region: REGION,
+      enforceAppCheck: true,
+      maxInstances: 40,
+      // Most actions only need the risk hash secret. Bind admin and referral
+      // secrets only where used, so unrelated missing secrets cannot take down
+      // ordinary callables such as the XP mode toggle.
+      secrets: [...new Set([RISK_HASH_SECRET, ...extraSecrets])],
+    },
     async (request) => {
       if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Giriş tələb olunur.');
       if (!request.app?.appId) throw new HttpsError('failed-precondition', 'App Check təsdiqi tələb olunur.');

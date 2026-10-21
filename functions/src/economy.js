@@ -12,6 +12,7 @@ const {
   writeWalletLedger,
   storedManat,
   adminUid,
+  ADMIN_UIDS,
 } = require('./security');
 
 const idSchema = z.string().regex(/^\d{1,20}$/);
@@ -465,6 +466,7 @@ const adminGrantManatCallable = secureCallable(
   }).strict(),
   grantManatAsAdmin,
   { max: 30, windowMs: 60_000 },
+  [ADMIN_UIDS],
 );
 const purchaseFortressLevel = secureCallable('purchaseFortressLevel', fortressSchema, buyFortress, { max: 10, windowMs: 60_000 });
 
