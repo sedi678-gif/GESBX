@@ -88,7 +88,7 @@ export function ensureFirebaseAuth(): Promise<User | null> {
           await withTimeout(
             getAppCheckToken(appCheck),
             APP_CHECK_TOKEN_TIMEOUT_MS,
-            'Firebase App Check reCAPTCHA tokeni vaxtında alınmadı. Firebase Console → App Check → Apps bölməsində bu web app üçün reCAPTCHA v3-ün qeydiyyatda olduğunu və Vercel-dəki site key-ə uyğun secret key-in qoşulduğunu yoxlayın. Secret key-i Vercel client env-ə yazmayın.'
+            'Firebase App Check reCAPTCHA v3 tokeni alınmadı. Firebase Console → App Check → Apps bölməsində bu Web app-i reCAPTCHA v3 provider-i ilə qeydiyyatdan keçirin və həmin açara uyğun SECRET KEY-i yalnız Firebase App Check qeydiyyatına daxil edin. Vercel-də NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY üçün eyni açarın SITE KEY dəyərini yazın, Production mühitini seçin və yeni deploy başladın. Secret key-i Vercel-ə və ya koda yazmayın.'
           );
         } catch (error) {
           const detail = error instanceof Error ? ` ${error.message}` : '';
