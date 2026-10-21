@@ -75,8 +75,17 @@ export async function callSecureFunction<TPayload extends Record<string, unknown
   const callable = httpsCallable<SecureEnvelope<TPayload>, TResult>(functions, action, {
     timeout: 30_000,
   });
-  const result = await callable(request);
-  return result.data;
+  try {
+    const result = await callable(request);
+    return result.data;
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: unknown }).code || '')
+      : '';
+    const message = error instanceof Error ? error.message : String(error);
+    const operation = code ? `${action} (${code})` : action;
+    throw new Error(`${operation} uğursuz oldu: ${message}`, { cause: error });
+  }
 }
 
 export function createSecureOperationId(): string {
