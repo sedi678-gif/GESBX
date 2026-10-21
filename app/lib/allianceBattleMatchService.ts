@@ -29,7 +29,6 @@ import { replayBattleRequest } from '@/app/lib/battleReconnect/replayBattleReque
 import { ARENA_MATCH_COLLECTION } from '@/app/game/arena/match/config';
 import { seatArenaCombatantInTx } from '@/app/game/arena/match/matchService';
 import { stampJoinFailedResult } from '@/app/lib/battleFinish/battleFinishService';
-import { readStoredDefenseLoadout } from '@/app/lib/battleDefense/battleDefenseConfig';
 import { stampDefenseSnapshot } from '@/app/lib/battleDefense/battleDefenseService';
 import { serverNowMs, syncServerClock } from '@/app/lib/battlePlay/battleServerClock';
 import type { AllianceData } from '@/app/components/alliance/types';
@@ -69,6 +68,11 @@ export interface AllianceBattleView {
   joinRemainingMs: number;
   joinOpen: boolean;
   canJoin: boolean;
+}
+
+export function isAllianceBattleReadyToActivate(battle: Pick<BattleRecord, 'attackerPlayerIds' | 'defenderPlayerIds'>): boolean {
+  return (battle.attackerPlayerIds ?? []).length >= ALLIANCE_BATTLE_MIN_PER_SIDE
+    && (battle.defenderPlayerIds ?? []).length >= ALLIANCE_BATTLE_MIN_PER_SIDE;
 }
 
 const WRITE_MS = 12_000;
@@ -173,8 +177,15 @@ export function viewAllianceBattle(battle: BattleRecord, now = Date.now()): Alli
     phase,
     joinRemainingMs: phase === 'joining' ? joinRemainingMs : 0,
     joinOpen: phase === 'joining' && joinRemainingMs > 0,
-    canJoin: battle.status === 'joining' || battle.status === 'locked' || battle.status === 'active',
+    canJoin: battle.status === 'joining' || battle.status === 'locked',
   };
+}
+
+function isBattleActor(battle: BattleRecord, playerId: string, uid: string): boolean {
+  const isOnSide = (playerIds: string[] | undefined, uids: string[] | undefined) =>
+    (playerIds ?? []).includes(playerId) && (uids ?? []).includes(uid);
+  return isOnSide(battle.attackerPlayerIds, battle.attackerUids)
+    || isOnSide(battle.defenderPlayerIds, battle.defenderUids);
 }
 
 export async function identifyAlliance(allianceId: string): Promise<AllianceData> {
@@ -416,7 +427,7 @@ export async function joinAllianceMapBattle(input: {
       const battle = battleFromData(parentSnap.id, parentSnap.data());
       if (battle.kind !== 'alliance_map') throw new Error('Bu battle xəritə döyüşü deyil');
       if (battle.status === 'finished') throw new Error('Battle bitib');
-      if (battle.status !== 'joining' && battle.status !== 'locked' && battle.status !== 'active') {
+      if (battle.status !== 'joining' && battle.status !== 'locked') {
         throw new Error('Bu döyüşə qoşulmaq olmur');
       }
       const now = serverNowMs() || Date.now();
@@ -602,7 +613,7 @@ export async function seatOfflineDefenders(battleId: string, actorId: string): P
 }
 
 export async function lockAllianceMapBattle(battleId: string, actorId: string): Promise<BattleRecord> {
-  await requireFirebaseAuth();
+  const authUser = await requireFirebaseAuth();
   const playerId = sanitizePlayerId(actorId);
   const id = String(battleId || '').trim();
 
@@ -613,6 +624,9 @@ export async function lockAllianceMapBattle(battleId: string, actorId: string): 
       const parentSnap = await tx.get(parentRef);
       if (!parentSnap.exists()) throw new Error('Battle tapılmadı');
       const battle = battleFromData(parentSnap.id, parentSnap.data());
+      if (!isBattleActor(battle, playerId, authUser.uid)) {
+        throw new Error('Döyüşü kilidləmək üçün iştirakçı hesabı ilə daxil olmalısan.');
+      }
       if (battle.status === 'locked' || battle.status === 'finished' || battle.status === 'active') {
         return battle;
       }
@@ -620,7 +634,7 @@ export async function lockAllianceMapBattle(battleId: string, actorId: string): 
 
       const attackers = battle.attackerPlayerIds ?? [];
       const defenders = battle.defenderPlayerIds ?? [];
-      const ok = attackers.length >= ALLIANCE_BATTLE_MIN_PER_SIDE;
+      const ok = isAllianceBattleReadyToActivate({ attackerPlayerIds: attackers, defenderPlayerIds: defenders });
       const seq = battle.eventSeq + 1;
       const eventDoc = newBattleEventRef(id);
       const status = ok ? 'locked' : 'finished';
@@ -670,7 +684,7 @@ export async function lockAllianceMapBattle(battleId: string, actorId: string): 
 }
 
 export async function activateAllianceBattle(battleId: string, actorId: string): Promise<BattleRecord> {
-  await requireFirebaseAuth();
+  const authUser = await requireFirebaseAuth();
   const playerId = sanitizePlayerId(actorId);
   const id = String(battleId || '').trim();
 
@@ -681,15 +695,17 @@ export async function activateAllianceBattle(battleId: string, actorId: string):
       const parentSnap = await tx.get(parentRef);
       if (!parentSnap.exists()) throw new Error('Battle tapılmadı');
       const battle = battleFromData(parentSnap.id, parentSnap.data());
+      if (!isBattleActor(battle, playerId, authUser.uid)) {
+        throw new Error('Döyüşü başlatmaq üçün iştirakçı hesabı ilə daxil olmalısan.');
+      }
       if (battle.status === 'active') return battle;
       if (battle.status === 'finished') throw new Error('Battle bitib');
-      if (battle.status !== 'joining' && battle.status !== 'locked') {
+      if (battle.status !== 'locked') {
         throw new Error('Battle hələ başlamağa hazır deyil');
       }
 
-      const attackers = battle.attackerPlayerIds ?? [];
-      if (attackers.length < ALLIANCE_BATTLE_MIN_PER_SIDE) {
-        throw new Error('Hücum tərəfində ən az 1 oyunçu olmalıdır');
+      if (!isAllianceBattleReadyToActivate(battle)) {
+        throw new Error('Döyüş üçün hər iki tərəfdə ən azı 1 oyunçu olmalıdır.');
       }
 
       const turn = initialTurnState(battle);

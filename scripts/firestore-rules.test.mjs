@@ -122,6 +122,106 @@ test('only alliance leader or promoted assistant can create a map battle', async
   await assertFails(createBattle('member-uid', '3'));
 });
 
+test('map battles require an authenticated participant to activate and both sides to be seated', async () => {
+  const seedBattle = async (id, {
+    attackers = ['attacker'],
+    defenders = ['defender'],
+    status = 'locked',
+  } = {}) => {
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `battles/${id}`), {
+        createdBy: 'attacker',
+        createdAt: new Date(Date.now() - 60_000),
+        updatedAt: new Date(Date.now() - 60_000),
+        status,
+        eventSeq: 1,
+        participantIds: [...attackers, ...defenders],
+        schemaVersion: 1,
+        kind: 'alliance_map',
+        attackerAllianceId: 'attacker-alliance',
+        defenderAllianceId: 'defender-alliance',
+        attackerPlayerIds: attackers,
+        defenderPlayerIds: defenders,
+        attackerUids: attackers.map((id) => `${id}-uid`),
+        defenderUids: defenders.map((id) => `${id}-uid`),
+        joinDurationMs: 15000,
+        attackerScore: 0,
+        defenderScore: 0,
+        scoreVersion: 0,
+        lastScoreRequestId: null,
+      });
+    });
+  };
+  const activate = (id, uid, turnPlayerId = 'attacker') => updateDoc(
+    doc(env.authenticatedContext(uid).firestore(), `battles/${id}`),
+    {
+      eventSeq: 2,
+      updatedAt: serverTimestamp(),
+      status: 'active',
+      turn: 1,
+      turnSide: 'attacker',
+      turnPlayerId,
+      stateVersion: 1,
+      turnStartAt: serverTimestamp(),
+      turnDurationMs: 15000,
+    },
+  );
+
+  await seedBattle('battle-ready');
+  await assertSucceeds(activate('battle-ready', 'attacker-uid'));
+
+  await seedBattle('battle-early', { status: 'joining' });
+  await assertFails(activate('battle-early', 'attacker-uid'));
+
+  const five = Array.from({ length: 5 }, (_, index) => `p${index + 1}`);
+  const four = five.slice(0, 4);
+  await seedBattle('battle-5v5', { attackers: five, defenders: five.map((id) => `d-${id}`) });
+  await assertSucceeds(activate('battle-5v5', 'p1-uid', 'p1'));
+  await seedBattle('battle-4v5', { attackers: four, defenders: five.map((id) => `d-${id}`) });
+  await assertSucceeds(activate('battle-4v5', 'p1-uid', 'p1'));
+
+  await seedBattle('battle-outsider');
+  await assertFails(activate('battle-outsider', 'outsider-uid'));
+
+  await seedBattle('battle-no-defender', { defenders: [] });
+  await assertFails(activate('battle-no-defender', 'attacker-uid'));
+});
+
+test('active map battles reject participant-list changes', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'battles/active-join'), {
+      createdBy: 'attacker',
+      createdAt: new Date(Date.now() - 60_000),
+      updatedAt: new Date(Date.now() - 60_000),
+      status: 'active',
+      eventSeq: 4,
+      participantIds: ['attacker', 'defender'],
+      schemaVersion: 1,
+      kind: 'alliance_map',
+      attackerAllianceId: 'attacker-alliance',
+      defenderAllianceId: 'defender-alliance',
+      attackerPlayerIds: ['attacker'],
+      defenderPlayerIds: ['defender'],
+      attackerUids: ['attacker-uid'],
+      defenderUids: ['defender-uid'],
+      joinDurationMs: 15000,
+      attackerScore: 0,
+      defenderScore: 0,
+      scoreVersion: 0,
+    });
+  });
+  const db = env.authenticatedContext('attacker-uid').firestore();
+  await assertFails(updateDoc(doc(db, 'battles/active-join'), {
+    eventSeq: 5,
+    updatedAt: serverTimestamp(),
+    participantIds: ['attacker', 'defender', 'late-joiner'],
+    attackerPlayerIds: ['attacker'],
+    defenderPlayerIds: ['defender', 'late-joiner'],
+    attackerUids: ['attacker-uid'],
+    defenderUids: ['defender-uid', 'late-joiner-uid'],
+  }));
+});
+
 test('authenticated clients can read alliance attacks but cannot write them directly', async () => {
   await env.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), 'alliance_attacks/attack-1'), {

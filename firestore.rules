@@ -258,7 +258,7 @@ service cloud.firestore {
       let after = request.resource.data;
       return request.auth != null
         && before.kind == 'alliance_map'
-        && before.status in ['joining', 'locked', 'active']
+        && before.status in ['joining', 'locked']
         && after.status == before.status
         && (
           before.status != 'joining'
@@ -346,7 +346,7 @@ service cloud.firestore {
       let after = request.resource.data;
       return request.auth != null
         && before.kind == 'alliance_map'
-        && before.status in ['joining', 'locked', 'active']
+        && before.status in ['joining', 'locked']
         && after.status == before.status
         && after.defenderPlayerIds == before.defenderPlayerIds
         && after.attackerPlayerIds == before.attackerPlayerIds
@@ -379,6 +379,7 @@ service cloud.firestore {
       return request.auth != null
         && before.kind == 'alliance_map'
         && before.status == 'joining'
+        && (request.auth.uid in before.attackerUids || request.auth.uid in before.defenderUids)
         && request.time >= before.createdAt + duration.value(15, 's')
         && after.eventSeq == before.eventSeq + 1
         && after.status in ['locked', 'finished']
@@ -389,10 +390,11 @@ service cloud.firestore {
           (
             after.status == 'locked'
             && after.attackerPlayerIds.size() >= 1
+            && after.defenderPlayerIds.size() >= 1
             && after.diff(before).affectedKeys().hasOnly(['eventSeq', 'updatedAt', 'status'])
           ) || (
             after.status == 'finished'
-            && after.attackerPlayerIds.size() == 0
+            && (after.attackerPlayerIds.size() == 0 || after.defenderPlayerIds.size() == 0)
             && after.finishReason == 'join_failed'
             && after.winnerAllianceId == null
             && after.winnerSide == null
@@ -1044,7 +1046,16 @@ service cloud.firestore {
       let after = request.resource.data;
       return request.auth != null
         && before.kind == 'alliance_map'
-        && before.status in ['joining', 'locked']
+        && before.status == 'locked'
+        && (request.auth.uid in before.attackerUids || request.auth.uid in before.defenderUids)
+        && before.attackerPlayerIds is list
+        && before.attackerPlayerIds.size() >= 1
+        && before.defenderPlayerIds is list
+        && before.defenderPlayerIds.size() >= 1
+        && after.attackerPlayerIds == before.attackerPlayerIds
+        && after.defenderPlayerIds == before.defenderPlayerIds
+        && after.attackerUids == before.attackerUids
+        && after.defenderUids == before.defenderUids
         && after.status == 'active'
         && after.eventSeq == before.eventSeq + 1
         && after.stateVersion == 1

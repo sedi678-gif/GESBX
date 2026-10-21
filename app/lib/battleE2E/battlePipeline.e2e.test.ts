@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import {
   ALLIANCE_BATTLE_JOIN_MS,
   ALLIANCE_BATTLE_MAX_PER_SIDE,
+  isAllianceBattleReadyToActivate,
   officialJoinEndsAt,
   viewAllianceBattle,
   viewAllianceBattleGate,
@@ -443,15 +444,11 @@ runStage(9, 'Battle başlayır', () => {
   assert.equal(sim.battle.turnSide, 'attacker');
   assert.equal(sim.battle.turnPlayerId, pA);
   const live = viewAllianceBattle(sim.battle, NOW);
-  assert.equal(live.canJoin, true);
-  const emptyDef = nextTurnState(
-    { ...sim.battle, attackerPlayerIds: [pA], defenderPlayerIds: [] },
-    'attacker'
-  );
-  assert.equal(emptyDef.turnSide, 'attacker');
-  assert.equal(emptyDef.turn, 2);
-  assert.equal(emptyDef.turnPlayerId, pA);
-  return `status=active turn=1 player=${pA}; empty defender skip`;
+  assert.equal(live.canJoin, false, 'aktiv döyüşə yeni oyunçu qəbul edilməməlidir');
+  assert.equal(isAllianceBattleReadyToActivate({ attackerPlayerIds: [pA], defenderPlayerIds: [] }), false);
+  assert.equal(isAllianceBattleReadyToActivate({ attackerPlayerIds: [], defenderPlayerIds: [pB] }), false);
+  assert.equal(isAllianceBattleReadyToActivate({ attackerPlayerIds: [pA], defenderPlayerIds: [pB] }), true);
+  return `aktiv döyüşə join bağlıdır; hər iki tərəfdə oyunçu tələb olunur`;
 });
 
 runStage(10, 'Energy 25 olur', () => {

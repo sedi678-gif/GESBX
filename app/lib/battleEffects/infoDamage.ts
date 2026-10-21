@@ -19,7 +19,8 @@ export type CardXpBand = {
 export const CARD_XP_DAMAGE: Record<string, CardXpBand | Record<string, CardXpBand>> = {
   sehrbaz: { perUser: 2, cap: 100 },
   '2x': { perUser: 0, cap: 0 },
-  qaya: { perUser: 2, cap: 100 },
+  // Daş Adam yalnız taktiki/xal effekti verir; XP zərəri vurmur.
+  qaya: { perUser: 0, cap: 0 },
   casus: { perUser: 2, cap: 100 },
   duman: { perUser: 2, cap: 100 },
   joker: { perUser: 2, cap: 100 },

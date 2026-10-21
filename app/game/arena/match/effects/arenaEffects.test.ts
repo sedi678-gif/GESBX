@@ -68,7 +68,7 @@ describe('arena damage formula', () => {
       assert.equal(officialArenaDamage({ cardId: 'qul', activeUsers: users }), 0);
       assert.equal(officialArenaDamage({ cardId: 'tikanli', activeUsers: users }), 0);
       assert.equal(officialArenaDamage({ cardId: 'usyan', activeUsers: users }), 0);
-      assert.equal(officialArenaDamage({ cardId: 'qaya', activeUsers: users }), strategic);
+      assert.equal(officialArenaDamage({ cardId: 'qaya', activeUsers: users }), 0);
       assert.equal(officialArenaDamage({ cardId: 'casus', activeUsers: users }), strategic);
       assert.equal(officialArenaDamage({ cardId: 'duman', activeUsers: users }), strategic);
       assert.equal(officialArenaDamage({ cardId: 'joker', activeUsers: users }), strategic);
@@ -345,7 +345,7 @@ describe('arena counters', () => {
   });
 
   it('Güzgü reflect dərinliyi 1', () => {
-    let match = play(setup(['A'], ['B']), 'A', 'ogru', { users: 10 });
+    const match = play(setup(['A'], ['B']), 'A', 'ogru', { users: 10 });
     const first = resolveArenaCardEffect({
       match,
       playerId: 'B',
