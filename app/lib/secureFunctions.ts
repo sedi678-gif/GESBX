@@ -51,14 +51,14 @@ export async function callSecureFunction<TPayload extends Record<string, unknown
 ): Promise<TResult> {
   const user = await requireFirebaseAuth();
   if (!appCheck && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR !== '1') {
-    throw new Error('Firebase App Check qurulmayıb: Vercel Production mühitində NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY adlı dəyişənə reCAPTCHA v3 SITE KEY yazın, Firebase Console → App Check → Apps bölməsində Web app-i reCAPTCHA v3 ilə qeydiyyatdan keçirin və sonra yenidən deploy edin. SECRET KEY-i Vercel-ə yazmayın.');
+    throw new Error('Firebase App Check qurulmayıb: Vercel Production mühitində NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY adlı dəyişənə Google Cloud Fraud Defense-də yaradılmış reCAPTCHA Enterprise SITE KEY yazın, Firebase Console → App Check → Apps bölməsində Fraud Defense provider-i ilə qeydiyyatdan keçirin və yenidən deploy edin.');
   }
   if (appCheck) {
     try {
       await getToken(appCheck);
     } catch (error) {
       const reason = error instanceof Error ? ` (${error.message})` : '';
-      throw new Error(`Firebase App Check tokeni alınmadı. Firebase Console-da Web app üçün reCAPTCHA v3 qeydiyyatını və uyğun SECRET KEY-i, Vercel Production-da isə NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY SITE KEY-ini yoxlayın. Secret-i Vercel-ə yazmayın${reason}`);
+      throw new Error(`Firebase App Check tokeni alınmadı. Firebase Console-da Fraud Defense provider qeydiyyatında olan Enterprise site key-in Vercel Production-dakı NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY ilə eyni olduğunu yoxlayın${reason}`);
     }
   }
   const uid = auth.currentUser?.uid || user.uid;

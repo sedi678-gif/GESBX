@@ -2,11 +2,11 @@
 
 ## App Check and registration
 
-The web client already initializes App Check with the invisible reCAPTCHA v3 provider. Set `NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY` to the site key registered for the production web domain. Registration now obtains a fresh App Check token before creating an account. The Firebase console must register the matching app/provider and secret.
+The web client initializes App Check with the reCAPTCHA Enterprise provider. Create a score-based Enterprise site key in Google Cloud Fraud Defense for the production web domain, register the Firebase web app with the Fraud Defense provider using that key, and set `NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY` to the same site key. Registration obtains an App Check token before creating an account.
 
 In Firebase Console → App Check, first review Firestore and Storage request metrics, then turn **Enforce** on for Cloud Firestore and Cloud Storage. Enforcement is a project setting and cannot be committed through `firestore.rules` or `storage.rules`. Existing clients without App Check tokens will fail after enforcement, so deploy this client before switching enforcement on. Firebase's guidance recommends monitoring request metrics before enforcement: https://firebase.google.com/docs/app-check/monitor-metrics.
 
-App Check uses invisible reCAPTCHA v3; users do not solve a checkbox. If Authentication itself must reject unverified App Check requests, enable Authentication App Check enforcement in the console; Firebase requires Firebase Authentication with Identity Platform for that product. Firestore and Storage enforcement are separate controls. See https://firebase.google.com/docs/app-check/enable-enforcement.
+App Check uses score-based reCAPTCHA Enterprise; users do not solve a checkbox. If Authentication itself must reject unverified App Check requests, enable Authentication App Check enforcement in the console; Firebase requires Firebase Authentication with Identity Platform for that product. Firestore and Storage enforcement are separate controls. See https://firebase.google.com/docs/app-check/enable-enforcement.
 
 ## Cloud Functions moderation
 

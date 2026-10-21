@@ -11,7 +11,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import {
   initializeAppCheck,
   CustomProvider,
-  ReCaptchaV3Provider,
+  ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 
 // Firebase konfiqurasiyası — env (.env.local) və ya default (youstu-cab15)
@@ -78,7 +78,7 @@ if (typeof window !== 'undefined') {
     });
   } else if (siteKey) {
     appCheck = initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(siteKey),
+      provider: new ReCaptchaEnterpriseProvider(siteKey),
       isTokenAutoRefreshEnabled: true,
     });
   }

@@ -35,7 +35,7 @@ The origin list must match the actual web and Capacitor WebView origins. Remove 
 2. Enable the Play Integrity API for the Google Cloud project, link the Play Console app to that project, and use a Play-distributed build when checking the `PLAY_RECOGNIZED` and `LICENSED` verdicts.
    Grant the deployed Functions runtime service account permission to call Play Integrity token decode.
 3. Register the Android app in Firebase App Check with the Play Integrity provider. The Functions endpoint mints an App Check token only after verifying the Play Integrity token, authenticated UID, one-time challenge, request hash, and verdicts.
-4. Register the web app in Firebase App Check with reCAPTCHA v3, then put its site key in the deployed web build as `NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY`.
+4. Create a score-based reCAPTCHA Enterprise site key in Google Cloud Fraud Defense for the deployed web domain. Register the web app in Firebase App Check with the Fraud Defense provider using that key, then put the same site key in the deployed web build as `NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY`.
 5. Deploy the Functions and rules first. After validating released clients, enable App Check enforcement for Firestore and Storage in Firebase Console. Callable Functions already require App Check in code.
 6. Enable Firestore TTL on `app_check_nonces.expiresAt` so used App Check challenges are eventually removed.
 7. When deploying the Storage rules, enable the requested Cloud Storage to Firestore rules connection so profile and post uploads can check the user's `firebaseUid` mapping.
