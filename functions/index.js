@@ -16,6 +16,7 @@ const contentModeration = require('./src/contentModeration');
 const publicPlayerProjection = require('./src/publicPlayerProjection');
 const socialCounters = require('./src/socialCounters');
 const discoverBoost = require('./src/discoverBoost');
+const creatorAdRevenue = require('./src/creatorAdRevenue');
 const soloArena = require('./src/soloArena');
 
 exports.awardArenaMatchRewards = arenaRewards.awardArenaMatchRewards;
@@ -31,6 +32,8 @@ exports.onPostViewCreated = socialCounters.onPostViewCreated;
 exports.purchaseDiscoverBoost = discoverBoost.purchaseDiscoverBoost;
 exports.queueSoloArenaMatch = soloArena.queueSoloArenaMatch;
 exports.cancelSoloArenaQueue = soloArena.cancelSoloArenaQueue;
+exports.onCreatorReelViewCreated = creatorAdRevenue.onCreatorReelViewCreated;
+exports.settleMonthlyCreatorAdRevenue = creatorAdRevenue.settleMonthlyCreatorAdRevenue;
 
 exports.mintMobileAppCheckToken = mintMobileAppCheckToken;
 exports.purchaseBattleCard = economy.purchaseBattleCard;

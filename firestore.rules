@@ -3026,6 +3026,32 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Creator ad revenue wallets are credited only by the trusted settlement function.
+    match /user_wallets/{creatorId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow create, update, delete: if false;
+
+      match /payouts/{payoutId} {
+        allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+        allow create, update, delete: if false;
+      }
+    }
+
+    // View aggregates, their idempotency markers, revenue reports, and settlement
+    // logs are private server data. Admin SDK functions bypass client rules.
+    match /creator_monthly_views/{monthId}/{document=**} {
+      allow read, write: if false;
+    }
+    match /creator_view_events/{eventId} {
+      allow read, write: if false;
+    }
+    match /creator_ad_revenue/{monthId} {
+      allow read, write: if false;
+    }
+    match /revenue_payout_logs/{monthId} {
+      allow read, write: if false;
+    }
+
     match /xp_ledger/{entryId} {
       allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
       allow write: if false;
