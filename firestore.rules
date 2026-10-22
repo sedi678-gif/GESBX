@@ -3052,6 +3052,36 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Game and alliance advertising pools are separate from the Reels pool.
+    // Only the trusted scheduled functions can change reports, pool balances, or payouts.
+    match /game_ad_revenue/{dayKey} {
+      allow read, write: if false;
+    }
+    match /daily_player_pool/{dayKey} {
+      allow read, write: if false;
+    }
+    match /weekly_alliance_pool/{weekKey} {
+      allow read, write: if false;
+      match /contributions/{dayKey} {
+        allow read, write: if false;
+      }
+    }
+    match /platform_revenue/{dayKey} {
+      allow read, write: if false;
+    }
+    match /game_ad_pool_logs/{periodId} {
+      allow read, write: if false;
+    }
+    match /game_ad_wallets/{walletId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow create, update, delete: if false;
+
+      match /payouts/{payoutId} {
+        allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+        allow create, update, delete: if false;
+      }
+    }
+
     match /xp_ledger/{entryId} {
       allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
       allow write: if false;
