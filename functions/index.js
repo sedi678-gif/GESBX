@@ -19,6 +19,7 @@ const discoverBoost = require('./src/discoverBoost');
 const creatorAdRevenue = require('./src/creatorAdRevenue');
 const gameAdPools = require('./src/gameAdPools');
 const soloArena = require('./src/soloArena');
+const paypalPayout = require('./src/paypalPayout');
 
 exports.awardArenaMatchRewards = arenaRewards.awardArenaMatchRewards;
 exports.settleArenaWeeklyRewards = arenaRewards.settleArenaWeeklyRewards;
@@ -37,6 +38,8 @@ exports.onCreatorReelViewCreated = creatorAdRevenue.onCreatorReelViewCreated;
 exports.settleMonthlyCreatorAdRevenue = creatorAdRevenue.settleMonthlyCreatorAdRevenue;
 exports.settleDailyGamePlayerAdPool = gameAdPools.settleDailyGamePlayerAdPool;
 exports.settleWeeklyGameAllianceAdPool = gameAdPools.settleWeeklyGameAllianceAdPool;
+exports.paypalPayoutRequest = paypalPayout.paypalPayoutRequest;
+exports.paypalWebhook = paypalPayout.paypalWebhook;
 
 exports.mintMobileAppCheckToken = mintMobileAppCheckToken;
 exports.purchaseBattleCard = economy.purchaseBattleCard;

@@ -1,6 +1,8 @@
 {
   "framework": "nextjs",
   "rewrites": [
+    { "source": "/api/payout/request", "destination": "https://us-central1-youstu-cab15.cloudfunctions.net/paypalPayoutRequest" },
+    { "source": "/api/webhooks/paypal", "destination": "https://us-central1-youstu-cab15.cloudfunctions.net/paypalWebhook" },
     { "source": "/model/:path*", "destination": "/models/:path*" },
     { "source": "/models/Mutant/:path*", "destination": "/models/mutant/:path*" }
   ],

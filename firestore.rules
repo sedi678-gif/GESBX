@@ -3097,6 +3097,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /paypal_withdrawals/{requestId} {
+      allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
+      allow write: if false;
+    }
+    match /paypal_webhook_events/{eventId} {
+      allow read, write: if false;
+    }
+    match /paypal_payout_daily_limits/{limitId} {
+      allow read, write: if false;
+    }
+
     match /referral_codes/{code} {
       allow read: if isSignedIn() && resource.data.authUid == request.auth.uid;
       allow write: if false;
