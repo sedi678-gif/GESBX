@@ -1,8 +1,8 @@
 {
   "title": "Battle E2E pipeline",
-  "startedAt": 1790177298998,
-  "finishedAt": 1790177299426,
-  "durationMs": 428,
+  "startedAt": 1792847350452,
+  "finishedAt": 1792847350486,
+  "durationMs": 34,
   "total": 24,
   "passed": 24,
   "failed": 0,
@@ -10,12 +10,12 @@
   "failedAt": null,
   "stopped": false,
   "verdict": "PASS",
-  "battleId": "bat_mue9ccfi_v8tzwf",
+  "battleId": "bat_mvmf0t6v_v6p8go",
   "scores": {
-    "attacker": 9,
-    "defender": 8
+    "attacker": 23,
+    "defender": 24
   },
-  "winner": "aAlpha",
+  "winner": "aBravo",
   "reason": "turn_limit",
   "energyA": 13,
   "events": 61,
@@ -26,7 +26,7 @@
       "name": "User A alliance xəritəsini açır",
       "status": "pass",
       "detail": "Xəritə: aAlpha (User A) və aBravo görünür",
-      "ms": 1
+      "ms": 0
     },
     {
       "id": 2,
@@ -46,7 +46,7 @@
       "id": 4,
       "name": "Battle yaradılır",
       "status": "pass",
-      "detail": "battleId=bat_mue9ccfi_v8tzwf status=joining",
+      "detail": "battleId=bat_mvmf0t6v_v6p8go status=joining",
       "ms": 1
     },
     {
@@ -61,28 +61,28 @@
       "name": "Oyunçular qoşulur",
       "status": "pass",
       "detail": "3v3 join; max/side=5",
-      "ms": 1
+      "ms": 0
     },
     {
       "id": 7,
       "name": "Loadout seçilir",
       "status": "pass",
       "detail": "A/B loadout 5 kart; energy≤25",
-      "ms": 2
+      "ms": 1
     },
     {
       "id": 8,
       "name": "5 kart lock edilir",
       "status": "pass",
       "detail": "5 unique lock; duplicate rədd; usage=0",
-      "ms": 34
+      "ms": 0
     },
     {
       "id": 9,
       "name": "Battle başlayır",
       "status": "pass",
-      "detail": "status=active turn=1 player=pA; empty defender skip",
-      "ms": 1
+      "detail": "aktiv döyüşə join bağlıdır; hər iki tərəfdə oyunçu tələb olunur",
+      "ms": 0
     },
     {
       "id": 10,
@@ -96,7 +96,7 @@
       "name": "Kart oynanır",
       "status": "pass",
       "detail": "qul play icazəsi cost=4; yanlış növbə rədd",
-      "ms": 7
+      "ms": 1
     },
     {
       "id": 12,
@@ -110,83 +110,83 @@
       "name": "Kart usage artır",
       "status": "pass",
       "detail": "qul usage=1 / max=3",
-      "ms": 1
+      "ms": 0
     },
     {
       "id": 14,
       "name": "Effekt serverdə tətbiq olunur",
       "status": "pass",
-      "detail": "qul dmg=3 player=4 alliance=2",
-      "ms": 0
+      "detail": "qul dmg=0 player=4 alliance=2",
+      "ms": 1
     },
     {
       "id": 15,
       "name": "Score dəyişir",
       "status": "pass",
       "detail": "atkAlliance=2 pA=4 def=0",
-      "ms": 1
+      "ms": 0
     },
     {
       "id": 16,
       "name": "Event log yazılır",
       "status": "pass",
       "detail": "events=13 contiguous; winnerPlayerId meta-dan silindi",
-      "ms": 0
+      "ms": 1
     },
     {
       "id": 17,
       "name": "Click challenge başlayır",
       "status": "pass",
       "detail": "qul requiredClicks=3; yalnız hədəf ittifaq klikləyə bilər",
-      "ms": 2
+      "ms": 0
     },
     {
       "id": 18,
       "name": "Challenge nəticəsi hesablanır",
       "status": "pass",
       "detail": "clicks=3/3 → succeeded",
-      "ms": 1
+      "ms": 0
     },
     {
       "id": 19,
       "name": "Battle tamamlanır",
       "status": "pass",
-      "detail": "reason=turn_limit turn=9 atk=9 def=8",
-      "ms": 94
+      "detail": "reason=turn_limit turn=9 atk=23 def=24",
+      "ms": 1
     },
     {
       "id": 20,
       "name": "Winner server tərəfindən müəyyən edilir",
       "status": "pass",
-      "detail": "winner=aAlpha side=attacker claimed ignore",
+      "detail": "winner=aBravo side=defender claimed ignore",
       "ms": 1
     },
     {
       "id": 21,
       "name": "Player score yenilənir",
       "status": "pass",
-      "detail": "pA 100→108 (+8); pB 80→82 (+2)",
-      "ms": 1
+      "detail": "pA 100→102 (+2); pB 80→88 (+8)",
+      "ms": 0
     },
     {
       "id": 22,
       "name": "Alliance score yenilənir",
       "status": "pass",
-      "detail": "A 50→56 norm=93; B→50",
+      "detail": "A 50→50 norm=83; B→56",
       "ms": 0
     },
     {
       "id": 23,
       "name": "Leaderboard yenilənir",
       "status": "pass",
-      "detail": "daily 2023-11-15 +8; weekly 2023-11-13; award once",
+      "detail": "daily 2023-11-15 +2; weekly 2023-11-13; award once",
       "ms": 1
     },
     {
       "id": 24,
       "name": "Battle nəticəsi saxlanılır",
       "status": "pass",
-      "detail": "result/final winner=aAlpha events=61 contiguous",
+      "detail": "result/final winner=aBravo events=61 contiguous",
       "ms": 0
     }
   ]

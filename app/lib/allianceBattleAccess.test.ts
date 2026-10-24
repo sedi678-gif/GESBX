@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  ALLIANCE_BATTLE_STALE_MS,
   canReuseActiveAllianceBattle,
   canStartAllianceBattle,
   isExpiredUnstartedAllianceBattle,
+  isStaleLiveAllianceBattle,
 } from './allianceBattleAccess';
 
 test('only the alliance leader and promoted assistant leaders can start an attack', () => {
@@ -66,4 +68,34 @@ test('an expired pre-combat battle no longer blocks a fresh attack', () => {
     joinEndsAt: 20_000,
     now: 140_000,
   }), true);
+});
+
+test('an abandoned live battle stops blocking its target alliance', () => {
+  const activity = 1_000_000;
+  // Heç bitməyən active döyüş müəyyən müddətdən sonra hədəfi bloklamır.
+  for (const status of ['joining', 'locked', 'active']) {
+    assert.equal(isStaleLiveAllianceBattle({
+      status,
+      lastActivityAt: activity,
+      now: activity + ALLIANCE_BATTLE_STALE_MS + 1,
+    }), true, `${status} zombi döyüş sayılmalıdır`);
+    assert.equal(isStaleLiveAllianceBattle({
+      status,
+      lastActivityAt: activity,
+      now: activity + ALLIANCE_BATTLE_STALE_MS,
+    }), false, `${status} hələ canlı sayılır`);
+  }
+});
+
+test('finished battles and unknown activity timestamps are never treated as stale blocks', () => {
+  assert.equal(isStaleLiveAllianceBattle({
+    status: 'finished',
+    lastActivityAt: 1_000_000,
+    now: 1_000_000 + ALLIANCE_BATTLE_STALE_MS + 1,
+  }), false);
+  assert.equal(isStaleLiveAllianceBattle({
+    status: 'active',
+    lastActivityAt: 0,
+    now: 1_000_000 + ALLIANCE_BATTLE_STALE_MS + 1,
+  }), false);
 });

@@ -26,6 +26,22 @@ export function canReuseActiveAllianceBattle(input: {
     && input.defenderAllianceId === input.requestedDefenderAllianceId;
 }
 
+/** Canlı döyüş bu müddət boyu battle/arena sənədlərinə heç bir yazı almayıbsa — tərk edilmiş (zombi) sayılır. */
+export const ALLIANCE_BATTLE_STALE_MS = 10 * 60 * 1000;
+
+export function isStaleLiveAllianceBattle(input: {
+  status: string;
+  /** battle.updatedAt və arena.updatedAt arasındakı ən son fəaliyyət vaxtı (ms). */
+  lastActivityAt: number;
+  now: number;
+}): boolean {
+  if (input.status !== 'joining' && input.status !== 'locked' && input.status !== 'active') return false;
+  if (!Number.isFinite(input.now)) return false;
+  // Fəaliyyət vaxtı məlum deyilsə — hazırkı (bloklayan) davranışı saxla.
+  if (!Number.isFinite(input.lastActivityAt) || input.lastActivityAt <= 0) return false;
+  return input.now - input.lastActivityAt > ALLIANCE_BATTLE_STALE_MS;
+}
+
 export function isExpiredUnstartedAllianceBattle(input: {
   status: string;
   joinEndsAt: number;
