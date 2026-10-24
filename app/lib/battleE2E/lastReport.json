@@ -1,8 +1,8 @@
 {
   "title": "Battle E2E pipeline",
-  "startedAt": 1792847350452,
-  "finishedAt": 1792847350486,
-  "durationMs": 34,
+  "startedAt": 1792860349682,
+  "finishedAt": 1792860349851,
+  "durationMs": 169,
   "total": 24,
   "passed": 24,
   "failed": 0,
@@ -10,7 +10,7 @@
   "failedAt": null,
   "stopped": false,
   "verdict": "PASS",
-  "battleId": "bat_mvmf0t6v_v6p8go",
+  "battleId": "bat_mvmmrfio_p5ys7o",
   "scores": {
     "attacker": 23,
     "defender": 24
@@ -33,21 +33,21 @@
       "name": "User A başqa alliance seçir",
       "status": "pass",
       "detail": "Seçilən hədəf: aBravo",
-      "ms": 0
+      "ms": 1
     },
     {
       "id": 3,
       "name": "Hücum icazəsi yoxlanılır",
       "status": "pass",
       "detail": "canAttack=true; cooldown rədd; öz ittifaqı qadağandır",
-      "ms": 0
+      "ms": 6
     },
     {
       "id": 4,
       "name": "Battle yaradılır",
       "status": "pass",
-      "detail": "battleId=bat_mvmf0t6v_v6p8go status=joining",
-      "ms": 1
+      "detail": "battleId=bat_mvmmrfio_p5ys7o status=joining",
+      "ms": 4
     },
     {
       "id": 5,
@@ -68,7 +68,7 @@
       "name": "Loadout seçilir",
       "status": "pass",
       "detail": "A/B loadout 5 kart; energy≤25",
-      "ms": 1
+      "ms": 2
     },
     {
       "id": 8,
@@ -89,14 +89,14 @@
       "name": "Energy 25 olur",
       "status": "pass",
       "detail": "energy start/max=25",
-      "ms": 1
+      "ms": 0
     },
     {
       "id": 11,
       "name": "Kart oynanır",
       "status": "pass",
       "detail": "qul play icazəsi cost=4; yanlış növbə rədd",
-      "ms": 1
+      "ms": 2
     },
     {
       "id": 12,
@@ -117,7 +117,7 @@
       "name": "Effekt serverdə tətbiq olunur",
       "status": "pass",
       "detail": "qul dmg=0 player=4 alliance=2",
-      "ms": 1
+      "ms": 16
     },
     {
       "id": 15,
@@ -131,28 +131,28 @@
       "name": "Event log yazılır",
       "status": "pass",
       "detail": "events=13 contiguous; winnerPlayerId meta-dan silindi",
-      "ms": 1
+      "ms": 9
     },
     {
       "id": 17,
       "name": "Click challenge başlayır",
       "status": "pass",
       "detail": "qul requiredClicks=3; yalnız hədəf ittifaq klikləyə bilər",
-      "ms": 0
+      "ms": 1
     },
     {
       "id": 18,
       "name": "Challenge nəticəsi hesablanır",
       "status": "pass",
       "detail": "clicks=3/3 → succeeded",
-      "ms": 0
+      "ms": 1
     },
     {
       "id": 19,
       "name": "Battle tamamlanır",
       "status": "pass",
       "detail": "reason=turn_limit turn=9 atk=23 def=24",
-      "ms": 1
+      "ms": 4
     },
     {
       "id": 20,
@@ -173,7 +173,7 @@
       "name": "Alliance score yenilənir",
       "status": "pass",
       "detail": "A 50→50 norm=83; B→56",
-      "ms": 0
+      "ms": 1
     },
     {
       "id": 23,
@@ -187,7 +187,7 @@
       "name": "Battle nəticəsi saxlanılır",
       "status": "pass",
       "detail": "result/final winner=aBravo events=61 contiguous",
-      "ms": 0
+      "ms": 1
     }
   ]
 }
