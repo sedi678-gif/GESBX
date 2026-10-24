@@ -4284,7 +4284,7 @@
   padding: 14px 12px 18px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-height: 200px;
   max-height: 340px;
   background:
@@ -6019,7 +6019,7 @@
   padding: 8px 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   background:
     radial-gradient(ellipse 120% 80% at 50% 0%, rgba(32, 44, 51, 0.35), transparent 55%),
     linear-gradient(180deg, #0b141a 0%, #0d171d 50%, #0b141a 100%);

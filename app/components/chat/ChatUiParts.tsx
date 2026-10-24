@@ -27,22 +27,29 @@ export function AllianceHubMessage({
   currentUserName: string;
 }) {
   if (isSystemChatMessage(msg)) {
-    return <ChatSystemPill time={msg.time}>{msg.text}</ChatSystemPill>;
+    return (
+      <div className={styles.hubSystemRow}>
+        <div className={styles.hubSystemPill}>
+          <span className={styles.hubSystemText}>{msg.text}</span>
+          {msg.time ? <span className={styles.hubSystemTime}>{msg.time}</span> : null}
+        </div>
+      </div>
+    );
   }
 
   const mine = msg.user === currentUserName;
 
   return (
-    <div className={`${styles.hubBubbleWrap} ${mine ? styles.hubBubbleWrapMine : ''}`}>
-      {!mine && (
-        <div className={styles.hubBubbleAvatar} aria-hidden="true">
-          {msg.user.charAt(0).toUpperCase()}
+    <div className={styles.hubRow}>
+      <div className={styles.hubAvatar} aria-hidden="true">
+        {msg.user.charAt(0).toUpperCase()}
+      </div>
+      <div className={styles.hubBody}>
+        <div className={styles.hubHead}>
+          <span className={`${styles.hubAuthor} ${mine ? styles.hubAuthorMine : ''}`}>{msg.user}</span>
+          <span className={styles.hubTime}>{msg.time}</span>
         </div>
-      )}
-      <div className={mine ? styles.hubBubbleMine : styles.hubBubbleTheirs}>
-        {!mine && <span className={styles.hubBubbleAuthor}>{msg.user}</span>}
-        <span className={styles.hubBubbleText}>{msg.text}</span>
-        <div className={styles.hubBubbleTime}>{msg.time}</div>
+        <span className={styles.hubText}>{msg.text}</span>
       </div>
     </div>
   );
