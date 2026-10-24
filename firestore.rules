@@ -1999,7 +1999,7 @@ service cloud.firestore {
         && after.weeklyResetFrom is string
         && after.weeklyKey != after.weeklyResetFrom
         && after.diff(resource.data).affectedKeys().hasOnly(['score', 'weeklyKey', 'weeklyResetFrom'])
-        && existsAfter(/databases/$(database)/documents/leaderboard_resets/weekly_$(after.weeklyResetFrom));
+        && existsAfter(/databases/$(database)/documents/leaderboard_resets/$(('weekly_' + after.weeklyResetFrom)));
     }
 
     match /alliances/{allianceId} {

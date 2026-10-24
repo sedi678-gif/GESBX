@@ -25,13 +25,6 @@
       ]
     },
     {
-      "collectionGroup": "reports",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
@@ -49,13 +42,6 @@
       ]
     },
     {
-      "collectionGroup": "alliance_attacks",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "alliance_chat",
       "queryScope": "COLLECTION",
       "fields": [
@@ -69,13 +55,6 @@
       "fields": [
         { "fieldPath": "allianceId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "post_likes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" }
       ]
     },
     {
