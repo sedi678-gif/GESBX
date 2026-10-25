@@ -173,8 +173,6 @@ export interface EquippedCosmetics {
   bannerId?: string;
   nameStyleId?: string;
   badgeId?: string;
-  titleId?: string;
-  chatThemeId?: string;
 }
 
 export interface VipStatus {

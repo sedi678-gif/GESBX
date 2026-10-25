@@ -10,7 +10,7 @@ import { useAllianceScreenBusy } from './AllianceScreenBusy';
 import styles from './alliance.module.css';
 
 export default function AllianceChatDock() {
-  const { user, playerProfile } = useUser();
+  const { user } = useUser();
   const userName = user?.displayName || user?.email || getLocalProfileDisplayName();
   const busy = useAllianceScreenBusy();
   const [open, setOpen] = useState(false);
@@ -33,7 +33,6 @@ export default function AllianceChatDock() {
           allianceMessages={allianceMessages}
           activeAlliance={activeAlliance}
           currentUserName={userName}
-          chatThemeId={playerProfile?.cosmetics?.equipped?.chatThemeId}
           onSendMessage={(text, channel) => void handleSendMessage(text, channel)}
           onCollapse={() => setOpen(false)}
         />

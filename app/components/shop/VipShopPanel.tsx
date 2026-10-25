@@ -250,6 +250,28 @@ export default function VipShopPanel({ userId, manat, cosmetics, onNotify, onSpe
                     {product.category === 'vip' ? 'VIP PASS' : product.platinumOnly ? 'PLATINUM' : 'ELİT KOLLEKSİYA'}
                   </span>
 
+                  {product.category === 'frame' && (
+                    <span className={styles.framePreview} style={{ background: product.gradient }}>
+                      <span className={styles.framePreviewInner}><span>👤</span></span>
+                      <span className={styles.framePreviewSpark}>✦</span>
+                    </span>
+                  )}
+
+                  {product.category === 'banner' && (
+                    <span className={styles.wallpaperPreview}>
+                      <span className={styles.wallpaperMountain} />
+                      <span className={styles.wallpaperMoon} />
+                      <span className={styles.wallpaperLabel}>PROFIL FONU</span>
+                    </span>
+                  )}
+
+                  {product.id === 'badge_crown' && (
+                    <span className={styles.crownPreview}>
+                      <span className={styles.crownPreviewIcon}>♛</span>
+                      <span className={styles.crownPreviewAvatar}>👤</span>
+                    </span>
+                  )}
+
                   {product.styleClass && product.category === 'nameStyle' && (
 
                     <span className={`${styles.vipPreviewName} ${styles[`preview_${product.styleClass}`]}`}>
@@ -260,7 +282,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, onNotify, onSpe
 
                   )}
 
-                  {!product.styleClass && (
+                  {!product.styleClass && product.category !== 'frame' && product.category !== 'banner' && product.id !== 'badge_crown' && (
 
                     <span className={styles.vipPreviewEmoji}>{product.previewEmoji ?? '✨'}</span>
 
