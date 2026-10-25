@@ -53,7 +53,9 @@ export default function AllianceChatDock() {
           aria-expanded={false}
           aria-label="Söhbəti aç"
         >
-          <span className={styles.allianceChatPeekTitle}>💬 Söhbət</span>
+          <span className={styles.allianceChatPeekTitle}>
+            <span aria-hidden="true">💬</span> Söhbət
+          </span>
           <span className={styles.allianceChatPeekLine}>
             {preview
               ? `${preview.user === userName ? 'Sən' : preview.user}: ${preview.text}`

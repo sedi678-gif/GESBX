@@ -6538,8 +6538,9 @@
   }
 
   .allianceChatStay {
-    height: min(140px, 38dvh);
-    min-height: 112px;
+    width: min(420px, calc(100vw - 24px));
+    height: min(68dvh, 560px);
+    min-height: 220px;
   }
 
   .allianceMapShell .mapCountryBadge {
