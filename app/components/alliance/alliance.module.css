@@ -7367,26 +7367,6 @@
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-.worldCastleHub .allianceChatStayCollapsed .allianceChatPeek::before,
-.worldCastleHub .allianceChatStayCollapsed .allianceChatPeek::after {
-  content: '';
-  position: absolute;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.worldCastleHub .allianceChatStayCollapsed .allianceChatPeek::before {
-  inset: -2px;
-  background: conic-gradient(from 0deg, #38bdf8, #ec4899, #818cf8, #38bdf8);
-  animation: mapNeonSpin 3.2s linear infinite;
-}
-
-.worldCastleHub .allianceChatStayCollapsed .allianceChatPeek::after {
-  inset: 2px;
-  background: rgba(15, 23, 42, 0.96);
-}
-
 .worldCastleHub .allianceChatStayCollapsed .allianceChatPeek:hover {
   transform: translateY(-2px);
   box-shadow: 0 0 14px rgba(56, 189, 248, 0.5), 0 0 22px rgba(236, 72, 153, 0.35), 0 4px 14px rgba(0, 0, 0, 0.4);
@@ -7406,7 +7386,7 @@
 @media (max-width: 768px), (orientation: landscape) and (max-height: 430px) {
   .worldCastleHub .allianceChatStay.allianceChatStayCollapsed {
     right: max(12px, env(safe-area-inset-right, 0px));
-    bottom: calc(var(--alliance-map-nav, 68px) + 8px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(var(--alliance-map-nav, 68px) + 8px + var(--map-launch-size, 56px) + 8px + 78px + 12px + env(safe-area-inset-bottom, 0px));
   }
 
   .worldCastleHub .allianceChatStay:not(.allianceChatStayCollapsed) {

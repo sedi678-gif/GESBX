@@ -39,7 +39,7 @@ export default function AllianceChatDock() {
       ) : (
         <button
           type="button"
-          className={styles.allianceChatPeek}
+          className={`${styles.allianceChatPeek} ${styles.mapRoundBtn}`}
           onClick={() => setOpen(true)}
           aria-expanded={false}
           aria-label="Söhbəti aç"
