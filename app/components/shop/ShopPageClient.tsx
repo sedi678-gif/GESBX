@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import AppLink from '@/app/components/AppLink';
+import CastleShopPanel from '@/app/components/shop/CastleShopPanel';
 import VipShopPanel from '@/app/components/shop/VipShopPanel';
 import { useUser } from '@/context/UserContext';
 import styles from './shopPage.module.css';
@@ -10,7 +11,14 @@ import styles from './shopPage.module.css';
 export default function ShopPageClient() {
   const { userId, manat, manatReady, playerProfile, applyManatDelta } = useUser();
   const [notice, setNotice] = useState<string | null>(null);
+  const [shopTab, setShopTab] = useState<'cosmetics' | 'fortress'>('cosmetics');
   const canUseShop = Boolean(userId && userId !== 'anonim_user_id');
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('tab') === 'fortress') {
+      setShopTab('fortress');
+    }
+  }, []);
 
   return (
     <div className={styles.page}>
@@ -54,11 +62,36 @@ export default function ShopPageClient() {
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.sectionEyebrow}>MAĞAZA KATALOQU</p>
-              <h2 id="shop-cosmetics-title" className={styles.sectionTitle}>VIP və profil kosmetikası</h2>
+              <h2 id="shop-cosmetics-title" className={styles.sectionTitle}>
+                {shopTab === 'fortress' ? 'İttifaq qalaları' : 'VIP və profil kosmetikası'}
+              </h2>
             </div>
             <p className={styles.sectionDescription}>
-              Məhsulları kateqoriyaya görə seç, manatla al və sahib olduqlarını profilində geyin.
+              {shopTab === 'fortress'
+                ? 'Beş fərqli qala görünüşündən növbəti səviyyəni seç. Yüksəliş bütün ittifaq üçün açılır.'
+                : 'Məhsulları kateqoriyaya görə seç, manatla al və sahib olduqlarını profilində geyin.'}
             </p>
+          </div>
+
+          <div className={styles.shopTabs} role="tablist" aria-label="Mağaza bölmələri">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={shopTab === 'cosmetics'}
+              className={`${styles.shopTab} ${shopTab === 'cosmetics' ? styles.shopTabActive : ''}`}
+              onClick={() => setShopTab('cosmetics')}
+            >
+              ✨ VIP və kosmetika
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={shopTab === 'fortress'}
+              className={`${styles.shopTab} ${shopTab === 'fortress' ? styles.shopTabActive : ''}`}
+              onClick={() => setShopTab('fortress')}
+            >
+              🏰 Qalalar
+            </button>
           </div>
 
           {!manatReady ? (
@@ -69,14 +102,24 @@ export default function ShopPageClient() {
               <AppLink href="/login" className={styles.loginLink}>Daxil ol</AppLink>
             </div>
           ) : (
-            <VipShopPanel
-              userId={userId}
-              manat={manat}
-              cosmetics={playerProfile?.cosmetics}
-              onNotify={setNotice}
-              onSpend={(amount) => applyManatDelta(-amount)}
-              onRefund={(amount) => applyManatDelta(amount)}
-            />
+            shopTab === 'fortress' ? (
+              <CastleShopPanel
+                userId={userId}
+                manat={manat}
+                onNotify={setNotice}
+                onSpend={(amount) => applyManatDelta(-amount)}
+                onRefund={(amount) => applyManatDelta(amount)}
+              />
+            ) : (
+              <VipShopPanel
+                userId={userId}
+                manat={manat}
+                cosmetics={playerProfile?.cosmetics}
+                onNotify={setNotice}
+                onSpend={(amount) => applyManatDelta(-amount)}
+                onRefund={(amount) => applyManatDelta(amount)}
+              />
+            )
           )}
         </section>
       </main>

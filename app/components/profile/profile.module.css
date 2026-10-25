@@ -1314,6 +1314,55 @@
   animation: nameRainbowMove 5s linear infinite;
 }
 
+.nameEmerald {
+  background: linear-gradient(90deg, #bbf7d0, #22c55e, #a3e635, #bbf7d0);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: nameRainbowMove 4s linear infinite;
+  filter: drop-shadow(0 0 7px rgba(74, 222, 128, 0.65));
+}
+
+.nameSakura {
+  background: linear-gradient(90deg, #fce7f3, #f472b6, #c084fc, #fce7f3);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: nameRainbowMove 4.5s linear infinite;
+}
+
+.nameComet {
+  background: linear-gradient(90deg, #e0f2fe, #38bdf8, #c4b5fd, #f0abfc, #e0f2fe);
+  background-size: 240% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: nameRainbowMove 3.6s linear infinite;
+  filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.55));
+}
+
+.nameCyberwave {
+  background: linear-gradient(90deg, #67e8f9, #2563eb, #a5f3fc, #8b5cf6, #67e8f9);
+  background-size: 240% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: nameRainbowMove 3s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.65));
+}
+
+.nameVoid {
+  background: linear-gradient(90deg, #ddd6fe, #7c3aed, #ec4899, #38bdf8, #ddd6fe);
+  background-size: 240% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: nameRainbowMove 3.4s linear infinite;
+  filter: drop-shadow(0 0 9px rgba(192, 132, 252, 0.7));
+}
+
 @keyframes nameShimmer {
   0%, 100% { filter: brightness(1); }
   50% { filter: brightness(1.2); }

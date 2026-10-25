@@ -109,6 +109,42 @@
   padding-top: 27px;
 }
 
+.shopTabs {
+  display: flex;
+  gap: 9px;
+  margin: 0 0 18px;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.shopTab {
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #9eacc0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.shopTab:hover {
+  color: #ecfeff;
+}
+
+.shopTabActive {
+  border-color: rgba(103, 232, 249, 0.24);
+  color: #ecfeff;
+  background: linear-gradient(105deg, rgba(8, 145, 178, 0.24), rgba(124, 58, 237, 0.22));
+  box-shadow: 0 4px 18px rgba(6, 182, 212, 0.08);
+}
+
 .sectionHeading {
   display: flex;
   align-items: flex-end;

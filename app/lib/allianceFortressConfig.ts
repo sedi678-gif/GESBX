@@ -25,11 +25,11 @@ export interface FortressShopProduct {
 }
 
 export const FORTRESS_SHOP_PRODUCTS: FortressShopProduct[] = [
-  { level: 2, name: 'Qala — Səviyyə 2', price: 20, desc: 'Orta qala binası — dərhal aktiv.' },
-  { level: 3, name: 'Qala — Səviyyə 3', price: 40, desc: 'Güclü qala — dərhal aktiv.' },
-  { level: 4, name: 'Qala — Səviyyə 4', price: 60, desc: 'Nadir qala — dərhal aktiv.' },
-  { level: 5, name: 'Qala — Səviyyə 5', price: 80, desc: 'Epik qala — dərhal aktiv.' },
-  { level: 6, name: 'Qala — Səviyyə 6', price: 100, desc: 'Əfsanəvi qala — dərhal aktiv.' },
+  { level: 2, name: 'Zümrüd Qalası', price: 20, desc: 'Yaşıl daş qüllələr və meşə işığı ilə ilk böyük yüksəliş.' },
+  { level: 3, name: 'Qızıl Qartal Qalası', price: 40, desc: 'Qızıl zirvələr və ittifaqına layiq möhtəşəm görünüş.' },
+  { level: 4, name: 'Ay İşığı Qalası', price: 60, desc: 'Gecə mavisi divarlar və parlaq ay qüllələri.' },
+  { level: 5, name: 'Əjdaha Qalası', price: 80, desc: 'Alov rəngli istehkam və güclü əjdaha ruhu.' },
+  { level: 6, name: 'Ulduz Tacı Qalası', price: 100, desc: 'Maksimum səviyyə — kosmik işıqlar və əfsanəvi qala fonu.' },
 ];
 
 const FORTRESS_IMAGE_BASE = '/images/alliance-fortress';
