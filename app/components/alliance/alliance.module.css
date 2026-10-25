@@ -7332,3 +7332,60 @@
     padding: 4px 8px;
   }
 }
+
+/* Alliance chat dock overrides: keep the launcher at the viewport edge and
+   let the expanded conversation use the available area above the app nav. */
+.worldCastleHub .allianceChatStay.allianceChatStayCollapsed {
+  position: fixed;
+  top: auto;
+  right: max(18px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--alliance-map-nav, 68px) + 12px + env(safe-area-inset-bottom, 0px));
+  left: auto;
+  transform: none;
+  width: auto;
+  height: auto;
+  min-height: 0;
+}
+
+.worldCastleHub .allianceChatStay:not(.allianceChatStayCollapsed) {
+  position: fixed;
+  inset: max(12px, env(safe-area-inset-top, 0px)) auto calc(var(--alliance-map-nav, 68px) + 12px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 32px));
+  height: auto;
+  min-height: 0;
+}
+
+.worldCastleHub .allianceChatStayCollapsed .allianceChatPeek {
+  width: 62px;
+  height: 72px;
+  min-height: 0;
+  padding: 5px 4px;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+
+.worldCastleHub .allianceChatStayCollapsed .allianceChatPeekTitle {
+  color: #fff;
+}
+
+@media (max-width: 768px), (orientation: landscape) and (max-height: 430px) {
+  .worldCastleHub .allianceChatStay.allianceChatStayCollapsed {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(var(--alliance-map-nav, 68px) + 8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .worldCastleHub .allianceChatStay:not(.allianceChatStayCollapsed) {
+    inset: max(8px, env(safe-area-inset-top, 0px)) 8px calc(var(--alliance-map-nav, 68px) + 8px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    right: 8px;
+    transform: none;
+    width: auto;
+  }
+}
