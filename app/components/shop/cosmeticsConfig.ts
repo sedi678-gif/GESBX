@@ -519,6 +519,19 @@ export const COSMETIC_CATEGORIES: { id: CosmeticCategory | 'all'; label: string 
   { id: 'badge', label: '🏅 Nişan' },
 ];
 
+export function getCosmeticPreviewGradient(product: CosmeticProduct): string {
+  if (product.gradient) return product.gradient;
+  if (product.category === 'vip') {
+    return product.vipTier === 'platinum'
+      ? 'linear-gradient(135deg, #082f49 0%, #4338ca 52%, #a21caf 100%)'
+      : 'linear-gradient(135deg, #713f12 0%, #b45309 48%, #fbbf24 100%)';
+  }
+  if (product.category === 'nameStyle') return 'linear-gradient(135deg, #0f172a 0%, #164e63 50%, #312e81 100%)';
+  if (product.category === 'frame') return 'linear-gradient(135deg, #172554 0%, #6d28d9 52%, #0f172a 100%)';
+  if (product.category === 'banner') return 'linear-gradient(135deg, #0f172a 0%, #0e7490 48%, #7c3aed 100%)';
+  return 'linear-gradient(135deg, #1e1b4b 0%, #7e22ce 52%, #be185d 100%)';
+}
+
 export function getCosmeticProduct(id: string): CosmeticProduct | undefined {
   return COSMETIC_PRODUCTS.find((p) => p.id === id);
 }

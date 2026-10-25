@@ -1,16 +1,66 @@
 .vipBanner {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin: 0 0 16px;
-  padding: 14px 16px;
-  border: 1px solid rgba(168, 85, 247, 0.24);
-  border-radius: 16px;
+  min-height: 82px;
+  overflow: hidden;
+  padding: 16px 150px 16px 72px;
+  border: 1px solid rgba(216, 180, 254, 0.28);
+  border-radius: 18px;
   color: #e9d5ff;
-  background: linear-gradient(110deg, rgba(91, 33, 182, 0.24), rgba(15, 23, 42, 0.82));
+  background:
+    radial-gradient(ellipse at 92% 50%, rgba(251, 191, 36, 0.17), transparent 22%),
+    radial-gradient(ellipse at 16% 0%, rgba(192, 132, 252, 0.22), transparent 42%),
+    linear-gradient(110deg, rgba(49, 24, 86, 0.94), rgba(15, 23, 42, 0.95) 72%);
   font-size: 13px;
   line-height: 1.5;
+  box-shadow: 0 16px 40px rgba(3, 7, 18, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.vipBanner::before {
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  transform: translateY(-50%);
+  place-items: center;
+  border: 1px solid rgba(253, 230, 138, 0.42);
+  border-radius: 14px;
+  color: #fde68a;
+  background: linear-gradient(145deg, rgba(251, 191, 36, 0.2), rgba(192, 132, 252, 0.17));
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  content: '♛';
+  font-size: 26px;
+  text-shadow: 0 0 14px rgba(253, 230, 138, 0.7);
+}
+
+.vipBanner::after {
+  position: absolute;
+  top: -55px;
+  right: -12px;
+  z-index: -1;
+  width: 165px;
+  height: 165px;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 50%;
+  box-shadow: 0 0 0 14px rgba(192, 132, 252, 0.04), 0 0 0 29px rgba(251, 191, 36, 0.035);
+  content: '';
+}
+
+.vipBanner > strong,
+.vipBanner > span {
+  position: relative;
+  z-index: 1;
+}
+
+.vipBanner > span:last-child {
+  color: #c4b5fd;
 }
 
 .vipBanner strong {
@@ -30,13 +80,14 @@
 .vipPerks li {
   min-height: 42px;
   padding: 10px 12px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 12px;
-  color: #cbd5e1;
-  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 13px;
+  color: #dbeafe;
+  background: linear-gradient(140deg, rgba(30, 41, 59, 0.68), rgba(15, 23, 42, 0.76));
   font-size: 11px;
   font-weight: 650;
   line-height: 1.45;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .cosmeticFilters {
@@ -79,8 +130,8 @@
 
 .productGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 205px), 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 245px), 1fr));
+  gap: 17px;
 }
 
 .productCard {
@@ -128,10 +179,96 @@
   font-size: 11px;
 }
 
+.castleShowcase {
+  position: relative;
+  display: flex;
+  min-height: 310px;
+  align-items: flex-end;
+  overflow: hidden;
+  margin: 0 0 20px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 22px;
+  background: #111827;
+  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.castleShowcase > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 58%;
+  transform: scale(1.015);
+}
+
+.castleShowcaseShade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 78% 22%, rgba(251, 191, 36, 0.22), transparent 34%),
+    linear-gradient(90deg, rgba(2, 6, 23, 0.9) 0%, rgba(2, 6, 23, 0.55) 42%, rgba(2, 6, 23, 0.08) 100%),
+    linear-gradient(0deg, rgba(2, 6, 23, 0.88) 0%, transparent 76%);
+}
+
+.castleShowcaseContent {
+  position: relative;
+  z-index: 1;
+  width: min(530px, 100%);
+  padding: 24px clamp(20px, 4vw, 38px) 26px;
+}
+
+.castleShowcaseEyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 5px 9px;
+  border: 1px solid rgba(253, 230, 138, 0.4);
+  border-radius: 999px;
+  color: #fde68a;
+  background: rgba(2, 6, 23, 0.46);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  backdrop-filter: blur(8px);
+}
+
+.castleShowcaseContent h3 {
+  margin: 12px 0 7px;
+  color: #fff7d6;
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.65);
+}
+
+.castleShowcaseContent p {
+  max-width: 430px;
+  margin: 0;
+  color: rgba(248, 250, 252, 0.86);
+  font-size: 12px;
+  line-height: 1.55;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+}
+
+.castleShowcaseFooter {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.castleShowcaseFooter strong {
+  color: #fde68a;
+  font-size: 20px;
+  font-weight: 950;
+}
+
 .castlePreview {
   position: relative;
   display: block;
-  height: 112px;
+  height: 150px;
   overflow: hidden;
   border: 1px solid rgba(251, 191, 36, 0.26);
   border-radius: 13px;
@@ -162,30 +299,99 @@
   font-weight: 900;
 }
 
+@media (max-width: 560px) {
+  .castleShowcase {
+    min-height: 285px;
+    align-items: flex-end;
+  }
+
+  .castleShowcaseShade {
+    background:
+      radial-gradient(ellipse at 78% 22%, rgba(251, 191, 36, 0.18), transparent 34%),
+      linear-gradient(0deg, rgba(2, 6, 23, 0.96) 0%, rgba(2, 6, 23, 0.62) 54%, rgba(2, 6, 23, 0.08) 100%);
+  }
+
+  .castleShowcaseContent {
+    padding: 18px 16px 18px;
+  }
+
+  .castleShowcaseContent h3 {
+    max-width: 320px;
+    font-size: 27px;
+  }
+}
+
 .vipPreview {
   position: relative;
   display: grid;
-  min-height: 104px;
+  min-height: 138px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 13px;
-  background: linear-gradient(135deg, #172554, #312e81 55%, #0e7490);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 15px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -26px 36px rgba(2, 6, 23, 0.22);
+}
+
+.vipPreview::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 18% 82%, rgba(255, 255, 255, 0.18), transparent 25%),
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.24), transparent 21%),
+    repeating-linear-gradient(135deg, transparent 0 18px, rgba(255, 255, 255, 0.035) 19px 20px, transparent 21px 39px);
+  content: '';
 }
 
 .vipPreview::after {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.13), transparent 75%);
+  top: -50%;
+  bottom: -50%;
+  left: -45%;
+  width: 34%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
   content: '';
   pointer-events: none;
+  opacity: 0;
+}
+
+.productCard:hover .vipPreview::after {
+  animation: shopPreviewShine 1.25s ease-out;
+}
+
+.vipPreviewPlatinum {
+  border-color: rgba(186, 230, 253, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 0 24px rgba(34, 211, 238, 0.1);
+}
+
+.previewEdition {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(2, 6, 23, 0.35);
+  backdrop-filter: blur(8px);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+@keyframes shopPreviewShine {
+  0% { left: -45%; opacity: 0; }
+  20% { opacity: 1; }
+  100% { left: 120%; opacity: 0; }
 }
 
 .vipPreviewName {
   position: relative;
-  z-index: 1;
-  font-size: clamp(21px, 5vw, 27px);
+  z-index: 2;
+  font-size: clamp(24px, 5vw, 31px);
   font-weight: 950;
   letter-spacing: -0.05em;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
@@ -251,9 +457,9 @@
 
 .vipPreviewEmoji {
   position: relative;
-  z-index: 1;
-  font-size: 38px;
-  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.35));
+  z-index: 2;
+  font-size: 48px;
+  filter: drop-shadow(0 7px 14px rgba(0, 0, 0, 0.5));
 }
 
 .productBody {
@@ -358,6 +564,21 @@
 }
 
 @media (max-width: 420px) {
+  .vipBanner {
+    padding-right: 16px;
+    padding-left: 64px;
+  }
+
+  .vipBanner::before {
+    left: 12px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .vipBanner::after {
+    right: -90px;
+  }
+
   .vipPerks {
     grid-template-columns: 1fr 1fr;
     gap: 6px;
@@ -389,6 +610,11 @@
   .buyBtn {
     width: 100%;
   }
+
+  .castleShowcaseFooter .buyBtn {
+    width: auto;
+    min-width: 116px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -396,5 +622,9 @@
   .cosmeticFilterBtn,
   .buyBtn {
     transition: none;
+  }
+
+  .vipPreview::after {
+    animation: none;
   }
 }

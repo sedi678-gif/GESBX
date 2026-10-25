@@ -21,6 +21,7 @@ import {
   isVipActive,
 
   formatVipExpiry,
+  getCosmeticPreviewGradient,
 
 } from './cosmeticsConfig';
 
@@ -240,23 +241,14 @@ export default function VipShopPanel({ userId, manat, cosmetics, onNotify, onSpe
 
                 <div
 
-                  className={styles.vipPreview}
+                  className={`${styles.vipPreview} ${product.platinumOnly ? styles.vipPreviewPlatinum : ''}`}
 
-                  style={
-
-                    product.gradient
-
-                      ? { background: product.gradient }
-
-                      : product.styleClass
-
-                        ? undefined
-
-                        : { background: 'linear-gradient(135deg, #312e81, #6366f1)' }
-
-                  }
+                  style={{ background: getCosmeticPreviewGradient(product) }}
 
                 >
+                  <span className={styles.previewEdition}>
+                    {product.category === 'vip' ? 'VIP PASS' : product.platinumOnly ? 'PLATINUM' : 'ELİT KOLLEKSİYA'}
+                  </span>
 
                   {product.styleClass && product.category === 'nameStyle' && (
 
