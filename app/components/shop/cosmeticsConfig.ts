@@ -1,6 +1,6 @@
 import { PlayerCosmetics, VipTier } from '../alliance/types';
 
-export type CosmeticCategory = 'vip' | 'nameStyle' | 'frame' | 'banner' | 'badge';
+export type CosmeticCategory = 'vip' | 'nameStyle' | 'frame' | 'banner';
 
 export interface CosmeticProduct {
   id: string;
@@ -15,6 +15,8 @@ export interface CosmeticProduct {
   gradient?: string;
   /** In-game scene used as a cosmetic banner */
   image?: string;
+  /** CC0 portrait frame overlay */
+  frameImage?: string;
   vipOnly?: boolean;
   platinumOnly?: boolean;
   /** VIP paketi — müddət (ms) */
@@ -29,20 +31,22 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     category: 'vip',
     name: 'Gold VIP — 7 gün',
     price: 2500,
-    desc: 'Rəngli ad stilləri, profil çərçivələri və arxa fon alışı. Profildə 👑 Gold nişanı.',
+    desc: 'Gold üzvlük: yazı stilləri, profil çərçivələri və bütün fonlar.',
     previewEmoji: '👑',
     vipDurationMs: 7 * 24 * 60 * 60 * 1000,
     vipTier: 'gold',
+    image: '/images/vip-art/aurora.jpg',
   },
   {
     id: 'vip_platinum_30d',
     category: 'vip',
     name: 'Platinum VIP — 30 gün',
     price: 8000,
-    desc: 'Bütün VIP kosmetikalar + ekskluziv çərçivə, parlaq effekt, 💎 Platinum nişanı və +2 həftəlik kart limiti.',
+    desc: 'Platinum üzvlük: bütün kosmetikalar, xüsusi effektlər və +2 həftəlik kart limiti.',
     previewEmoji: '💎',
     vipDurationMs: 30 * 24 * 60 * 60 * 1000,
     vipTier: 'platinum',
+    image: '/images/vip-art/nebula.jpg',
   },
   {
     id: 'vip_gold_30d',
@@ -53,6 +57,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     previewEmoji: '👑',
     vipDurationMs: 30 * 24 * 60 * 60 * 1000,
     vipTier: 'gold',
+    image: '/images/vip-art/dunes.jpg',
   },
   {
     id: 'vip_gold_90d',
@@ -63,6 +68,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     previewEmoji: '🌟',
     vipDurationMs: 90 * 24 * 60 * 60 * 1000,
     vipTier: 'gold',
+    image: '/images/vip-art/forest.jpg',
   },
   {
     id: 'vip_platinum_7d',
@@ -73,6 +79,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     previewEmoji: '💠',
     vipDurationMs: 7 * 24 * 60 * 60 * 1000,
     vipTier: 'platinum',
+    image: '/images/vip-art/starmountain.jpg',
   },
   {
     id: 'vip_platinum_90d',
@@ -83,6 +90,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     previewEmoji: '💎',
     vipDurationMs: 90 * 24 * 60 * 60 * 1000,
     vipTier: 'platinum',
+    image: '/images/vip-art/ice.jpg',
   },
   {
     id: 'vip_platinum_365d',
@@ -93,6 +101,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     previewEmoji: '👑',
     vipDurationMs: 365 * 24 * 60 * 60 * 1000,
     vipTier: 'platinum',
+    image: '/images/vip-art/volcano.jpg',
   },
 
   // Yazı stilləri
@@ -213,107 +222,49 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
   {
     id: 'frame_gold',
     category: 'frame',
-    name: 'Qızıl Çərçivə',
+    name: 'Qədim Rune Çərçivəsi',
     price: 1500,
-    desc: 'Avatar ətrafında qızıl halqa.',
+    desc: 'Ağır oyma və metal detallı qədim portret halqası.',
     previewEmoji: '🟡',
     styleClass: 'frameGold',
     gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b, #d97706)',
+    frameImage: '/images/vip-art/frame-gold.png',
     vipOnly: true,
   },
   {
     id: 'frame_neon',
     category: 'frame',
-    name: 'Neon Çərçivə',
+    name: 'Meşə Medalyonu',
     price: 1600,
-    desc: 'Parlayan neon yaşıl-mavi halqa.',
+    desc: 'Tünd ağac və oyma naxışlı dairəvi portret halqası.',
     previewEmoji: '💫',
     styleClass: 'frameNeon',
     gradient: 'linear-gradient(135deg, #22d3ee, #a855f7, #ec4899)',
+    frameImage: '/images/vip-art/frame-neon.png',
     vipOnly: true,
   },
   {
     id: 'frame_fire',
     category: 'frame',
-    name: 'Od Çərçivəsi',
+    name: 'Kral Medalyonu',
     price: 1800,
-    desc: 'Alq-van alov halqası.',
+    desc: 'Klassik oyma naxışlı, qızılı işıqlı dairəvi çərçivə.',
     previewEmoji: '🔥',
     styleClass: 'frameFire',
     gradient: 'linear-gradient(135deg, #ef4444, #f97316, #fbbf24)',
-    vipOnly: true,
-  },
-  {
-    id: 'frame_galaxy',
-    category: 'frame',
-    name: 'Qalaktika Çərçivəsi',
-    price: 2000,
-    desc: 'Kosmik bənövşəyi ulduz halqası.',
-    previewEmoji: '🌌',
-    styleClass: 'frameGalaxy',
-    gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899, #06b6d4)',
+    frameImage: '/images/vip-art/frame-fire.png',
     vipOnly: true,
   },
   {
     id: 'frame_diamond',
     category: 'frame',
-    name: 'Almaz Çərçivə',
+    name: 'Səmavi Medalyon',
     price: 3000,
-    desc: 'Platinum ekskluziv parlaq almaz halqa.',
+    desc: 'Fil sümüyü rəngli həndəsi oyma ilə premium portret halqası.',
     previewEmoji: '💎',
     styleClass: 'frameDiamond',
     gradient: 'linear-gradient(135deg, #e0f2fe, #38bdf8, #818cf8, #c084fc)',
-    vipOnly: true,
-    platinumOnly: true,
-  },
-  {
-    id: 'frame_emerald',
-    category: 'frame',
-    name: 'Zümrüd Qoruyucu Halqa',
-    price: 1700,
-    desc: 'Avatarına meşə işığı kimi yaşıl aura verir.',
-    previewEmoji: '🟢',
-    gradient: 'linear-gradient(135deg, #052e16, #22c55e, #a3e635)',
-    vipOnly: true,
-  },
-  {
-    id: 'frame_sakura',
-    category: 'frame',
-    name: 'Sakura Halqası',
-    price: 1800,
-    desc: 'Çəhrayı ləçəklərdən ilhamlanan yumşaq neon çərçivə.',
-    previewEmoji: '🌸',
-    gradient: 'linear-gradient(135deg, #831843, #f472b6, #fda4af)',
-    vipOnly: true,
-  },
-  {
-    id: 'frame_comet',
-    category: 'frame',
-    name: 'Kometa Halqası',
-    price: 2200,
-    desc: 'Mavi və bənövşəyi ulduz izi ilə seçilən profil halqası.',
-    previewEmoji: '☄️',
-    gradient: 'linear-gradient(135deg, #0e7490, #6366f1, #c084fc)',
-    vipOnly: true,
-  },
-  {
-    id: 'frame_obsidian',
-    category: 'frame',
-    name: 'Obsidian Zirehi',
-    price: 2500,
-    desc: 'Tünd metal və gümüş işıqla ağır, elit görünüş.',
-    previewEmoji: '🛡️',
-    gradient: 'linear-gradient(135deg, #111827, #64748b, #e2e8f0)',
-    vipOnly: true,
-  },
-  {
-    id: 'frame_celestial',
-    category: 'frame',
-    name: 'Səmavi Almaz',
-    price: 3400,
-    desc: 'Platinum eksklüziv — buz mavisi və ulduz bənövşəyi.',
-    previewEmoji: '💠',
-    gradient: 'linear-gradient(135deg, #cffafe, #38bdf8, #818cf8, #f0abfc)',
+    frameImage: '/images/vip-art/frame-diamond.png',
     vipOnly: true,
     platinumOnly: true,
   },
@@ -322,11 +273,11 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
   {
     id: 'banner_sunset',
     category: 'banner',
-    name: 'Aurora Meşəsi',
+    name: 'Qızılı Qum Təpələri',
     price: 1000,
-    desc: 'Meşə üzərində parlayan aurora səması.',
+    desc: 'Omanın gün batımında narıncı qum təpələri.',
     previewEmoji: '',
-    image: '/images/vip-art/aurora.jpg',
+    image: '/images/vip-art/dunes.jpg',
     gradient: 'linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%)',
     vipOnly: true,
   },
@@ -344,18 +295,18 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
   {
     id: 'banner_midnight',
     category: 'banner',
-    name: 'Gecə Fonu',
+    name: 'Ulduzlu Alp Dağları',
     price: 1000,
-    desc: 'Dərin gecə mavi-bənövşəyi.',
+    desc: 'Dolomit dağlarının üstündə ulduzlu gecə.',
     previewEmoji: '',
-    image: '/images/vip-art/nebula.jpg',
+    image: '/images/vip-art/starmountain.jpg',
     gradient: 'linear-gradient(135deg, #0f172a 0%, #312e81 50%, #1e1b4b 100%)',
     vipOnly: true,
   },
   {
     id: 'banner_volcano',
     category: 'banner',
-    name: 'Vulkan Fonu',
+    name: 'Vulkan Alovu',
     price: 1400,
     desc: 'Qırmızı lava effekti.',
     previewEmoji: '',
@@ -366,18 +317,18 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
   {
     id: 'banner_ocean',
     category: 'banner',
-    name: 'Sakura Axşamı',
+    name: 'Biolüminessent Okean',
     price: 1000,
-    desc: 'Gecə işığında çiçək açan sakura.',
+    desc: 'Gecə parlayan mavi okean dalğaları.',
     previewEmoji: '',
-    image: '/images/vip-art/sakura.jpg',
+    image: '/images/vip-art/ocean.jpg',
     gradient: 'linear-gradient(135deg, #0c4a6e 0%, #0284c7 50%, #06b6d4 100%)',
     vipOnly: true,
   },
   {
     id: 'banner_galaxy',
     category: 'banner',
-    name: 'Qalaktika Fonu',
+    name: 'Kosmik Dumanlıq',
     price: 1800,
     desc: 'Platinum ekskluziv kosmik banner.',
     previewEmoji: '',
@@ -389,44 +340,44 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
   {
     id: 'banner_royal',
     category: 'banner',
-    name: 'Qızılı Aurora',
+    name: 'Səhra Alatoranı',
     price: 1600,
-    desc: 'Tünd bənövşəyi və qızılı saray işığı.',
+    desc: 'Wadi Rum qayaları üzərində bənövşəyi gün batımı.',
     previewEmoji: '',
-    image: '/images/vip-art/aurora.jpg',
+    image: '/images/vip-art/desert.jpg',
     gradient: 'linear-gradient(135deg, #312e81 0%, #7c3aed 48%, #fbbf24 100%)',
     vipOnly: true,
   },
   {
     id: 'banner_emerald',
     category: 'banner',
-    name: 'Zümrüd Meşəsi',
+    name: 'Dumanlı Meşə',
     price: 1300,
-    desc: 'Dərin meşə yaşılı və sehrli zümrüd işığı.',
+    desc: 'Ağacların arasından süzülən günəş və duman.',
     previewEmoji: '',
-    image: '/images/vip-art/frost.jpg',
+    image: '/images/vip-art/forest.jpg',
     gradient: 'linear-gradient(135deg, #052e16 0%, #15803d 48%, #4ade80 100%)',
     vipOnly: true,
   },
   {
     id: 'banner_sakura',
     category: 'banner',
-    name: 'Sakura Axşamı',
+    name: 'Bahar Çiçəkləri',
     price: 1500,
-    desc: 'Gül ləçəyi rəngləri ilə romantik axşam fonu.',
+    desc: 'Yumşaq günəş işığında çəhrayı çiçəklər.',
     previewEmoji: '',
-    image: '/images/vip-art/sakura.jpg',
+    image: '/images/vip-art/blossom.jpg',
     gradient: 'linear-gradient(135deg, #4a044e 0%, #db2777 52%, #fda4af 100%)',
     vipOnly: true,
   },
   {
     id: 'banner_nebula',
     category: 'banner',
-    name: 'Dumanlıq Nebula',
+    name: 'Buz Mağarası',
     price: 2100,
-    desc: 'Ulduz tozu və parlaq kosmik dumanlıq.',
+    desc: 'İslandiyanın buzlağındakı mavi mağara teksturası.',
     previewEmoji: '',
-    image: '/images/vip-art/nebula.jpg',
+    image: '/images/vip-art/ice.jpg',
     gradient: 'linear-gradient(135deg, #020617 0%, #4338ca 38%, #c026d3 72%, #22d3ee 100%)',
     vipOnly: true,
     platinumOnly: true,
@@ -434,93 +385,15 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
   {
     id: 'banner_sunforge',
     category: 'banner',
-    name: 'Lava Axını',
+    name: 'Sakura Gecəsi',
     price: 1700,
-    desc: 'Əridilmiş qızıl və alovlu günəş enerjisi.',
+    desc: 'Gecə işığında çiçək açan sakura ağacları.',
     previewEmoji: '',
-    image: '/images/vip-art/volcano.jpg',
+    image: '/images/vip-art/sakura.jpg',
     gradient: 'linear-gradient(135deg, #7c2d12 0%, #f97316 45%, #fde047 100%)',
     vipOnly: true,
   },
 
-  // Nişanlar
-  {
-    id: 'badge_star',
-    category: 'badge',
-    name: 'Ulduz Nişanı',
-    price: 800,
-    desc: 'Adın yanında parlayan ulduz.',
-    previewEmoji: '⭐',
-    styleClass: 'badgeStar',
-    vipOnly: true,
-  },
-  {
-    id: 'badge_crown',
-    category: 'badge',
-    name: 'Tac Nişanı',
-    price: 1500,
-    desc: 'VIP oyunçu tacı.',
-    previewEmoji: '👑',
-    styleClass: 'badgeCrown',
-    vipOnly: true,
-  },
-  {
-    id: 'badge_diamond',
-    category: 'badge',
-    name: 'Almaz Nişanı',
-    price: 2000,
-    desc: 'Platinum ekskluziv almaz.',
-    previewEmoji: '💎',
-    styleClass: 'badgeDiamond',
-    vipOnly: true,
-    platinumOnly: true,
-  },
-  {
-    id: 'badge_phoenix',
-    category: 'badge',
-    name: 'Feniks Nişanı',
-    price: 1300,
-    desc: 'Yenilməzliyi və yenidən doğuluşu simvolizə edir.',
-    previewEmoji: '🔥',
-    vipOnly: true,
-  },
-  {
-    id: 'badge_wolf',
-    category: 'badge',
-    name: 'Boz Qurd',
-    price: 1200,
-    desc: 'Sadiqlik və güc nişanı — ittifaq döyüşçüləri üçün.',
-    previewEmoji: '🐺',
-    vipOnly: true,
-  },
-  {
-    id: 'badge_moon',
-    category: 'badge',
-    name: 'Ay Keşikçisi',
-    price: 1400,
-    desc: 'Gecə səmasının parlaq nişanı.',
-    previewEmoji: '🌙',
-    vipOnly: true,
-  },
-  {
-    id: 'badge_lightning',
-    category: 'badge',
-    name: 'Şimşək Nişanı',
-    price: 1600,
-    desc: 'Sürət və cəsarətini profilində göstər.',
-    previewEmoji: '⚡',
-    vipOnly: true,
-  },
-  {
-    id: 'badge_rose',
-    category: 'badge',
-    name: 'Qızıl Gül',
-    price: 2400,
-    desc: 'Platinum eksklüziv, parlayan qızılgül nişanı.',
-    previewEmoji: '🌹',
-    vipOnly: true,
-    platinumOnly: true,
-  },
 ];
 
 export const COSMETIC_CATEGORIES: { id: CosmeticCategory | 'all'; label: string }[] = [
@@ -529,7 +402,6 @@ export const COSMETIC_CATEGORIES: { id: CosmeticCategory | 'all'; label: string 
   { id: 'nameStyle', label: '✍️ Yazı' },
   { id: 'frame', label: '🖼️ Çərçivə' },
   { id: 'banner', label: '🎨 Fon' },
-  { id: 'badge', label: '🏅 Nişan' },
 ];
 
 export function getCosmeticPreviewGradient(product: CosmeticProduct): string {
@@ -596,6 +468,12 @@ export function resolveFrameGradient(cosmetics: PlayerCosmetics | undefined | nu
   const frameId = cosmetics?.equipped?.frameId;
   if (!frameId) return undefined;
   return getCosmeticProduct(frameId)?.gradient;
+}
+
+export function resolveFrameImage(cosmetics: PlayerCosmetics | undefined | null): string | undefined {
+  const frameId = cosmetics?.equipped?.frameId;
+  if (!frameId) return undefined;
+  return getCosmeticProduct(frameId)?.frameImage;
 }
 
 export function resolveNameStyleClass(cosmetics: PlayerCosmetics | undefined | null): string | undefined {

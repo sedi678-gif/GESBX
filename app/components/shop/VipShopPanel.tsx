@@ -247,7 +247,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
 
                   className={`${styles.vipPreview} ${product.platinumOnly ? styles.vipPreviewPlatinum : ''}`}
 
-                  style={product.image || product.id === 'badge_crown'
+                  style={product.image
                     ? { backgroundImage: `linear-gradient(180deg, rgba(4,8,18,.08) 15%, rgba(4,8,18,.66) 100%), url("${product.image}")`, backgroundSize: 'cover', backgroundPosition: 'center 42%' }
                     : { background: getCosmeticPreviewGradient(product) }}
 
@@ -260,11 +260,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
                     <span className={styles.frameShowcase}>
                       <span className={styles.framePreview} style={{ background: product.gradient }}>
                         {avatarUrl ? <img className={styles.frameAvatar} src={avatarUrl} alt="" /> : <span className={styles.frameAvatarInitials}>{displayName.slice(0, 2).toUpperCase()}</span>}
-                        <svg className={styles.frameOrnament} viewBox="0 0 120 120" aria-hidden="true">
-                          <circle cx="60" cy="60" r="53" fill="none" stroke="rgba(255,255,255,.92)" strokeWidth="3" />
-                          <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(2,6,23,.65)" strokeWidth="2" strokeDasharray="2 4" />
-                          <path d="M60 1 65 9 60 15 55 9Z M119 60l-8 5-6-5 6-5Z M60 119l-5-8 5-6 5 6Z M1 60l8-5 6 5-6 5Z" fill="#fff1a8" stroke="#5b3512" strokeWidth="2" />
-                        </svg>
+                        {product.frameImage && <img className={styles.frameOrnament} src={product.frameImage} alt="" />}
                       </span>
                       <span className={styles.frameMaterial}>{product.name}</span>
                     </span>
@@ -274,27 +270,10 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
                     <span className={styles.wallpaperLabel}>PROFIL OBOYU</span>
                   )}
 
-                  {product.id === 'badge_crown' && (
-                    <span className={styles.crownShowcase}>
-                      <svg className={styles.crownPreview} viewBox="0 0 100 82" role="img" aria-label="Qızıl VIP tacı">
-                        <defs><linearGradient id="vipCrownGold" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#fff4ae"/><stop offset=".28" stopColor="#ffc42f"/><stop offset=".62" stopColor="#b56a12"/><stop offset="1" stopColor="#ffe98a"/></linearGradient></defs>
-                        <path d="M9 61 2 16l26 22L50 3l22 35 26-22-7 45-8 12H17Z" fill="url(#vipCrownGold)" stroke="#49260d" strokeWidth="5" strokeLinejoin="round" />
-                        <path d="M12 62h76v12H12z" fill="url(#vipCrownGold)" stroke="#49260d" strokeWidth="4" />
-                        <circle cx="50" cy="49" r="7" fill="#24d4ef" stroke="#fff4ae" strokeWidth="3" />
-                        <circle cx="18" cy="47" r="4" fill="#f34488"/><circle cx="82" cy="47" r="4" fill="#73e9ff"/>
-                      </svg>
-                      <span className={styles.crownMedalText}>VIP · ROYAL COLLECTION</span>
-                    </span>
-                  )}
-
                   {product.category === 'vip' && (
                     <span className={`${styles.vipPassShowcase} ${product.vipTier === 'platinum' ? styles.vipPassPlatinum : ''}`}>
                       <span className={styles.vipPassOrnament} aria-hidden="true">
-                        {product.vipTier === 'platinum' ? (
-                          <svg viewBox="0 0 100 100"><path d="m50 5 38 24-8 47-30 19-30-19-8-47Z" fill="url(#vipPassGem)" stroke="#d8f4ff" strokeWidth="4"/><path d="m12 29 38 69 38-69M12 29h76M50 5v93" fill="none" stroke="rgba(255,255,255,.78)" strokeWidth="2"/><defs><linearGradient id="vipPassGem" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#effbff"/><stop offset=".38" stopColor="#4dd8f3"/><stop offset="1" stopColor="#7144cf"/></linearGradient></defs></svg>
-                        ) : (
-                          <svg viewBox="0 0 100 100"><path d="M10 59 4 19l26 20L50 5l20 34 26-20-6 40-10 20H20Z" fill="url(#vipPassGold)" stroke="#512f12" strokeWidth="5"/><path d="M17 76h66v12H17z" fill="url(#vipPassGold)" stroke="#512f12" strokeWidth="4"/><defs><linearGradient id="vipPassGold" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#fff4ae"/><stop offset=".5" stopColor="#e6a51d"/><stop offset="1" stopColor="#fff0a1"/></linearGradient></defs></svg>
-                        )}
+                        {product.vipTier === 'platinum' ? 'PLATINUM' : 'GOLD'}
                       </span>
                       <strong>{product.vipTier === 'platinum' ? 'PLATINUM' : 'GOLD'} VIP</strong>
                       <span>{product.vipDurationMs ? `${Math.round(product.vipDurationMs / 86400000)} GÜNLÜK GİRİŞ` : 'PREMIUM ÜZVLÜK'}</span>
@@ -311,7 +290,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
 
                   )}
 
-                  {!product.styleClass && product.category !== 'frame' && product.category !== 'banner' && product.category !== 'vip' && product.id !== 'badge_crown' && (
+                  {!product.styleClass && product.category !== 'frame' && product.category !== 'banner' && product.category !== 'vip' && (
 
                     <span className={styles.vipPreviewEmoji}>{product.previewEmoji ?? '✨'}</span>
 

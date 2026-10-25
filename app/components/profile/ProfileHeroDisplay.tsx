@@ -12,6 +12,7 @@ import {
   resolveBannerImage,
 
   resolveFrameGradient,
+  resolveFrameImage,
 
   resolveNameStyleClass,
 
@@ -105,6 +106,7 @@ export default function ProfileHeroDisplay({
   const cosmeticBannerImage = resolveBannerImage(cosmetics);
 
   const frameGradient = resolveFrameGradient(cosmetics);
+  const frameImage = resolveFrameImage(cosmetics);
 
   const nameStyleKey = resolveNameStyleClass(cosmetics);
 
@@ -222,11 +224,13 @@ export default function ProfileHeroDisplay({
 
           >
 
-            <div className={profileStyles.avatarInner}>
+            <div className={`${profileStyles.avatarInner} ${frameImage ? profileStyles.avatarInnerFramed : ''}`}>
 
               <img src={avatar} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
             </div>
+
+            {frameImage && <img className={profileStyles.avatarFrameArtwork} src={frameImage} alt="" aria-hidden="true" />}
 
             {editable && onEditAvatar && (
 
