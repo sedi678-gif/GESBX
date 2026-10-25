@@ -5,6 +5,7 @@ import { useUser } from '@/context/UserContext';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
 import { useAllianceBrain } from './AllianceBrainContext';
 import AllianceMapEmbeddedChat from './AllianceMapEmbeddedChat';
+import { IconMapChat } from './AllianceMapIcons';
 import { useAllianceScreenBusy } from './AllianceScreenBusy';
 import styles from './alliance.module.css';
 
@@ -43,7 +44,7 @@ export default function AllianceChatDock() {
           aria-expanded={false}
           aria-label="Söhbəti aç"
         >
-          <span className={styles.allianceChatPeekIcon} aria-hidden="true">•••</span>
+          <span className={styles.allianceChatPeekIcon} aria-hidden="true"><IconMapChat /></span>
           <span className={styles.allianceChatPeekTitle}>Söhbət</span>
         </button>
       )}

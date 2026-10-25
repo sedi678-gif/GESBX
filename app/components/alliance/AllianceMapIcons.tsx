@@ -104,6 +104,20 @@ export function IconMapGlobe() {
   );
 }
 
+export function IconMapChat() {
+  return (
+    <GameSvg>
+      <path
+        d="M20 11.4a7.4 7.4 0 0 1-7.8 7.4 8.6 8.6 0 0 1-3.4-.7L4 19.5l1.4-4a7.1 7.1 0 0 1-.8-3.3 7.5 7.5 0 0 1 7.6-7.5 7.5 7.5 0 0 1 7.8 6.7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M9 11.7h.01M12.2 11.7h.01M15.4 11.7h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </GameSvg>
+  );
+}
+
 export function IconMapArmy() {
   return (
     <GameSvg>
