@@ -969,9 +969,10 @@
 }
 
 .allianceChatStay.allianceChatStayCollapsed {
+  position: fixed;
   left: auto;
-  right: 24px;
-  bottom: 92px;
+  right: max(24px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--alliance-map-nav, 68px) + 78px);
   transform: none;
   width: auto;
   height: auto;
@@ -979,9 +980,14 @@
 }
 
 .allianceChatStay:not(.allianceChatStayCollapsed) {
-  bottom: 84px;
+  position: fixed;
+  inset: max(12px, env(safe-area-inset-top, 0px)) 16px calc(var(--alliance-map-nav, 68px) + 12px);
+  left: 50%;
+  right: auto;
+  bottom: calc(var(--alliance-map-nav, 68px) + 12px);
+  transform: translateX(-50%);
   width: min(560px, calc(100% - 32px));
-  height: min(78dvh, 760px);
+  height: auto;
   min-height: 240px;
 }
 
@@ -995,6 +1001,8 @@
   border: 0;
   border-radius: 15px;
   background: transparent;
+  color: #fff;
+  border-color: transparent;
   box-shadow: none;
   text-align: center;
 }
