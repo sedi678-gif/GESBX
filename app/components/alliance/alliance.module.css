@@ -2502,6 +2502,17 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
+.chatThemeNebula { border-color: #a855f7; box-shadow: 0 8px 32px #7e22ce55; }
+.chatThemeNebula .epChatMessages { background: radial-gradient(ellipse at top, #6b21a855, transparent 60%), linear-gradient(180deg, #10091f, #1e1238 55%, #10091f); }
+.chatThemeEmerald { border-color: #22c55e; box-shadow: 0 8px 32px #16a34a44; }
+.chatThemeEmerald .epChatMessages { background: radial-gradient(ellipse at top, #15803d66, transparent 60%), linear-gradient(180deg, #07180e, #0c2b19 55%, #07180e); }
+.chatThemeSakura { border-color: #f472b6; box-shadow: 0 8px 32px #db277755; }
+.chatThemeSakura .epChatMessages { background: radial-gradient(ellipse at top, #db277766, transparent 60%), linear-gradient(180deg, #200b1b, #38152b 55%, #200b1b); }
+.chatThemeVolcano { border-color: #fb923c; box-shadow: 0 8px 32px #ea580c55; }
+.chatThemeVolcano .epChatMessages { background: radial-gradient(ellipse at top, #dc262666, transparent 60%), linear-gradient(180deg, #210b09, #3a1510 55%, #210b09); }
+.chatThemeIce { border-color: #67e8f9; box-shadow: 0 8px 32px #0891b255; }
+.chatThemeIce .epChatMessages { background: radial-gradient(ellipse at top, #0891b266, transparent 60%), linear-gradient(180deg, #061923, #0d2d3a 55%, #061923); }
+
 .mapChatPanel .epChatMessages {
   flex: 1;
   min-height: 80px;

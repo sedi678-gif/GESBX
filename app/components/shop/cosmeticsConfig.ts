@@ -1,6 +1,6 @@
 import { PlayerCosmetics, VipTier } from '../alliance/types';
 
-export type CosmeticCategory = 'vip' | 'nameStyle' | 'frame' | 'banner' | 'badge';
+export type CosmeticCategory = 'vip' | 'nameStyle' | 'frame' | 'banner' | 'badge' | 'title' | 'chatTheme';
 
 export interface CosmeticProduct {
   id: string;
@@ -508,6 +508,28 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     vipOnly: true,
     platinumOnly: true,
   },
+  // Profildə görünən xüsusi titullar
+  ...[
+    ['title_warlord', 'Müharibə Ustası', '⚔️', 1800],
+    ['title_dragon', 'Əjdaha Varisi', '🐉', 2200],
+    ['title_shadow', 'Kölgə Hakimi', '🌑', 2000],
+    ['title_emperor', 'Əfsanəvi İmperator', '👑', 3200],
+    ['title_starseer', 'Ulduz Kaşifi', '🌠', 2400],
+  ].map(([id, name, emoji, price]) => ({
+    id: String(id), category: 'title' as const, name: String(name), price: Number(price),
+    desc: 'Profil adının altında görünən xüsusi titul.', previewEmoji: String(emoji), vipOnly: true,
+  })),
+  // İttifaq söhbətinin rəng mövzuları
+  ...[
+    ['chat_nebula', 'Nebula', '🌌', 1400, 'linear-gradient(135deg, #111827, #4338ca, #a21caf)'],
+    ['chat_emerald', 'Zümrüd', '💚', 1200, 'linear-gradient(135deg, #052e16, #15803d, #4ade80)'],
+    ['chat_sakura', 'Sakura', '🌸', 1300, 'linear-gradient(135deg, #4a044e, #db2777, #fda4af)'],
+    ['chat_volcano', 'Vulkan', '🔥', 1500, 'linear-gradient(135deg, #450a0a, #dc2626, #f97316)'],
+    ['chat_ice', 'Buz Sarayı', '❄️', 1600, 'linear-gradient(135deg, #082f49, #0284c7, #a5f3fc)'],
+  ].map(([id, name, emoji, price, gradient]) => ({
+    id: String(id), category: 'chatTheme' as const, name: String(name), price: Number(price),
+    desc: 'İttifaq söhbət panelinin rəng mövzusu.', previewEmoji: String(emoji), gradient: String(gradient), vipOnly: true,
+  })),
 ];
 
 export const COSMETIC_CATEGORIES: { id: CosmeticCategory | 'all'; label: string }[] = [
@@ -517,6 +539,8 @@ export const COSMETIC_CATEGORIES: { id: CosmeticCategory | 'all'; label: string 
   { id: 'frame', label: '🖼️ Çərçivə' },
   { id: 'banner', label: '🎨 Fon' },
   { id: 'badge', label: '🏅 Nişan' },
+  { id: 'title', label: '👑 Titul' },
+  { id: 'chatTheme', label: '💬 Söhbət' },
 ];
 
 export function getCosmeticPreviewGradient(product: CosmeticProduct): string {
@@ -529,6 +553,8 @@ export function getCosmeticPreviewGradient(product: CosmeticProduct): string {
   if (product.category === 'nameStyle') return 'linear-gradient(135deg, #0f172a 0%, #164e63 50%, #312e81 100%)';
   if (product.category === 'frame') return 'linear-gradient(135deg, #172554 0%, #6d28d9 52%, #0f172a 100%)';
   if (product.category === 'banner') return 'linear-gradient(135deg, #0f172a 0%, #0e7490 48%, #7c3aed 100%)';
+  if (product.category === 'chatTheme') return 'linear-gradient(135deg, #0f172a 0%, #0e7490 48%, #7c3aed 100%)';
+  if (product.category === 'title') return 'linear-gradient(135deg, #422006 0%, #a16207 52%, #facc15 100%)';
   return 'linear-gradient(135deg, #1e1b4b 0%, #7e22ce 52%, #be185d 100%)';
 }
 
@@ -596,6 +622,11 @@ export function resolveBadgeEmoji(cosmetics: PlayerCosmetics | undefined | null)
     return cosmetics!.vip.tier === 'platinum' ? '💎' : '👑';
   }
   return null;
+}
+
+export function resolveCosmeticTitle(cosmetics: PlayerCosmetics | undefined | null): string | null {
+  const id = cosmetics?.equipped?.titleId;
+  return id ? getCosmeticProduct(id)?.name ?? null : null;
 }
 
 export function formatVipExpiry(expiresAt: number): string {

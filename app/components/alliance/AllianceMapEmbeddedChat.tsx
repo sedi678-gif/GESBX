@@ -23,6 +23,7 @@ interface AllianceMapEmbeddedChatProps {
   activeAlliance: AllianceData | null;
 
   currentUserName: string;
+  chatThemeId?: string;
 
   onSendMessage: (text: string, channel: ChatChannel) => void;
 
@@ -43,6 +44,7 @@ export default function AllianceMapEmbeddedChat({
   activeAlliance,
 
   currentUserName,
+  chatThemeId,
 
   onSendMessage,
 
@@ -108,7 +110,7 @@ export default function AllianceMapEmbeddedChat({
 
   return (
 
-    <div className={`${styles.mapChatPanel} ${sheetMode ? styles.mapChatPanelSheet : ''} ${neon ? styles.mapChatPanelNeon : ''}`}>
+    <div className={`${styles.mapChatPanel} ${sheetMode ? styles.mapChatPanelSheet : ''} ${neon ? styles.mapChatPanelNeon : ''} ${chatThemeId === 'chat_nebula' ? styles.chatThemeNebula : ''} ${chatThemeId === 'chat_emerald' ? styles.chatThemeEmerald : ''} ${chatThemeId === 'chat_sakura' ? styles.chatThemeSakura : ''} ${chatThemeId === 'chat_volcano' ? styles.chatThemeVolcano : ''} ${chatThemeId === 'chat_ice' ? styles.chatThemeIce : ''}`}>
 
       {!sheetMode && (
 

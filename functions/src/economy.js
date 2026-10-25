@@ -86,6 +86,16 @@ const cosmetics = {
   badge_moon: { category: 'badge', price: 1400, vipOnly: true },
   badge_lightning: { category: 'badge', price: 1600, vipOnly: true },
   badge_rose: { category: 'badge', price: 2400, vipOnly: true, platinumOnly: true },
+  title_warlord: { category: 'title', price: 1800, vipOnly: true },
+  title_dragon: { category: 'title', price: 2200, vipOnly: true },
+  title_shadow: { category: 'title', price: 2000, vipOnly: true },
+  title_emperor: { category: 'title', price: 3200, vipOnly: true },
+  title_starseer: { category: 'title', price: 2400, vipOnly: true },
+  chat_nebula: { category: 'chatTheme', price: 1400, vipOnly: true },
+  chat_emerald: { category: 'chatTheme', price: 1200, vipOnly: true },
+  chat_sakura: { category: 'chatTheme', price: 1300, vipOnly: true },
+  chat_volcano: { category: 'chatTheme', price: 1500, vipOnly: true },
+  chat_ice: { category: 'chatTheme', price: 1600, vipOnly: true },
 };
 
 function getTodayKey(now = Date.now()) {
@@ -119,7 +129,7 @@ function normalizedCosmetics(raw) {
 }
 
 function slotForCategory(category) {
-  return ({ nameStyle: 'nameStyleId', frame: 'frameId', banner: 'bannerId', badge: 'badgeId' })[category] || null;
+  return ({ nameStyle: 'nameStyleId', frame: 'frameId', banner: 'bannerId', badge: 'badgeId', title: 'titleId', chatTheme: 'chatThemeId' })[category] || null;
 }
 
 async function getLedgerOrThrow(tx, uid, operationId) {
@@ -466,7 +476,7 @@ const purchaseBattleCardSchema = z.object({ ...operationFields, allianceId: idSc
 const purchaseShieldSchema = z.object({ ...operationFields, durationId: z.enum(Object.keys(shields)) }).strict();
 const purchaseCosmeticSchema = z.object({ ...operationFields, productId: z.enum(Object.keys(cosmetics)) }).strict();
 const equipCosmeticSchema = z.object({ ...operationFields, productId: z.enum(Object.keys(cosmetics)) }).strict();
-const unequipSchema = z.object({ ...operationFields, slot: z.enum(['nameStyleId', 'frameId', 'bannerId', 'badgeId']) }).strict();
+const unequipSchema = z.object({ ...operationFields, slot: z.enum(['nameStyleId', 'frameId', 'bannerId', 'badgeId', 'titleId', 'chatThemeId']) }).strict();
 const fortressSchema = z.object({ ...operationFields, allianceId: idSchema, level: z.number().int().min(2).max(6) }).strict();
 const claimQuestSchema = z.object({ ...operationFields, allianceId: idSchema, questId: z.enum(['daily_chat_5', 'daily_attack_1', 'daily_attack_3', 'daily_shop_1']) }).strict();
 

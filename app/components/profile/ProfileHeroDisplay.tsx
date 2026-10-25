@@ -15,6 +15,7 @@ import {
   resolveNameStyleClass,
 
   resolveBadgeEmoji,
+  resolveCosmeticTitle,
 
   isVipActive,
 
@@ -107,6 +108,7 @@ export default function ProfileHeroDisplay({
   const nameStyleKey = resolveNameStyleClass(cosmetics);
 
   const badge = resolveBadgeEmoji(cosmetics);
+  const title = resolveCosmeticTitle(cosmetics);
 
   const vipActive = isVipActive(cosmetics);
 
@@ -259,6 +261,8 @@ export default function ProfileHeroDisplay({
             {badge && <span className={profileStyles.profileBadge}>{badge}</span>}
 
           </h1>
+
+          {title && <span className={profileStyles.profileMeta} style={{ marginTop: 2, color: '#fbbf24', fontWeight: 800 }}>{title}</span>}
 
 
 

@@ -72,7 +72,11 @@ export default function ProfileCosmeticsCard({ userId, cosmetics }: ProfileCosme
                     ? 'frameId'
                     : product.category === 'banner'
                       ? 'bannerId'
-                      : 'badgeId';
+                      : product.category === 'badge'
+                        ? 'badgeId'
+                        : product.category === 'title'
+                          ? 'titleId'
+                          : 'chatThemeId';
               const isOn = equipped[slotKey as keyof typeof equipped] === product.id;
 
               return (
