@@ -1,17 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
 import { useAllianceBrain } from './AllianceBrainContext';
 import AllianceMapEmbeddedChat from './AllianceMapEmbeddedChat';
 import { useAllianceScreenBusy } from './AllianceScreenBusy';
-import { MessageData } from './types';
 import styles from './alliance.module.css';
-
-function latestMessage(globalMessages: MessageData[], allianceMessages: MessageData[]) {
-  return [...globalMessages, ...allianceMessages].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
-}
 
 export default function AllianceChatDock() {
   const { user } = useUser();
@@ -23,11 +18,6 @@ export default function AllianceChatDock() {
   useEffect(() => {
     if (busy) setOpen(false);
   }, [busy]);
-
-  const preview = useMemo(
-    () => latestMessage(globalMessages, allianceMessages),
-    [globalMessages, allianceMessages]
-  );
 
   return (
     <div
@@ -53,14 +43,8 @@ export default function AllianceChatDock() {
           aria-expanded={false}
           aria-label="Söhbəti aç"
         >
-          <span className={styles.allianceChatPeekTitle}>
-            <span aria-hidden="true">💬</span> Söhbət
-          </span>
-          <span className={styles.allianceChatPeekLine}>
-            {preview
-              ? `${preview.user === userName ? 'Sən' : preview.user}: ${preview.text}`
-              : 'Yazmaq üçün toxun'}
-          </span>
+          <span className={styles.allianceChatPeekIcon} aria-hidden="true">•••</span>
+          <span className={styles.allianceChatPeekTitle}>Söhbət</span>
         </button>
       )}
     </div>

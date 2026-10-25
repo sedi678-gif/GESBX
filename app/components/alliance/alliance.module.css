@@ -962,14 +962,73 @@
 .allianceChatStay {
   position: absolute;
   left: 50%;
-  bottom: 12px;
   transform: translateX(-50%);
   z-index: 14;
-  width: min(340px, calc(100% - 148px));
-  height: min(240px, 36dvh);
-  min-height: 168px;
   display: flex;
   pointer-events: auto;
+}
+
+.allianceChatStay.allianceChatStayCollapsed {
+  left: auto;
+  right: 24px;
+  bottom: 92px;
+  transform: none;
+  width: auto;
+  height: auto;
+  min-height: 0;
+}
+
+.allianceChatStay:not(.allianceChatStayCollapsed) {
+  bottom: 84px;
+  width: min(560px, calc(100% - 32px));
+  height: min(78dvh, 760px);
+  min-height: 240px;
+}
+
+.allianceChatStayCollapsed .allianceChatPeek {
+  width: 62px;
+  height: 72px;
+  min-height: 0;
+  padding: 8px 4px;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+
+.allianceChatPeekIcon {
+  width: 48px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #f8fafc, #cbd5e1);
+  color: #334155;
+  font-size: 12px;
+  letter-spacing: 2px;
+  position: relative;
+  box-shadow: 0 3px 10px rgba(2, 6, 23, 0.35);
+}
+
+.allianceChatPeekIcon::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: #e2e8f0;
+  border-left: 1px solid rgba(255, 255, 255, 0.82);
+  transform: skewY(-35deg);
+}
+
+.allianceChatStayCollapsed .allianceChatPeekTitle {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .allianceChatStay.allianceChatStayCollapsed {
@@ -1001,16 +1060,21 @@
   color: #67e8f9;
 }
 
-.allianceChatPeekLine {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.25;
-  color: #e2e8f0;
+@media (max-width: 768px), (orientation: landscape) and (max-height: 430px) {
+  .allianceChatStay.allianceChatStayCollapsed {
+    right: max(14px, env(safe-area-inset-right, 0px));
+    bottom: calc(var(--alliance-map-nav, 68px) + 78px);
+  }
+
+  .allianceChatStay:not(.allianceChatStayCollapsed) {
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--alliance-map-nav, 68px) + 10px);
+    transform: none;
+    width: auto;
+    height: min(78dvh, 700px);
+    min-height: 220px;
+  }
 }
 
 .allianceChatStayHidden {
