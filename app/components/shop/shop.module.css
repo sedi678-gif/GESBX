@@ -221,7 +221,7 @@
 .vipPreview {
   position: relative;
   display: grid;
-  min-height: 138px;
+  min-height: 166px;
   place-items: center;
   overflow: hidden;
   isolation: isolate;
@@ -288,9 +288,13 @@
 .vipPreviewName {
   position: relative;
   z-index: 2;
+  max-width: calc(100% - 30px);
+  overflow: hidden;
   font-size: clamp(24px, 5vw, 31px);
   font-weight: 950;
   letter-spacing: -0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
 }
 
@@ -359,45 +363,28 @@
   filter: drop-shadow(0 7px 14px rgba(0, 0, 0, 0.5));
 }
 
-.framePreview {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  width: 92px;
-  height: 92px;
-  padding: 6px;
-  place-items: center;
-  border: 2px solid rgba(255, 255, 255, 0.72);
-  border-radius: 50%;
-  box-shadow: 0 0 14px rgba(255,255,255,.3), 0 0 30px rgba(15,23,42,.65), inset 0 0 0 2px rgba(15,23,42,.55);
-  animation: frameFloat 3s ease-in-out infinite;
-}
-
-.framePreviewInner {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  place-items: center;
-  border: 3px solid rgba(255,255,255,.82);
-  border-radius: 50%;
-  color: #f8fafc;
-  background: radial-gradient(circle at 35% 25%, #64748b, #0f172a 72%);
-  font-size: 37px;
-  box-shadow: inset 0 0 15px #020617;
-}
-
-.framePreviewSpark { position: absolute; right: -5px; top: 3px; color: #fff7ad; font-size: 22px; filter: drop-shadow(0 0 7px #fff); }
-
-.wallpaperPreview { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(180deg, transparent 35%, rgba(2,6,23,.72)); }
-.wallpaperMountain { position: absolute; left: -4%; right: -4%; bottom: 0; height: 62%; background: linear-gradient(145deg, transparent 0 20%, rgba(2,6,23,.24) 20.5% 35%, transparent 35.5%), linear-gradient(35deg, #020617 0 34%, transparent 34.5%), linear-gradient(145deg, transparent 0 40%, rgba(2,6,23,.78) 40.5% 62%, transparent 62.5%); opacity: .8; }
-.wallpaperMoon { position: absolute; right: 18%; top: 26%; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.72); box-shadow: 0 0 25px rgba(255,255,255,.45); }
-.wallpaperLabel { position: absolute; left: 12px; bottom: 11px; color: #fff; font-size: 10px; font-weight: 950; letter-spacing: .17em; text-shadow: 0 1px 8px #020617; }
-
-.crownPreview { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 6px 10px rgba(2,6,23,.55)); }
-.crownPreviewIcon { z-index: 1; margin-bottom: -13px; color: #fff0a3; font-size: 54px; line-height: 1; text-shadow: 0 0 9px #facc15, 0 0 24px #f59e0b; }
-.crownPreviewAvatar { display: grid; width: 70px; height: 70px; place-items: center; border: 4px solid #fbbf24; border-radius: 50%; color: #fff; background: radial-gradient(circle at 35% 25%, #475569, #0f172a 72%); font-size: 37px; box-shadow: 0 0 0 3px rgba(255,255,255,.58), 0 0 24px rgba(251,191,36,.7); }
-
-@keyframes frameFloat { 50% { transform: translateY(-4px) rotate(1deg); } }
+.frameShowcase { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; animation: frameFloat 3.4s ease-in-out infinite; }
+.framePreview { position: relative; display: grid; width: 104px; height: 104px; padding: 5px; place-items: center; border: 2px solid rgba(255,255,255,.82); border-radius: 50%; box-shadow: 0 0 18px rgba(255,255,255,.22), 0 12px 26px rgba(0,0,0,.6), inset 0 0 0 2px rgba(15,23,42,.72); }
+.frameAvatar, .frameAvatarInitials { width: 100%; height: 100%; border: 3px solid rgba(255,255,255,.88); border-radius: 50%; }
+.frameAvatar { object-fit: cover; }
+.frameAvatarInitials { display: grid; place-items: center; color: #f8fafc; background: radial-gradient(circle at 35% 25%, #59687d, #0b1220 75%); font-size: 31px; font-weight: 950; letter-spacing: -.08em; }
+.frameOrnament { position: absolute; inset: -2px; width: calc(100% + 4px); height: calc(100% + 4px); overflow: visible; filter: drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+.frameMaterial { max-width: 180px; overflow: hidden; color: #fff4c6; font-size: 9px; font-weight: 950; letter-spacing: .13em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; text-shadow: 0 2px 5px #020617; }
+.wallpaperLabel { position: absolute; left: 11px; bottom: 10px; z-index: 2; padding: 4px 7px; border: 1px solid rgba(255,255,255,.36); border-radius: 4px; color: #fff4d3; background: linear-gradient(180deg, rgba(53,31,15,.83), rgba(10,13,22,.82)); font-size: 8px; font-weight: 950; letter-spacing: .16em; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+.crownShowcase { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; filter: drop-shadow(0 9px 12px rgba(0,0,0,.62)); animation: frameFloat 3.4s ease-in-out infinite; }
+.crownPreview { width: 118px; height: 96px; overflow: visible; }
+.crownMedalText { color: #fff0a5; font-size: 8px; font-weight: 950; letter-spacing: .22em; text-shadow: 0 2px 5px #28130a; }
+.vipPassShowcase { position: relative; z-index: 1; display: flex; min-width: 175px; min-height: 114px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 10px 14px; overflow: hidden; border: 1px solid rgba(255,223,131,.74); border-radius: 9px; color: #fff2b2; background: linear-gradient(145deg, rgba(117,69,11,.96), rgba(22,20,30,.94) 54%, rgba(76,43,12,.95)); box-shadow: 0 9px 24px rgba(0,0,0,.52), inset 0 0 0 3px rgba(252,211,77,.1), inset 0 1px rgba(255,255,255,.33); text-align: center; animation: frameFloat 3.6s ease-in-out infinite; }
+.vipPassShowcase::before, .vipPassShowcase::after { position: absolute; inset: 7px; border: 1px solid rgba(255,226,149,.27); border-radius: 5px; content: ''; pointer-events: none; }
+.vipPassShowcase::after { inset: 0; background: repeating-linear-gradient(125deg, transparent 0 20px, rgba(255,255,255,.035) 21px 22px, transparent 23px 42px); }
+.vipPassOrnament { position: relative; z-index: 1; width: 48px; height: 48px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.55)); }
+.vipPassOrnament svg { width: 100%; height: 100%; }
+.vipPassShowcase strong, .vipPassShowcase > span:last-child { position: relative; z-index: 1; text-shadow: 0 2px 5px #1c1005; }
+.vipPassShowcase strong { font-family: Georgia, 'Times New Roman', serif; font-size: 13px; letter-spacing: .16em; }
+.vipPassShowcase > span:last-child { color: #ffe9a2; font-size: 7px; font-weight: 950; letter-spacing: .18em; }
+.vipPassPlatinum { border-color: rgba(186,230,253,.86); color: #e7fbff; background: linear-gradient(145deg, rgba(20,85,113,.97), rgba(22,22,52,.95) 54%, rgba(77,44,136,.96)); box-shadow: 0 9px 24px rgba(0,0,0,.5), inset 0 0 0 3px rgba(125,211,252,.13), 0 0 20px rgba(34,211,238,.19); }
+.vipPassPlatinum::before { border-color: rgba(191,240,255,.32); }
+@keyframes frameFloat { 50% { transform: translateY(-3px); } }
 
 .productBody {
   display: flex;

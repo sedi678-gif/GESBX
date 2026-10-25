@@ -9,7 +9,7 @@ import { useUser } from '@/context/UserContext';
 import styles from './shopPage.module.css';
 
 export default function ShopPageClient() {
-  const { userId, manat, manatReady, playerProfile, applyManatDelta } = useUser();
+  const { user, userId, manat, manatReady, playerProfile, applyManatDelta } = useUser();
   const [notice, setNotice] = useState<string | null>(null);
   const [shopTab, setShopTab] = useState<'cosmetics' | 'fortress'>('cosmetics');
   const canUseShop = Boolean(userId && userId !== 'anonim_user_id');
@@ -115,6 +115,8 @@ export default function ShopPageClient() {
                 userId={userId}
                 manat={manat}
                 cosmetics={playerProfile?.cosmetics}
+                avatarUrl={user?.photoURL ?? undefined}
+                displayName={playerProfile?.displayName || user?.displayName || 'Döyüşçü'}
                 onNotify={setNotice}
                 onSpend={(amount) => applyManatDelta(-amount)}
                 onRefund={(amount) => applyManatDelta(amount)}

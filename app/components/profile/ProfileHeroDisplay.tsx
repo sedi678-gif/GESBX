@@ -9,6 +9,7 @@ import { PlayerCosmetics } from '@/app/components/alliance/types';
 import {
 
   resolveBannerGradient,
+  resolveBannerImage,
 
   resolveFrameGradient,
 
@@ -101,6 +102,7 @@ export default function ProfileHeroDisplay({
 }: ProfileHeroDisplayProps) {
 
   const banner = resolveBannerGradient(cosmetics, bannerFallback);
+  const cosmeticBannerImage = resolveBannerImage(cosmetics);
 
   const frameGradient = resolveFrameGradient(cosmetics);
 
@@ -142,11 +144,13 @@ export default function ProfileHeroDisplay({
 
 
 
-  const bannerStyle: React.CSSProperties = bannerImage
+  const activeBannerImage = bannerImage || cosmeticBannerImage;
+
+  const bannerStyle: React.CSSProperties = activeBannerImage
 
     ? {
 
-        backgroundImage: `url(${bannerImage})`,
+        backgroundImage: `url(${activeBannerImage})`,
 
         backgroundSize: 'cover',
 
@@ -166,7 +170,7 @@ export default function ProfileHeroDisplay({
 
         <div
 
-          className={`${profileStyles.heroBanner} ${vipActive ? profileStyles.heroBannerVip : ''} ${bannerImage ? profileStyles.heroBannerPhoto : ''}`}
+          className={`${profileStyles.heroBanner} ${vipActive ? profileStyles.heroBannerVip : ''} ${activeBannerImage ? profileStyles.heroBannerPhoto : ''}`}
 
           style={bannerStyle}
 

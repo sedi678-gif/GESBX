@@ -13,6 +13,8 @@ export interface CosmeticProduct {
   styleClass?: string;
   /** Inline gradient for banners / frame rings */
   gradient?: string;
+  /** In-game scene used as a cosmetic banner */
+  image?: string;
   vipOnly?: boolean;
   platinumOnly?: boolean;
   /** VIP paketi — müddət (ms) */
@@ -324,6 +326,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1000,
     desc: 'İsti narıncı-bənövşəyi gradient banner.',
     previewEmoji: '🌅',
+    image: '/images/alliance-hub/hub-level-3.jpg',
     gradient: 'linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%)',
     vipOnly: true,
   },
@@ -334,6 +337,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1200,
     desc: 'Aurora borealis effekti.',
     previewEmoji: '🌌',
+    image: '/images/alliance-hub/hub-level-5.jpg',
     gradient: 'linear-gradient(135deg, #06b6d4 0%, #8b5cf6 40%, #22c55e 100%)',
     vipOnly: true,
   },
@@ -344,6 +348,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1000,
     desc: 'Dərin gecə mavi-bənövşəyi.',
     previewEmoji: '🌙',
+    image: '/images/alliance-hub/hub-level-4.jpg',
     gradient: 'linear-gradient(135deg, #0f172a 0%, #312e81 50%, #1e1b4b 100%)',
     vipOnly: true,
   },
@@ -354,6 +359,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1400,
     desc: 'Qırmızı lava effekti.',
     previewEmoji: '🌋',
+    image: '/images/alliance-hub/hub-level-2.jpg',
     gradient: 'linear-gradient(135deg, #450a0a 0%, #dc2626 45%, #f97316 100%)',
     vipOnly: true,
   },
@@ -364,6 +370,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1000,
     desc: 'Dərin dəniz mavisi gradient.',
     previewEmoji: '🌊',
+    image: '/images/alliance-hub/hub-level-6.jpg',
     gradient: 'linear-gradient(135deg, #0c4a6e 0%, #0284c7 50%, #06b6d4 100%)',
     vipOnly: true,
   },
@@ -374,6 +381,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1800,
     desc: 'Platinum ekskluziv kosmik banner.',
     previewEmoji: '✨',
+    image: '/images/alliance-hub/hub-level-5.jpg',
     gradient: 'linear-gradient(135deg, #020617 0%, #4c1d95 35%, #ec4899 70%, #06b6d4 100%)',
     vipOnly: true,
     platinumOnly: true,
@@ -385,6 +393,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1600,
     desc: 'Tünd bənövşəyi və qızılı saray işığı.',
     previewEmoji: '👑',
+    image: '/images/alliance-hub/hub-level-3.jpg',
     gradient: 'linear-gradient(135deg, #312e81 0%, #7c3aed 48%, #fbbf24 100%)',
     vipOnly: true,
   },
@@ -395,6 +404,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1300,
     desc: 'Dərin meşə yaşılı və sehrli zümrüd işığı.',
     previewEmoji: '🌿',
+    image: '/images/alliance-hub/hub-level-2.jpg',
     gradient: 'linear-gradient(135deg, #052e16 0%, #15803d 48%, #4ade80 100%)',
     vipOnly: true,
   },
@@ -405,6 +415,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1500,
     desc: 'Gül ləçəyi rəngləri ilə romantik axşam fonu.',
     previewEmoji: '🌸',
+    image: '/images/alliance-hub/hub-level-3.jpg',
     gradient: 'linear-gradient(135deg, #4a044e 0%, #db2777 52%, #fda4af 100%)',
     vipOnly: true,
   },
@@ -415,6 +426,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 2100,
     desc: 'Ulduz tozu və parlaq kosmik dumanlıq.',
     previewEmoji: '🪐',
+    image: '/images/alliance-hub/hub-level-6.jpg',
     gradient: 'linear-gradient(135deg, #020617 0%, #4338ca 38%, #c026d3 72%, #22d3ee 100%)',
     vipOnly: true,
     platinumOnly: true,
@@ -426,6 +438,7 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
     price: 1700,
     desc: 'Əridilmiş qızıl və alovlu günəş enerjisi.',
     previewEmoji: '☀️',
+    image: '/images/alliance-hub/hub-level-4.jpg',
     gradient: 'linear-gradient(135deg, #7c2d12 0%, #f97316 45%, #fde047 100%)',
     vipOnly: true,
   },
@@ -572,6 +585,11 @@ export function resolveBannerGradient(
   if (!bannerId) return fallback;
   const product = getCosmeticProduct(bannerId);
   return product?.gradient ?? fallback;
+}
+
+export function resolveBannerImage(cosmetics: PlayerCosmetics | undefined | null): string | undefined {
+  const bannerId = cosmetics?.equipped?.bannerId;
+  return bannerId ? getCosmeticProduct(bannerId)?.image : undefined;
 }
 
 export function resolveFrameGradient(cosmetics: PlayerCosmetics | undefined | null): string | undefined {
