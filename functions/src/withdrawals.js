@@ -137,7 +137,7 @@ async function createWithdrawalRequest({ uid, authToken, payload, operationId, r
 }
 
 async function reviewWithdrawal({ uid, payload, operationId, rateLimit }) {
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  if (!await adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
   const requestRef = db.doc(`withdrawal_requests/${payload.requestId}`);
   const now = Date.now();
   const operationRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
@@ -193,7 +193,7 @@ async function reviewWithdrawal({ uid, payload, operationId, rateLimit }) {
 }
 
 async function listSecurityReviews({ uid, payload, rateLimit }) {
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  if (!await adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
   const now = Date.now();
   await db.runTransaction(async (tx) => {
     const rate = await ensureRateLimitTx(tx, uid, 'listSecurityReviews', rateLimit, now);

@@ -38,18 +38,18 @@ export function notifyUserIdChanged() {
   }
 }
 
-/** Yalnız artıq ID 1 olan profil üçün metadata yeniləyir — ID dəyişmir */
+/** Superadmin profilinin saxlanmış lokal metadata-sını yeniləyir. */
 export function forceSuperAdminLocalProfile(displayName: string) {
   if (typeof window === 'undefined') return;
   const currentId = getLocalProfileUserId();
-  if (currentId !== '1') return;
+  if (currentId !== '92') return;
   try {
     const saved = localStorage.getItem('app_current_user_v6');
     const parsed = saved ? JSON.parse(saved) : {};
     const parts = displayName.split(' ');
     const updated = {
       ...parsed,
-      id: '1',
+      id: '92',
       name: parts[0] || parsed.name || 'Admin',
       surname: parts.slice(1).join(' ') || parsed.surname || '',
       handle: parsed.handle || '@admin',

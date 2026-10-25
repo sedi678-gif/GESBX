@@ -72,9 +72,9 @@ service cloud.firestore {
     function isTrustedModerator() {
       return isSignedIn()
         && (request.auth.token.admin == true || request.auth.token.moderator == true
-          || (exists(/databases/$(database)/documents/users/1)
-            && get(/databases/$(database)/documents/users/1).data.firebaseUid == request.auth.uid
-            && get(/databases/$(database)/documents/users/1).data.isModerator == true));
+          || (exists(/databases/$(database)/documents/users/92)
+            && get(/databases/$(database)/documents/users/92).data.firebaseUid == request.auth.uid
+            && get(/databases/$(database)/documents/users/92).data.isModerator == true));
     }
 
     function isAllianceMemberOrLeader(allianceId, playerId) {

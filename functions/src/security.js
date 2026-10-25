@@ -308,9 +308,26 @@ function storedXp(player) {
   return Number.isSafeInteger(xp) && xp >= 0 ? xp : 0;
 }
 
-function adminUid(uid) {
-  const admins = String(ADMIN_UIDS.value() || '').split(',').map((value) => value.trim()).filter(Boolean);
-  return admins.includes(uid);
+async function ownsSuperAdminProfile(uid) {
+  if (!uid) return false;
+  const profileId = '92';
+  const [userSnap, playerSnap] = await Promise.all([
+    db.doc(`users/${profileId}`).get(),
+    db.doc(`players/${profileId}`).get(),
+  ]);
+  return userSnap.exists
+    && playerSnap.exists
+    && userSnap.data().firebaseUid === uid
+    && playerSnap.data().firebaseUid === uid
+    && Boolean(playerSnap.data().identityVerifiedAt);
+}
+
+async function adminUid(uid) {
+  // Admin access follows the verified super-admin profile, now ID 92.
+  if (!await ownsSuperAdminProfile(uid)) return false;
+  const user = await db.doc('users/92').get();
+  const data = user.data() || {};
+  return data.role === 'super_admin' && data.isAdmin === true;
 }
 
 function riskHash(value, source) {
@@ -345,6 +362,7 @@ module.exports = {
   storedManat,
   storedXp,
   adminUid,
+  ownsSuperAdminProfile,
   riskHash,
   enforceClientRateLimits,
   ADMIN_UIDS,

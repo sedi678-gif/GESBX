@@ -1,4 +1,4 @@
-export const SUPER_ADMIN_ID = '1';
+export const SUPER_ADMIN_ID = '92';
 export const ADMIN_ACCESS_CODE = '17051992sedi';
 export const ADMIN_SESSION_KEY = 'gesbx_admin_unlocked';
 

@@ -18,7 +18,7 @@ async function deleteOwnAccount({ uid }) {
   if (profiles.size > 1) throw new HttpsError('failed-precondition', 'Hesaba birdən çox profil bağlanıb. Dəstəyə müraciət edin.');
   const profile = profiles.docs[0];
   const userId = profile?.id;
-  if (userId === '1') throw new HttpsError('permission-denied', 'Admin hesabı silinə bilməz.');
+  if (userId === '92') throw new HttpsError('permission-denied', 'Admin hesabı silinə bilməz.');
 
   if (userId) {
     const chats = await db.collection('private_chats').where('participants', 'array-contains', userId).get();
@@ -74,7 +74,7 @@ async function setOwnFreezeStatus({ uid, payload }) {
   const profiles = await db.collection('users').where('firebaseUid', '==', uid).limit(2).get();
   if (profiles.size !== 1) throw new HttpsError('not-found', 'İstifadəçi profili tapılmadı.');
   const profile = profiles.docs[0];
-  if (profile.id === '1') throw new HttpsError('permission-denied', 'Admin hesabı dondurula bilməz.');
+  if (profile.id === '92') throw new HttpsError('permission-denied', 'Admin hesabı dondurula bilməz.');
   const now = Date.now();
   const batch = db.batch();
   batch.set(profile.ref, {

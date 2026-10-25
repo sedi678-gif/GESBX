@@ -212,7 +212,7 @@ exports.awardArenaMatchRewards = onCall({ region: REGION, enforceAppCheck: true 
 
 exports.settleArenaWeeklyRewards = onCall({ region: REGION, enforceAppCheck: true, secrets: [ADMIN_UIDS], timeoutSeconds: 300 }, async (request) => {
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Giriş tələb olunur.');
-  if (!adminUid(request.auth.uid)) throw new HttpsError('permission-denied', 'Həftəlik mükafat hesablaşması yalnız admin üçündür.');
+  if (!await adminUid(request.auth.uid)) throw new HttpsError('permission-denied', 'Həftəlik mükafat hesablaşması yalnız admin üçündür.');
   const periodId = String(request.data?.periodId || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(periodId)) {
     throw new HttpsError('invalid-argument', 'Həftə periodu yanlışdır.');

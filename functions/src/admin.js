@@ -7,11 +7,12 @@ const {
   operationDocId,
   ensureRateLimitTx,
   adminUid,
+  ownsSuperAdminProfile,
   storedManat,
   ADMIN_UIDS,
 } = require('./security');
 
-const ADMIN_PROFILE_ID = '1';
+const ADMIN_PROFILE_ID = '92';
 const playerIdSchema = z.string().regex(/^\d{1,20}$/);
 const bootstrapSchema = z.object({ displayName: z.string().trim().min(2).max(100) }).strict();
 const sessionSchema = z.object({ displayName: z.string().trim().max(100).optional(), active: z.boolean() }).strict();
@@ -25,12 +26,16 @@ function splitName(displayName) {
 }
 
 async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authToken }) {
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  if (!await ownsSuperAdminProfile(uid)) {
+    throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  }
   const userRef = db.doc(`users/${ADMIN_PROFILE_ID}`);
   const playerRef = db.doc(`players/${ADMIN_PROFILE_ID}`);
   const configRef = db.doc('app_config/admin');
   const counterRef = db.doc('counters/userIdCounter');
   const sessionRef = db.doc(`admin_sessions/${ADMIN_PROFILE_ID}`);
+  const previousAdminRef = db.doc('users/1');
+  const previousSessionRef = db.doc('admin_sessions/1');
   const opRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
   const commandRef = db.doc(`admin_commands/${operationDocId(uid, operationId)}`);
   const now = Date.now();
@@ -40,8 +45,8 @@ async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authT
     const operation = await tx.get(opRef);
     if (operation.exists) return operation.data().result;
     const rate = await ensureRateLimitTx(tx, uid, 'bootstrapSuperAdmin', rateLimit, now);
-    const [userSnap, playerSnap, configSnap, counterSnap] = await Promise.all([
-      tx.get(userRef), tx.get(playerRef), tx.get(configRef), tx.get(counterRef),
+    const [userSnap, playerSnap, configSnap, counterSnap, previousAdminSnap] = await Promise.all([
+      tx.get(userRef), tx.get(playerRef), tx.get(configRef), tx.get(counterRef), tx.get(previousAdminRef),
     ]);
     if (userSnap.exists && userSnap.data().firebaseUid && userSnap.data().firebaseUid !== uid) {
       throw new HttpsError('permission-denied', 'Admin profil ID-si başqa Firebase hesabına bağlıdır.');
@@ -74,7 +79,7 @@ async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authT
       displayName: payload.displayName,
       allianceId: trustedPlayer ? (oldPlayer.allianceId || null) : null,
       allianceName: trustedPlayer ? (oldPlayer.allianceName || null) : null,
-      isLeader: false,
+      isLeader: trustedPlayer ? oldPlayer.isLeader === true : false,
       manat: trustedPlayer ? storedManat(oldPlayer) : 0,
       coins: trustedPlayer ? storedManat(oldPlayer) : 0,
       xp: trustedPlayer ? Math.max(0, Math.floor(Number(oldPlayer.xp) || 0)) : 0,
@@ -88,10 +93,24 @@ async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authT
       battleCardsVersion: 4,
       updatedAt: now,
     }, { merge: true });
-    if (!configSnap.exists) tx.create(configRef, { superAdminId: ADMIN_PROFILE_ID, minNewUserId: 2, updatedAt: now });
+    const minNewUserId = configSnap.exists
+      ? Math.max(2, Math.floor(Number(configSnap.data().minNewUserId) || 2))
+      : 2;
+    tx.set(configRef, { superAdminId: ADMIN_PROFILE_ID, minNewUserId, updatedAt: now }, { merge: true });
     const currentId = counterSnap.exists ? Math.max(1, Math.floor(Number(counterSnap.data().currentId) || 1)) : 1;
     tx.set(counterRef, { currentId: Math.max(1, currentId), reservedAdminId: ADMIN_PROFILE_ID, updatedAt: now }, { merge: true });
     tx.set(sessionRef, { adminId: ADMIN_PROFILE_ID, adminUid: uid, displayName: payload.displayName, active: true, lastLoginAt: now }, { merge: true });
+    if (previousAdminSnap.exists) {
+      tx.set(previousAdminRef, {
+        role: 'user',
+        isAdmin: false,
+        isModerator: false,
+        canViewReports: false,
+        canAccessAdminPanel: false,
+        updatedAt: now,
+      }, { merge: true });
+    }
+    tx.set(previousSessionRef, { active: false, migratedToProfileId: ADMIN_PROFILE_ID, lastLogoutAt: now }, { merge: true });
     tx.create(commandRef, { adminId: ADMIN_PROFILE_ID, adminUid: uid, action: 'bootstrap_super_admin', details: {}, createdAt: now });
     tx.create(opRef, { authUid: uid, operationId, action: 'bootstrapSuperAdmin', result, createdAt: FieldValue.serverTimestamp() });
     tx.set(rate.ref, rate.next);
@@ -100,7 +119,7 @@ async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authT
 }
 
 async function recordAdminSession({ uid, payload, operationId, rateLimit }) {
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  if (!await adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
   const opRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
   const sessionRef = db.doc(`admin_sessions/${ADMIN_PROFILE_ID}`);
   const commandRef = db.doc(`admin_commands/${operationDocId(uid, operationId)}`);
@@ -134,7 +153,7 @@ async function recordAdminSession({ uid, payload, operationId, rateLimit }) {
 
 async function runAdminMutation(context, action, targetUserId, details, mutate) {
   const { uid, operationId, rateLimit } = context;
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  if (!await adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
   const opRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
   const commandRef = db.doc(`admin_commands/${operationDocId(uid, operationId)}`);
   const now = Date.now();

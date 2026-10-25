@@ -2,14 +2,11 @@ const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { getFirestore } = require('firebase-admin/firestore');
+const { adminUid } = require('./security');
 
 const db = getFirestore();
 const ADMIN_UIDS = defineSecret('ADMIN_UIDS');
 const REGION = 'us-central1';
-
-function adminUid(uid) {
-  return String(ADMIN_UIDS.value() || '').split(',').map((value) => value.trim()).filter(Boolean).includes(uid);
-}
 
 function projectPlayer(playerId, data) {
   return {
@@ -41,7 +38,7 @@ const syncPublicPlayerProjection = onDocumentWritten('players/{playerId}', async
 const backfillPublicPlayers = onCall({ region: REGION, enforceAppCheck: true, secrets: [ADMIN_UIDS] }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Giriş tələb olunur.');
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Yalnız admin bu köçürməni başlada bilər.');
+  if (!await adminUid(uid)) throw new HttpsError('permission-denied', 'Yalnız admin bu köçürməni başlada bilər.');
   const limit = Math.min(400, Math.max(1, Number(request.data?.limit) || 300));
   let query = db.collection('players').orderBy('__name__').limit(limit);
   if (typeof request.data?.cursor === 'string' && request.data.cursor) {

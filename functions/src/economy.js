@@ -383,7 +383,7 @@ async function setProPanelActive({ uid, payload, operationId, rateLimit }) {
 }
 
 async function grantManatAsAdmin({ uid, payload, operationId, rateLimit }) {
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  if (!await adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
   const targetId = safeId(payload.targetUserId, 'İstifadəçi ID-si');
   const playerRef = db.doc(`players/${targetId}`);
   const userRef = db.doc(`users/${targetId}`);

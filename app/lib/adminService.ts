@@ -97,18 +97,35 @@ export function listenSuperAdminAccess(
     callback(false);
     return () => {};
   }
-  return onSnapshot(
+  let firebaseUid: string | null = null;
+  let latestData: Record<string, unknown> | null = null;
+  let stopped = false;
+  const update = () => {
+    if (stopped) return;
+    const owned = Boolean(firebaseUid && latestData?.firebaseUid === firebaseUid);
+    // Let the Firebase-UID-bound ID 92 profile reach bootstrap; the callable
+    // independently verifies its player identity before granting admin role.
+    callback(owned);
+  };
+
+  void ensureFirebaseAuth().then((user) => {
+    firebaseUid = user?.uid ?? null;
+    update();
+  }).catch(() => callback(false));
+
+  const unsubscribe = onSnapshot(
     doc(db, 'users', SUPER_ADMIN_ID),
     (snap) => {
-      if (!snap.exists()) {
-        callback(true);
-        return;
-      }
-      const data = snap.data() as Record<string, unknown>;
-      callback(data.role === 'super_admin' || data.isAdmin === true);
+      latestData = snap.exists() ? snap.data() as Record<string, unknown> : null;
+      update();
     },
-    () => callback(true)
+    () => callback(false)
   );
+
+  return () => {
+    stopped = true;
+    unsubscribe();
+  };
 }
 
 function parseNumericUserId(raw: unknown): number | null {

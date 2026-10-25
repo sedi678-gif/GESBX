@@ -129,7 +129,7 @@ async function applyReferral({ uid, authToken, payload, operationId, rateLimit, 
 }
 
 async function reviewReferral({ uid, payload, operationId, rateLimit }) {
-  if (!adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
+  if (!await adminUid(uid)) throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
   const referralRef = db.doc(`referrals/${payload.referralId}`);
   const operationRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
   const now = Date.now();
