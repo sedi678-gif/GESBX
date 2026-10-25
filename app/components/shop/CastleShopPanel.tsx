@@ -19,9 +19,6 @@ export default function CastleShopPanel({ userId, manat, onNotify, onSpend, onRe
   const { activeAlliance, fortressHub } = useAllianceBrain();
   const [loadingLevel, setLoadingLevel] = useState<AllianceFortressLevel | null>(null);
   const currentLevel = activeAlliance?.fortressLevel ?? 1;
-  const featuredLevel = Math.min(6, currentLevel + 1) as AllianceFortressLevel;
-  const featuredProduct = FORTRESS_SHOP_PRODUCTS.find((product) => product.level === featuredLevel) ?? FORTRESS_SHOP_PRODUCTS[4];
-  const featuredCanBuy = Boolean(activeAlliance && fortressHub.canManage && currentLevel < 6 && manat >= featuredProduct.price && !loadingLevel);
 
   const handleBuy = async (level: AllianceFortressLevel, price: number) => {
     if (!activeAlliance || !fortressHub.canManage || level !== currentLevel + 1 || manat < price) return;
@@ -55,44 +52,6 @@ export default function CastleShopPanel({ userId, manat, onNotify, onSpend, onRe
           </span>
         </div>
       )}
-
-      <article className={styles.castleShowcase}>
-        <img src={getFortressHubBgUrl(featuredProduct.level)} alt="" />
-        <div className={styles.castleShowcaseShade} />
-        <div className={styles.castleShowcaseContent}>
-          <span className={styles.castleShowcaseEyebrow}>
-            {currentLevel >= 6 ? 'ƏFSANƏVİ İTTİFAQ QALASI' : 'NÖVBƏTİ QALA · XÜSUSİ GÖRÜNÜŞ'}
-          </span>
-          <h3>{currentLevel >= 6 ? 'Maksimum səviyyə' : featuredProduct.name}</h3>
-          <p>
-            {currentLevel >= 6
-              ? 'İttifaqınız bütün qala görünüşlərini açıb.'
-              : `${featuredProduct.desc} Yüksəliş bütün ittifaq üzvlərinə tətbiq olunur.`}
-          </p>
-          <div className={styles.castleShowcaseFooter}>
-            <strong>{currentLevel >= 6 ? 'Lv.6' : `₼ ${featuredProduct.price.toLocaleString('az-AZ')}`}</strong>
-            {currentLevel < 6 && (
-              <button
-                type="button"
-                className={styles.buyBtn}
-                disabled={!featuredCanBuy}
-                onClick={() => void handleBuy(featuredProduct.level, featuredProduct.price)}
-                title={!activeAlliance ? 'Əvvəl ittifaqa qoşul' : !fortressHub.canManage ? 'Yalnız ittifaq lideri ala bilər' : manat < featuredProduct.price ? 'Balans kifayət etmir' : undefined}
-              >
-                {loadingLevel === featuredProduct.level
-                  ? '...'
-                  : featuredCanBuy
-                    ? 'Qalanı aç'
-                    : !activeAlliance
-                      ? 'İttifaqa qoşul'
-                      : !fortressHub.canManage
-                        ? 'Lider alır'
-                        : 'Balans azdır'}
-              </button>
-            )}
-          </div>
-        </div>
-      </article>
 
       <div className={styles.productGrid}>
         {FORTRESS_SHOP_PRODUCTS.map((product) => {

@@ -213,7 +213,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, onNotify, onSpe
 
 
 
-      <div className={styles.productGrid}>
+      <div className={`${styles.productGrid} ${styles.vipProductGrid}`}>
 
         {products.map((product) => {
 

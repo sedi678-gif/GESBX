@@ -28,7 +28,7 @@ export default function ShopPageClient() {
             <p className={styles.eyebrow}>GESBX · MAĞAZA</p>
             <h1 className={styles.title}>Öz üslubunu yarat</h1>
             <p className={styles.intro}>
-              Profilini seçilən VIP görünüşləri ilə fərqləndir, ittifaq qalana yeni səviyyələr aç. Alışlar manat balansındandır.
+              Profil çərçivələri, bannerlər, nişanlar və VIP görünüşləri seç. Alışlar hesabındakı manat balansından çıxılır.
             </p>
           </div>
 
