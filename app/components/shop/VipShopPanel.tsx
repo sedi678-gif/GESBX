@@ -248,7 +248,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
                   className={`${styles.vipPreview} ${product.platinumOnly ? styles.vipPreviewPlatinum : ''}`}
 
                   style={product.image || product.id === 'badge_crown'
-                    ? { backgroundImage: `linear-gradient(180deg, rgba(4,8,18,.08) 15%, rgba(4,8,18,.66) 100%), url("${product.image ?? '/images/alliance-hub/hub-level-6.jpg'}")`, backgroundSize: 'cover', backgroundPosition: 'center 42%' }
+                    ? { backgroundImage: `linear-gradient(180deg, rgba(4,8,18,.08) 15%, rgba(4,8,18,.66) 100%), url("${product.image}")`, backgroundSize: 'cover', backgroundPosition: 'center 42%' }
                     : { background: getCosmeticPreviewGradient(product) }}
 
                 >
