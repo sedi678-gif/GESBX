@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { appCheck, auth } from '../../firebase';
+import { auth } from '../../firebase';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { getToken } from 'firebase/app-check';
 import { useAppStrings } from '@/app/lib/useAppStrings';
 import LanguageSwitch from '@/app/components/LanguageSwitch';
 
@@ -26,8 +25,6 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      if (!appCheck) throw new Error('Qeydiyyat üçün reCAPTCHA/App Check site key konfiqurasiya edilməyib.');
-      await getToken(appCheck, true);
       // 1. İstifadəçini Firebase-də yaradırıq
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
