@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 
 import { PlayerCosmetics } from '@/app/components/alliance/types';
+import ProfileHeroDisplay from '@/app/components/profile/ProfileHeroDisplay';
 
 import {
 
@@ -58,6 +59,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
   const [filter, setFilter] = useState<CosmeticCategory | 'all'>('all');
 
   const [loading, setLoading] = useState<string | null>(null);
+  const [previewProductId, setPreviewProductId] = useState<string | null>(null);
 
 
 
@@ -66,6 +68,26 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
   const equipped = cosmetics?.equipped ?? {};
 
   const vipActive = isVipActive(cosmetics);
+
+  const previewProduct = COSMETIC_PRODUCTS.find((product) => product.id === previewProductId) ?? null;
+  const previewNameParts = displayName.trim().split(/\s+/).filter(Boolean);
+  const previewCosmetics: PlayerCosmetics | null = previewProduct
+    ? (() => {
+        const current: PlayerCosmetics = cosmetics
+          ? { ...cosmetics, owned: [...(cosmetics.owned ?? [])], equipped: { ...(cosmetics.equipped ?? {}) } }
+          : { owned: [], equipped: {}, vip: { tier: 'none', expiresAt: 0 } };
+        if (previewProduct.category === 'frame') current.equipped.frameId = previewProduct.id;
+        if (previewProduct.category === 'banner') current.equipped.bannerId = previewProduct.id;
+        if (previewProduct.category === 'nameStyle') current.equipped.nameStyleId = previewProduct.id;
+        if (previewProduct.category === 'vip') {
+          current.vip = {
+            tier: previewProduct.vipTier ?? 'gold',
+            expiresAt: Date.now() + (previewProduct.vipDurationMs ?? 24 * 60 * 60 * 1000),
+          };
+        }
+        return current;
+      })()
+    : null;
 
 
 
@@ -318,6 +340,15 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
 
                 <div className={styles.productDesc}>{product.desc}</div>
 
+                <button
+                  type="button"
+                  className={styles.productPreviewBtn}
+                  onClick={() => setPreviewProductId(product.id)}
+                  aria-label={`Profildə önizlə: ${product.name}`}
+                >
+                  Profildə önizlə
+                </button>
+
                 <div className={styles.productFooter}>
 
                   <div className={styles.productPrice}>₼ {product.price.toLocaleString('az-AZ')}</div>
@@ -403,6 +434,49 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
         <Link href="/profile">profil səhifəsində</Link> VIP bölməsinə bax.
 
       </p>
+
+      {previewProduct && previewCosmetics && (
+        <div
+          className={styles.shopPreviewOverlay}
+          role="presentation"
+          onClick={() => setPreviewProductId(null)}
+        >
+          <section
+            className={styles.shopPreviewPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shop-profile-preview-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className={styles.shopPreviewHeader}>
+              <div>
+                <p className={styles.shopPreviewEyebrow}>PROFİL ÖNİZLƏMƏSİ</p>
+                <h2 id="shop-profile-preview-title">{previewProduct.name}</h2>
+              </div>
+              <button
+                type="button"
+                className={styles.shopPreviewClose}
+                onClick={() => setPreviewProductId(null)}
+                aria-label="Önizləməni bağla"
+              >
+                ×
+              </button>
+            </header>
+            <div className={styles.shopPreviewProfile}>
+              <ProfileHeroDisplay
+                name={previewNameParts[0] || 'Döyüşçü'}
+                surname={previewNameParts.slice(1).join(' ')}
+                avatar={avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80'}
+                handle="@oyuncu"
+                cosmetics={previewCosmetics}
+              />
+            </div>
+            <p className={styles.shopPreviewNote}>
+              Bu görünüş {previewProduct.name} profilə tətbiq ediləndə belə olacaq.
+            </p>
+          </section>
+        </div>
+      )}
 
     </>
 
