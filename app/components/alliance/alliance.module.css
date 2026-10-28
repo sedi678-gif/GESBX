@@ -1143,15 +1143,23 @@
 }
 
 .allianceRenameBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 6px;
-  padding: 4px 8px;
+  padding: 3px 7px;
   border-radius: 999px;
   border: 1px solid rgba(250, 204, 21, 0.35);
   background: rgba(15, 23, 42, 0.55);
   color: #fde68a;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.allianceRenameIcon {
+  font-size: 12px;
+  line-height: 1;
 }
 
 .allianceRenameForm {

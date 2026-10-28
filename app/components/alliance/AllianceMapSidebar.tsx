@@ -57,7 +57,8 @@ export default function AllianceMapSidebar() {
         <div className={styles.allianceMapSidebarTitleBlock}>
           <h1 className={styles.allianceMapSidebarTitle}>{hubVisuals.allianceName}</h1>
           {activeAlliance && fortressHub.canManage ? (
-            <button type="button" className={styles.allianceRenameBtn} onClick={openRename}>
+            <button type="button" className={styles.allianceRenameBtn} onClick={openRename} aria-label="İttifaqın adını dəyiş">
+              <span className={styles.allianceRenameIcon} aria-hidden="true">✎</span>
               Adı dəyiş
             </button>
           ) : null}
