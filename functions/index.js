@@ -48,6 +48,7 @@ exports.purchaseCosmetic = economy.purchaseCosmetic;
 exports.equipCosmetic = economy.equipCosmetic;
 exports.unequipCosmeticSlot = economy.unequipCosmeticSlot;
 exports.purchaseVipProPlan = economy.purchaseVipProPlan;
+exports.activateFreeCreatorPanel = economy.activateFreeCreatorPanel;
 exports.setProPanelActive = economy.setProPanelActive;
 exports.adminGrantManat = economy.adminGrantManat;
 exports.purchaseFortressLevel = economy.purchaseFortressLevel;

@@ -332,24 +332,53 @@ async function updateCosmeticEquipment({ uid, payload, operationId, action, rate
 
 async function buyVipPro({ uid, payload, operationId, rateLimit }) {
   const now = Date.now();
+  const month = 30 * 24 * 60 * 60 * 1000;
+  const sixMonths = 180 * 24 * 60 * 60 * 1000;
   return db.runTransaction(async (tx) => {
     const ledger = await getLedgerOrThrow(tx, uid, operationId);
     if (ledger.duplicate) return ledger.data.result;
     const rate = await ensureRateLimitTx(tx, uid, 'buyVipPro', rateLimit, now);
     const owned = await getOwnedPlayer(uid, payload.userId, tx);
-    if (owned.player.userPlan === 'VIP_PRO' && owned.player.hasVipPass === true && owned.player.isVipLifetime === true) {
-      const result = { userPlan: 'VIP_PRO', hasVipPass: true, isVipLifetime: true, proPanelActive: owned.player.proPanelActive === true, balance: storedManat(owned.player) };
-      tx.set(ledger.ref, { authUid: uid, playerId: owned.playerId, operationId, type: 'vip_pro_already_owned', amount: 0, balanceAfter: result.balance, source: 'vip_pro', result, createdAt: FieldValue.serverTimestamp() });
-      tx.set(rate.ref, rate.next);
-      return result;
-    }
     const balance = storedManat(owned.player);
     if (balance < vipPrice) throw new HttpsError('failed-precondition', 'VIP Professional üçün 30 AZN lazımdır.');
     const nextBalance = balance - vipPrice;
-    const plan = { userPlan: 'VIP_PRO', hasVipPass: true, isVipLifetime: true, proPanelActive: true };
+    const oldCosmetics = normalizedCosmetics(owned.player.cosmetics);
+    const panelUntil = Math.max(Number(owned.player.creatorPanelExpiresAt) || 0, now) + month;
+    const adFreeUntil = Math.max(Number(owned.player.adFreeUntil) || 0, now) + month;
+    const vipUntil = Math.max(oldCosmetics.vip.expiresAt, now) + sixMonths;
+    const tier = oldCosmetics.vip.tier === 'platinum' && oldCosmetics.vip.expiresAt > now ? 'platinum' : 'gold';
+    const cosmeticsState = { ...oldCosmetics, vip: { tier, expiresAt: vipUntil } };
+    const plan = {
+      userPlan: 'VIP_PRO', hasVipPass: true,
+      isVipLifetime: owned.player.isVipLifetime === true,
+      proPanelActive: owned.player.proPanelActive === true,
+      creatorPanelExpiresAt: panelUntil, adFreeUntil,
+      cosmetics: cosmeticsState,
+    };
     const result = { ...plan, balance: nextBalance };
     tx.set(owned.playerRef, { manat: nextBalance, coins: nextBalance, ...plan, updatedAt: now }, { merge: true });
+    tx.set(owned.userRef, { userPlan: 'VIP_PRO', hasVipPass: true, isVipLifetime: plan.isVipLifetime, creatorPanelExpiresAt: panelUntil, adFreeUntil, vipTier: tier, vipExpiresAt: vipUntil, equippedCosmetics: cosmeticsState.equipped, updatedAt: now }, { merge: true });
     writeWalletLedger(tx, ledger.ref, { uid, playerId: owned.playerId, operationId, type: 'vip_pro_purchase', amount: -vipPrice, balanceAfter: nextBalance, source: 'vip_pro', result });
+    tx.set(rate.ref, rate.next);
+    return result;
+  });
+}
+
+async function activateFreeCreator({ uid, payload, operationId, rateLimit }) {
+  const now = Date.now();
+  const duration = 7 * 24 * 60 * 60 * 1000;
+  return db.runTransaction(async (tx) => {
+    const ledger = await getLedgerOrThrow(tx, uid, operationId);
+    if (ledger.duplicate) return ledger.data.result;
+    const rate = await ensureRateLimitTx(tx, uid, 'activateFreeCreatorPanel', rateLimit, now);
+    const owned = await getOwnedPlayer(uid, payload.userId, tx);
+    if ((Number(owned.player.xp) || 0) < 30000) throw new HttpsError('failed-precondition', 'Creator Panel üçün 30.000 XP lazımdır.');
+    if (Number(owned.player.freeCreatorPanelClaimedAt) > 0) throw new HttpsError('already-exists', 'Pulsuz Creator Panel artıq istifadə olunub.');
+    const expiresAt = now + duration;
+    const result = { userPlan: 'PRO', hasVipPass: owned.player.hasVipPass === true, isVipLifetime: owned.player.isVipLifetime === true, proPanelActive: owned.player.proPanelActive === true, creatorPanelExpiresAt: expiresAt, adFreeUntil: Number(owned.player.adFreeUntil) || 0, freeCreatorPanelClaimedAt: now };
+    tx.set(owned.playerRef, { ...result, updatedAt: now }, { merge: true });
+    tx.set(owned.userRef, { ...result, updatedAt: now }, { merge: true });
+    tx.set(ledger.ref, { authUid: uid, playerId: owned.playerId, operationId, type: 'free_creator_panel', amount: 0, source: 'free_creator_panel', result, createdAt: FieldValue.serverTimestamp() });
     tx.set(rate.ref, rate.next);
     return result;
   });
@@ -476,6 +505,7 @@ const purchaseCosmetic = secureCallable('purchaseCosmetic', purchaseCosmeticSche
 const equipCosmetic = secureCallable('equipCosmetic', equipCosmeticSchema, (ctx) => updateCosmeticEquipment({ ...ctx, action: 'equipCosmetic' }), { max: 30, windowMs: 60_000 });
 const unequipCosmeticSlot = secureCallable('unequipCosmeticSlot', unequipSchema, (ctx) => updateCosmeticEquipment({ ...ctx, action: 'unequipCosmeticSlot' }), { max: 30, windowMs: 60_000 });
 const purchaseVipProPlan = secureCallable('purchaseVipProPlan', sharedUser, buyVipPro, { max: 5, windowMs: 60_000 });
+const activateFreeCreatorPanelCallable = secureCallable('activateFreeCreatorPanel', sharedUser, activateFreeCreator, { max: 3, windowMs: 60_000 });
 const setProPanelActiveCallable = secureCallable(
   'setProPanelActive',
   z.object({ ...operationFields, active: z.boolean() }).strict(),
@@ -585,6 +615,7 @@ module.exports = {
   equipCosmetic,
   unequipCosmeticSlot,
   purchaseVipProPlan,
+  activateFreeCreatorPanel: activateFreeCreatorPanelCallable,
   setProPanelActive: setProPanelActiveCallable,
   adminGrantManat: adminGrantManatCallable,
   purchaseFortressLevel,

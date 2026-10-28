@@ -5,6 +5,7 @@ export {
   VIP_PRO_PRICE_AZN,
   canAccessAllFeatures,
   canEarnXp,
+  hasActiveCreatorAccess,
   canViewAnalytics,
   isUserPlan,
   normalizeUserPlanState,
@@ -13,4 +14,4 @@ export {
 
 export type { UserPlan, UserPlanState } from './userPlanConfig';
 
-export { planStateFromPlayer, purchaseVipProPlan, setProPanelActive } from './userPlanService';
+export { activateFreeCreatorPanel, planStateFromPlayer, purchaseVipProPlan, setProPanelActive } from './userPlanService';

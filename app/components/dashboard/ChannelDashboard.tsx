@@ -156,17 +156,19 @@ function AnalyticsPanel({ data, analyticsOpen }: { data: ChannelStudioData; anal
 export default function ChannelDashboard({
   data,
   analyticsOpen,
+  creatorAccess,
   tab,
 }: {
   data: ChannelStudioData;
   analyticsOpen: boolean;
+  creatorAccess: boolean;
   tab: ChannelStudioTab;
 }) {
   const t = useAppStrings();
   if (tab === 'content') {
     return (
       <div className={styles.grid}>
-        <ContentTable data={data} />
+        {creatorAccess ? <ContentTable data={data} /> : <article className={`${styles.card} ${styles.span2}`}><p className={styles.lockHint}>{t.studio.lock}</p></article>}
       </div>
     );
   }
@@ -174,7 +176,7 @@ export default function ChannelDashboard({
   if (tab === 'analytics') {
     return (
       <div className={styles.grid}>
-        <AnalyticsPanel data={data} analyticsOpen={analyticsOpen} />
+        {creatorAccess ? <AnalyticsPanel data={data} analyticsOpen={analyticsOpen} /> : <article className={`${styles.card} ${styles.span2}`}><p className={styles.lockHint}>{t.studio.lock}</p></article>}
       </div>
     );
   }

@@ -126,6 +126,9 @@ export interface PlayerProfile {
   hasVipPass?: boolean;
   isVipLifetime?: boolean;
   proPanelActive?: boolean;
+  creatorPanelExpiresAt?: number;
+  adFreeUntil?: number;
+  freeCreatorPanelClaimedAt?: number;
   updatedAt: number;
 }
 

@@ -8,6 +8,9 @@ export interface UserPlanState {
   hasVipPass: boolean;
   isVipLifetime: boolean;
   proPanelActive: boolean;
+  creatorPanelExpiresAt: number;
+  adFreeUntil: number;
+  freeCreatorPanelClaimedAt: number;
 }
 
 export const DEFAULT_USER_PLAN_STATE: UserPlanState = {
@@ -15,6 +18,9 @@ export const DEFAULT_USER_PLAN_STATE: UserPlanState = {
   hasVipPass: false,
   isVipLifetime: false,
   proPanelActive: false,
+  creatorPanelExpiresAt: 0,
+  adFreeUntil: 0,
+  freeCreatorPanelClaimedAt: 0,
 };
 
 export function isUserPlan(value: unknown): value is UserPlan {
@@ -23,30 +29,35 @@ export function isUserPlan(value: unknown): value is UserPlan {
 
 export function normalizeUserPlanState(raw?: Partial<UserPlanState> | Record<string, unknown> | null): UserPlanState {
   const userPlan = isUserPlan(raw?.userPlan) ? raw.userPlan : 'FREE';
-  const hasVipPass = raw?.hasVipPass === true || userPlan === 'VIP_PRO';
-  const isVipLifetime = raw?.isVipLifetime === true || userPlan === 'VIP_PRO';
+  const hasVipPass = raw?.hasVipPass === true;
+  const isVipLifetime = raw?.isVipLifetime === true;
   return {
     userPlan,
     hasVipPass,
     isVipLifetime,
     proPanelActive: raw?.proPanelActive === true,
+    creatorPanelExpiresAt: Math.max(0, Number(raw?.creatorPanelExpiresAt) || 0),
+    adFreeUntil: Math.max(0, Number(raw?.adFreeUntil) || 0),
+    freeCreatorPanelClaimedAt: Math.max(0, Number(raw?.freeCreatorPanelClaimedAt) || 0),
   };
 }
 
-export function canViewAnalytics(user: Pick<UserPlanState, 'userPlan'> | null | undefined): boolean {
-  const plan = user?.userPlan ?? 'FREE';
-  return plan === 'PRO' || plan === 'VIP_PRO';
+export function hasActiveCreatorAccess(user: Pick<UserPlanState, 'userPlan' | 'creatorPanelExpiresAt' | 'isVipLifetime'> | null | undefined, now = Date.now()): boolean {
+  return user?.isVipLifetime === true || ((user?.userPlan === 'PRO' || user?.userPlan === 'VIP_PRO') && Number(user?.creatorPanelExpiresAt) > now);
 }
 
-export function canAccessAllFeatures(user: Pick<UserPlanState, 'userPlan'> | null | undefined): boolean {
-  return user?.userPlan === 'VIP_PRO';
+export function canViewAnalytics(user: Pick<UserPlanState, 'userPlan' | 'creatorPanelExpiresAt' | 'isVipLifetime'> | null | undefined): boolean {
+  return hasActiveCreatorAccess(user);
+}
+
+export function canAccessAllFeatures(user: Pick<UserPlanState, 'userPlan' | 'creatorPanelExpiresAt' | 'isVipLifetime'> | null | undefined): boolean {
+  return user?.isVipLifetime === true || (user?.userPlan === 'VIP_PRO' && Number(user.creatorPanelExpiresAt) > Date.now());
 }
 
 export function shouldShowAds(
-  user: Pick<UserPlanState, 'userPlan' | 'hasVipPass'> | null | undefined
+  user: Pick<UserPlanState, 'userPlan' | 'isVipLifetime' | 'adFreeUntil'> | null | undefined
 ): boolean {
-  if (user?.hasVipPass === true) return false;
-  if (user?.userPlan === 'VIP_PRO') return false;
+  if (user?.isVipLifetime === true || Number(user?.adFreeUntil) > Date.now()) return false;
   return true;
 }
 
@@ -56,7 +67,7 @@ export function canEarnXp(user: Pick<UserPlanState, 'proPanelActive'> | null | u
 }
 
 export const USER_PLAN_LABELS: Record<UserPlan, string> = {
-  FREE: 'Adi Pano',
-  PRO: 'Adi Professional Pano',
-  VIP_PRO: 'VIP Professional Pano',
+  FREE: 'Adi Creator Panel',
+  PRO: 'Adi Creator Panel',
+  VIP_PRO: 'VIP Creator Panel',
 };

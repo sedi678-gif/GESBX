@@ -9,10 +9,15 @@ import {
   type UserPlanState,
 } from './userPlanConfig';
 
-/** 30 AZN birdəfəlik VIP Professional — həmişəlik VIP Pass. */
+/** 30 AZN VIP Creator: one month tools/ad-free plus six-month shop pass. */
 export async function purchaseVipProPlan(playerId: string): Promise<UserPlanState> {
   const id = sanitizePlayerId(playerId);
   return callSecureFunction<{ userId: string }, UserPlanState>('purchaseVipProPlan', { userId: id });
+}
+
+export async function activateFreeCreatorPanel(playerId: string): Promise<UserPlanState> {
+  const id = sanitizePlayerId(playerId);
+  return callSecureFunction<{ userId: string }, UserPlanState>('activateFreeCreatorPanel', { userId: id });
 }
 
 /** Profil düyməsi — sosial rejim. Açıq olanda XP verilmir, paket dəyişmir. */

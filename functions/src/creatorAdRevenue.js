@@ -46,7 +46,7 @@ function nextMonthId(monthId) {
 }
 
 function isVipCreator(player, user, atMillis) {
-  if (player.userPlan === 'VIP_PRO' && player.hasVipPass === true) return true;
+  if (player.isVipLifetime === true) return true;
   const playerVip = player.cosmetics?.vip;
   if (playerVip && ['gold', 'platinum'].includes(playerVip.tier) && Number(playerVip.expiresAt) > atMillis) return true;
   return ['gold', 'platinum'].includes(user.vipTier) && Number(user.vipExpiresAt) > atMillis;
