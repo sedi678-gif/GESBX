@@ -1530,6 +1530,8 @@
 
 .photoEditorImage {
   position: absolute;
+  max-width: none;
+  max-height: none;
   user-select: none;
   pointer-events: none;
 }
