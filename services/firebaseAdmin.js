@@ -1,4 +1,3 @@
-
 const { cert, getApps, initializeApp } = require('firebase-admin/app');
 const { getAppCheck } = require('firebase-admin/app-check');
 const { getAuth } = require('firebase-admin/auth');
@@ -19,44 +18,34 @@ function serviceAccountConfigError(code, message) {
 }
 
 function parseServiceAccountJson(raw) {
-  let candidate = raw;
+  let cleaned = raw.trim();
 
-  // JSON bəzən əlavə dırnaqlar içində saxlanıla bilər.
+  // Əgər dəyişən bütövlükdə tək və ya cüt dırnaq içində verilibsə, onları təmizləyirik
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.slice(1, -1);
+  }
+
+  // Unescaped control characters-ləri təmizləyirik
+  cleaned = cleaned.replace(/[\u0000-\u001F]+/g, "");
+
   try {
-    const decoded = JSON.parse(candidate);
-
-    if (typeof decoded === 'string') {
-      candidate = decoded;
-    } else {
-      return decoded;
+    return JSON.parse(cleaned);
+  } catch (e1) {
+    // Əgər private_key daxilindəki \n simvolları problem yaradırsa, onları düzəldirik
+    try {
+      // Literal \n-ləri əsl sətirsonuna çeviririk və ya əksinə
+      const repaired = cleaned
+        .replace(/\\n/g, '\n')
+        .replace(/\n/g, '\\n');
+      return JSON.parse(repaired);
+    } catch (e2) {
+      throw e1;
     }
-  } catch {
-    // Aşağıda mümkün sətirsonu problemini yoxlayırıq.
   }
-
-  // Əvvəlcə adi JSON kimi oxumağa çalış.
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    // private_key daxilindəki həqiqi sətirsonlarını
-    // JSON üçün düzgün \n formatına çevir.
-  }
-
-  const repaired = candidate.replace(
-    /("private_key"\s*:\s*")([\s\S]*?)("\s*[,}])/g,
-    (_match, prefix, key, suffix) =>
-      prefix +
-      key.replace(/\r\n|\r|\n/g, '\\n') +
-      suffix
-  );
-
-  return JSON.parse(repaired);
 }
 
 function getServiceAccount() {
-  const raw = String(
-    process.env.FIREBASE_SERVICE_ACCOUNT_JSON || ''
-  ).trim();
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
   if (!raw) {
     throw serviceAccountConfigError(
@@ -69,10 +58,10 @@ function getServiceAccount() {
 
   try {
     account = parseServiceAccountJson(raw);
-  } catch {
+  } catch (err) {
     throw serviceAccountConfigError(
       'FIREBASE_SERVICE_ACCOUNT_INVALID',
-      'FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON. Check the complete service account JSON value.'
+      `FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON: ${err.message}`
     );
   }
 
@@ -80,9 +69,7 @@ function getServiceAccount() {
     !account ||
     typeof account !== 'object' ||
     typeof account.client_email !== 'string' ||
-    typeof account.private_key !== 'string' ||
-    !account.client_email ||
-    !account.private_key
+    typeof account.private_key !== 'string'
   ) {
     throw serviceAccountConfigError(
       'FIREBASE_SERVICE_ACCOUNT_INVALID',
@@ -93,21 +80,23 @@ function getServiceAccount() {
   if (account.project_id !== PROJECT_ID) {
     throw serviceAccountConfigError(
       'FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH',
-      `Firebase credentials must belong to ${PROJECT_ID}.`
+      `Firebase credentials must belong to ${PROJECT_ID}. Got ${account.project_id}`
     );
   }
 
-  account.private_key = account.private_key
-    .replace(/\\r\\n|\\n|\\r/g, '\n')
-    .replace(/\r\n/g, '\n')
-    .trim();
+  // Private key sətirsonlarını qəti şəkildə düzgün PEM formatına salırıq
+  let pk = account.private_key;
+  if (pk.includes('\\n')) {
+    pk = pk.replace(/\\n/g, '\n');
+  }
+  account.private_key = pk.trim();
 
   try {
     createPrivateKey(account.private_key);
-  } catch {
+  } catch (pkErr) {
     throw serviceAccountConfigError(
       'FIREBASE_SERVICE_ACCOUNT_INVALID',
-      'Firebase service account private key is not a valid PEM key.'
+      `Private key PEM error: ${pkErr.message}`
     );
   }
 
@@ -136,7 +125,7 @@ function getAdminApp() {
   } catch (error) {
     throw serviceAccountConfigError(
       'FIREBASE_SERVICE_ACCOUNT_INVALID',
-      `Firebase Admin SDK could not initialize its service account: ${error.message}`
+      `Firebase Admin SDK could not initialize: ${error.message}`
     );
   }
 }
