@@ -2,7 +2,7 @@ import { httpsCallable } from 'firebase/functions';
 import { getToken } from 'firebase/app-check';
 import { getId, getInstallations } from 'firebase/installations';
 import { Capacitor } from '@capacitor/core';
-import { app, appCheck, auth, functions, requestPlayIntegrityToken } from '@/firebase';
+import { apiBaseUrl, app, appCheck, auth, functions, requestPlayIntegrityToken } from '@/firebase';
 import { requireFirebaseAuth } from './firebaseAuth';
 
 type SecureEnvelope<T> = {
@@ -86,6 +86,54 @@ export async function callSecureFunction<TPayload extends Record<string, unknown
     const operation = code ? `${action} (${code})` : action;
     throw new Error(`${operation} uğursuz oldu: ${message}`, { cause: error });
   }
+}
+
+/** Secure Vercel API wrapper for server operations moved off Firebase Functions. */
+export async function callSecureApi<TPayload extends Record<string, unknown>, TResult>(
+  path: string,
+  action: string,
+  payload: TPayload,
+  operationId = createOperationId(),
+): Promise<TResult> {
+  const user = await requireFirebaseAuth();
+  if (!appCheck) {
+    throw new Error('Firebase App Check qurulmayıb. Qeydiyyat API-sinə təhlükəsiz qoşulmaq mümkün deyil.');
+  }
+  let appCheckToken: string;
+  try {
+    appCheckToken = (await getToken(appCheck)).token;
+  } catch (error) {
+    const reason = error instanceof Error ? ` (${error.message})` : '';
+    throw new Error(`Firebase App Check tokeni alınmadı${reason}`);
+  }
+  const uid = auth.currentUser?.uid || user.uid;
+  const installationId = await getFirebaseInstallationId();
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${await user.getIdToken()}`,
+    'Content-Type': 'application/json',
+    'X-Firebase-AppCheck': appCheckToken,
+    'X-Firebase-Installation-Id': installationId,
+    'Idempotency-Key': operationId,
+  };
+  if (Capacitor.isNativePlatform()) {
+    const requestHash = await hashRequest({ uid, action, operationId, payload, installationId });
+    const integrityToken = await requestPlayIntegrityToken(requestHash);
+    if (!integrityToken) throw new Error('Play Integrity bu cihazda aktiv deyil.');
+    headers['X-Play-Integrity'] = integrityToken;
+  }
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const response = await fetch(`${apiBaseUrl}${normalizedPath}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const code = result && typeof result.error === 'string' ? result.error : 'REQUEST_FAILED';
+    throw new Error(`${action} uğursuz oldu: ${code}`);
+  }
+  return result as TResult;
 }
 
 export function createSecureOperationId(): string {

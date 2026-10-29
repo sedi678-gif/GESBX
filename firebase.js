@@ -34,6 +34,10 @@ const firebaseConfig = {
     process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? "G-HYQ93TJJHR",
 };
 
+export const apiBaseUrl = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://gesbx.vercel.app"
+).replace(/\/+$/, "");
+
 // Firebase tətbiqini başladırıq
 export const app = !getApps().length
   ? initializeApp(firebaseConfig)
@@ -108,8 +112,7 @@ if (typeof window !== "undefined") {
 
           const idToken = await current.getIdToken();
 
-          const endpoint =
-            `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/mintMobileAppCheckToken`;
+          const endpoint = `${apiBaseUrl}/api/mint-mobile-app-check-token`;
 
           const response = await fetch(endpoint, {
             method: "POST",

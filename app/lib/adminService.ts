@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { ensureFirebaseAuth } from '@/app/lib/firebaseAuth';
-import { callSecureFunction } from '@/app/lib/secureFunctions';
+import { callSecureApi, callSecureFunction } from '@/app/lib/secureFunctions';
 import { resolvePlayerManat } from '@/app/lib/manat';
 import { SUPER_ADMIN_ID } from './adminConfig';
 
@@ -176,7 +176,11 @@ export async function syncUserIdCounterFromFirebase(): Promise<number> {
 
 export async function allocateNextUserId(): Promise<string> {
   await ensureFirebaseAuth();
-  const result = await callSecureFunction<Record<string, never>, { userId: string }>('allocateUserId', {});
+  const result = await callSecureApi<Record<string, never>, { userId: string }>(
+    '/api/allocate-user-id',
+    'allocateUserId',
+    {},
+  );
   return result.userId;
 }
 

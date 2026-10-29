@@ -17,10 +17,6 @@
   "hosting": {
     "public": "out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
-      { "source": "/api/payout/request", "function": { "functionId": "paypalPayoutRequest", "region": "us-central1" } },
-      { "source": "/api/webhooks/paypal", "function": { "functionId": "paypalWebhook", "region": "us-central1" } }
-    ],
     "headers": [
       {
         "source": "**/*.@(js|css|png|jpg|jpeg|gif|webp|svg|woff2)",
