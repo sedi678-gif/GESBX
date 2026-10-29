@@ -12,26 +12,50 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 
-// Yeni Firebase layihəsinin konfiqurasiyası
+// The client and Vercel Admin SDK must use the same Firebase project.
+const pinnedFirebaseConfig = {
+  apiKey: "AIzaSyAtzdvcXXrcP_tyglI0JIFIW55nSV26EC0",
+  authDomain: "gesbx-c4312.firebaseapp.com",
+  projectId: "gesbx-c4312",
+  storageBucket: "gesbx-c4312.firebasestorage.app",
+  messagingSenderId: "810938425668",
+  appId: "1:810938425668:web:26ba3c20e68d049dd6f711",
+  measurementId: "G-HYQ93TJJHR",
+};
+
+const configuredFirebaseIdentity = {
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: [
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    pinnedFirebaseConfig.authDomain,
+  ],
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: [
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    pinnedFirebaseConfig.projectId,
+  ],
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: [
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    pinnedFirebaseConfig.storageBucket,
+  ],
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: [
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    pinnedFirebaseConfig.messagingSenderId,
+  ],
+  NEXT_PUBLIC_FIREBASE_APP_ID: [
+    process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    pinnedFirebaseConfig.appId,
+  ],
+};
+
+for (const [key, [rawConfigured, expected]] of Object.entries(configuredFirebaseIdentity)) {
+  const configured = rawConfigured?.trim();
+  if (configured && configured !== expected) {
+    console.error(`[Firebase] Ignoring mismatched ${key}; this build is pinned to gesbx-c4312.`);
+  }
+}
+
+// Do not allow stale Vercel build variables to issue tokens for another project.
 const firebaseConfig = {
-  apiKey:
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY ??
-    "AIzaSyAtzdvcXXrcP_tyglI0JIFIW55nSV26EC0",
-  authDomain:
-    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ??
-    "gesbx-c4312.firebaseapp.com",
-  projectId:
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "gesbx-c4312",
-  storageBucket:
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ??
-    "gesbx-c4312.firebasestorage.app",
-  messagingSenderId:
-    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "810938425668",
-  appId:
-    process.env.NEXT_PUBLIC_FIREBASE_APP_ID ??
-    "1:810938425668:web:26ba3c20e68d049dd6f711",
-  measurementId:
-    process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? "G-HYQ93TJJHR",
+  ...pinnedFirebaseConfig,
 };
 
 export const apiBaseUrl = (

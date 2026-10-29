@@ -101,7 +101,9 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
   }
   let appCheckToken: string;
   try {
-    appCheckToken = (await getToken(appCheck)).token;
+    // Force a new token so a browser cache from a previous Firebase project
+    // cannot be sent to the gesbx-c4312 Admin SDK verifier.
+    appCheckToken = (await getToken(appCheck, true)).token;
   } catch (error) {
     const reason = error instanceof Error ? ` (${error.message})` : '';
     throw new Error(`Firebase App Check tokeni alınmadı${reason}`);
@@ -131,6 +133,16 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     const code = result && typeof result.error === 'string' ? result.error : 'REQUEST_FAILED';
+    if (code === 'APP_CHECK_PROJECT_MISMATCH') {
+      throw new Error(
+        'Firebase App Check layihəsi serverlə uyğun gəlmir. gesbx-c4312-dəki Web App üçün App Check-i aktiv edin, Vercel-də FIREBASE_SERVICE_ACCOUNT_JSON-u həmin layihəyə uyğunlaşdırın və yenidən deploy edin.',
+      );
+    }
+    if (code === 'APP_CHECK_INVALID') {
+      throw new Error(
+        'Firebase App Check tokeni serverdə təsdiqlənmədi. Firebase App Check Web site key və Vercel server parametrlərini yoxlayın.',
+      );
+    }
     throw new Error(`${action} uğursuz oldu: ${code}`);
   }
   return result as TResult;

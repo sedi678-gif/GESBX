@@ -14,20 +14,14 @@ Set the following in the Vercel project that serves `https://gesbx.vercel.app`. 
 
 ### Public build settings
 
-Use the Web App settings from Firebase project `gesbx-c4312`:
+Firebase's public app identity and API key are pinned in `firebase.js` to the Web App in `gesbx-c4312`. Stale `NEXT_PUBLIC_FIREBASE_*` build variables are ignored; remove them from Vercel to avoid confusion. Set only the App Check site key and API origin:
 
 ```dotenv
-NEXT_PUBLIC_FIREBASE_API_KEY=<gesbx-c4312 web API key>
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=gesbx-c4312.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=gesbx-c4312
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=gesbx-c4312.firebasestorage.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<gesbx-c4312 sender ID>
-NEXT_PUBLIC_FIREBASE_APP_ID=<gesbx-c4312 web app ID>
 NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY=<registered reCAPTCHA Enterprise site key>
 NEXT_PUBLIC_API_BASE_URL=https://gesbx.vercel.app
 ```
 
-The Web App API key is public configuration, but it must belong to the new Firebase project. Keep the site key aligned with the registered Firebase App Check Web app.
+The site key must match the reCAPTCHA Enterprise provider registered for this Web App in Firebase App Check.
 
 ### Server-only settings
 

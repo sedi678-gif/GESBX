@@ -139,6 +139,14 @@ async function enforceClientRateLimits(uid, installationId, ip, action, uidLimit
   });
 }
 
+function appCheckVerificationError(error) {
+  const message = error instanceof Error ? error.message : String(error || 'Unknown App Check error');
+  const code = typeof error?.code === 'string' ? error.code : 'unknown';
+  const projectMismatch = /same Firebase project|incorrect ["']aud["']|audience claim/i.test(message);
+  console.error('[App Check] Token verification failed:', { code, message });
+  return new ApiError(403, projectMismatch ? 'APP_CHECK_PROJECT_MISMATCH' : 'APP_CHECK_INVALID');
+}
+
 async function verifyPlayIntegrity(integrityToken, packageName, expectedHash) {
   if (typeof integrityToken !== 'string' || integrityToken.length < 20 || integrityToken.length > 20_000) {
     throw new ApiError(403, 'PLAY_INTEGRITY_REQUIRED');
@@ -190,15 +198,17 @@ async function verifySecureRequest(req, action, payload, { requireIdempotency = 
     throw new ApiError(401, 'AUTH_HEADERS_REQUIRED');
   }
   let decoded;
-  let appCheck;
   try {
-    [decoded, appCheck] = await Promise.all([
-      getAdminAuth().verifyIdToken(authorization[1], true),
-      getAdminAppCheck().verifyToken(appCheckToken),
-    ]);
+    decoded = await getAdminAuth().verifyIdToken(authorization[1], true);
   } catch (error) {
     const isAuthError = String(error.code || '').startsWith('auth/');
-    throw new ApiError(isAuthError ? 401 : 403, isAuthError ? 'AUTH_TOKEN_INVALID' : 'APP_CHECK_INVALID');
+    throw new ApiError(isAuthError ? 401 : 403, isAuthError ? 'AUTH_TOKEN_INVALID' : 'AUTH_VERIFICATION_FAILED');
+  }
+  let appCheck;
+  try {
+    appCheck = await getAdminAppCheck().verifyToken(appCheckToken);
+  } catch (error) {
+    throw appCheckVerificationError(error);
   }
   if (!decoded.uid || !appCheck?.appId) throw new ApiError(403, 'AUTH_OR_APP_CHECK_REQUIRED');
   const integrityToken = header(req, 'x-play-integrity').trim();
@@ -223,24 +233,27 @@ async function verifyIdentityAndAppCheck(req) {
   const authorization = header(req, 'authorization').match(/^Bearer\s+(.+)$/i);
   const appCheckToken = header(req, 'x-firebase-appcheck').trim();
   if (!authorization || !appCheckToken) throw new ApiError(401, 'AUTH_HEADERS_REQUIRED');
+  let decoded;
   try {
-    const [decoded, appCheck] = await Promise.all([
-      getAdminAuth().verifyIdToken(authorization[1], true),
-      getAdminAppCheck().verifyToken(appCheckToken),
-    ]);
-    if (!decoded.uid || !appCheck?.appId) throw new ApiError(403, 'AUTH_OR_APP_CHECK_REQUIRED');
-    return {
-      uid: decoded.uid,
-      email: String(decoded.email || '').trim().toLowerCase(),
-      emailVerified: decoded.email_verified === true,
-      appId: appCheck.appId,
-      idempotencyKey: header(req, 'idempotency-key').trim(),
-    };
+    decoded = await getAdminAuth().verifyIdToken(authorization[1], true);
   } catch (error) {
-    if (error instanceof ApiError) throw error;
     const isAuthError = String(error.code || '').startsWith('auth/');
-    throw new ApiError(isAuthError ? 401 : 403, isAuthError ? 'AUTH_TOKEN_INVALID' : 'APP_CHECK_INVALID');
+    throw new ApiError(isAuthError ? 401 : 403, isAuthError ? 'AUTH_TOKEN_INVALID' : 'AUTH_VERIFICATION_FAILED');
   }
+  let appCheck;
+  try {
+    appCheck = await getAdminAppCheck().verifyToken(appCheckToken);
+  } catch (error) {
+    throw appCheckVerificationError(error);
+  }
+  if (!decoded.uid || !appCheck?.appId) throw new ApiError(403, 'AUTH_OR_APP_CHECK_REQUIRED');
+  return {
+    uid: decoded.uid,
+    email: String(decoded.email || '').trim().toLowerCase(),
+    emailVerified: decoded.email_verified === true,
+    appId: appCheck.appId,
+    idempotencyKey: header(req, 'idempotency-key').trim(),
+  };
 }
 
 module.exports = {
