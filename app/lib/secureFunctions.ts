@@ -143,6 +143,22 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
         'Firebase App Check tokeni serverdə təsdiqlənmədi. Firebase App Check Web site key və Vercel server parametrlərini yoxlayın.',
       );
     }
+    if (code === 'FIREBASE_SERVICE_ACCOUNT_MISSING') {
+      throw new Error(
+        'Qeydiyyat serveri qurulmayıb: Vercel Environment Variables bölməsində gesbx-c4312 layihəsinə aid FIREBASE_SERVICE_ACCOUNT_JSON əlavə edin və Vercel-i yenidən deploy edin.',
+      );
+    }
+    if (code === 'FIREBASE_SERVICE_ACCOUNT_INVALID'
+      || code === 'FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH') {
+      throw new Error(
+        'Qeydiyyat serverinin Firebase açarı etibarsızdır və ya başqa layihəyə aiddir. Vercel-də FIREBASE_SERVICE_ACCOUNT_JSON dəyərinin tam, düzgün JSON olduğunu və gesbx-c4312 layihəsindən yaradıldığını yoxlayın.',
+      );
+    }
+    if (code === 'FIREBASE_AUTH_VERIFIER_UNAVAILABLE') {
+      throw new Error(
+        'Firebase serverində istifadəçi təsdiqlənmədi. Vercel deployment logs-da Firebase Auth yoxlama xətasını araşdırın.',
+      );
+    }
     throw new Error(`${action} uğursuz oldu: ${code}`);
   }
   return result as TResult;

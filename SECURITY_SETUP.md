@@ -10,7 +10,7 @@ Switching the client to `gesbx-c4312` does not copy data from the previous Fireb
 
 ## Vercel environment variables
 
-Set the following in the Vercel project that serves `https://gesbx.vercel.app`. Keep server-only values out of `.env*`, source control, and every `NEXT_PUBLIC_*` variable.
+Set the following in the Vercel project that serves `https://gesbx.vercel.app`, including the Production environment. Keep server-only values out of `.env*`, source control, and every `NEXT_PUBLIC_*` variable.
 
 ### Public build settings
 
@@ -37,7 +37,7 @@ PAYPAL_MODE=live
 PAYPAL_WEBHOOK_ID=<PayPal webhook ID>
 ```
 
-Create the service account in `gesbx-c4312` and grant the permissions needed by the API: Firebase Auth token verification, App Check token verification/creation, Firestore access, and Play Integrity token decoding. Firestore Admin SDK access applies at database level, so keep this credential only in the Vercel server environment. Generate an independent `RISK_HASH_SECRET`; do not reuse Firebase or PayPal credentials.
+Create the service account in `gesbx-c4312` and grant the permissions needed by the API: Firebase Auth token verification including revoked-token checks, App Check token verification/creation, Firestore access, and Play Integrity token decoding. Firestore Admin SDK access applies at database level, so keep this credential only in the Vercel server environment. `FIREBASE_SERVICE_ACCOUNT_JSON` is required; registration returns a clear server-configuration error when it is missing, malformed, or from another project. Generate an independent `RISK_HASH_SECRET`; do not reuse Firebase or PayPal credentials.
 
 `APP_CHECK_ALLOWED_ORIGINS` must contain the exact origins used by the deployed web app and native WebView. Remove any origin that the app does not use.
 

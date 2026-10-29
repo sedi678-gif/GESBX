@@ -147,6 +147,33 @@ function appCheckVerificationError(error) {
   return new ApiError(403, projectMismatch ? 'APP_CHECK_PROJECT_MISMATCH' : 'APP_CHECK_INVALID');
 }
 
+function authVerificationError(error) {
+  const code = typeof error?.code === 'string' ? error.code : '';
+  const message = error instanceof Error ? error.message : String(error || 'Unknown Firebase Auth error');
+  console.error('[Firebase Auth] ID token verification failed:', {
+    code: code || 'unknown',
+    message,
+  });
+
+  if (code === 'FIREBASE_SERVICE_ACCOUNT_MISSING'
+    || code === 'FIREBASE_SERVICE_ACCOUNT_INVALID'
+    || code === 'FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH') {
+    return new ApiError(503, code);
+  }
+
+  const invalidTokenCodes = new Set([
+    'auth/argument-error',
+    'auth/id-token-expired',
+    'auth/id-token-revoked',
+    'auth/invalid-id-token',
+    'auth/tenant-id-mismatch',
+    'auth/user-disabled',
+    'auth/user-not-found',
+  ]);
+  if (invalidTokenCodes.has(code)) return new ApiError(401, 'AUTH_TOKEN_INVALID');
+  return new ApiError(503, 'FIREBASE_AUTH_VERIFIER_UNAVAILABLE');
+}
+
 async function verifyPlayIntegrity(integrityToken, packageName, expectedHash) {
   if (typeof integrityToken !== 'string' || integrityToken.length < 20 || integrityToken.length > 20_000) {
     throw new ApiError(403, 'PLAY_INTEGRITY_REQUIRED');
@@ -201,8 +228,7 @@ async function verifySecureRequest(req, action, payload, { requireIdempotency = 
   try {
     decoded = await getAdminAuth().verifyIdToken(authorization[1], true);
   } catch (error) {
-    const isAuthError = String(error.code || '').startsWith('auth/');
-    throw new ApiError(isAuthError ? 401 : 403, isAuthError ? 'AUTH_TOKEN_INVALID' : 'AUTH_VERIFICATION_FAILED');
+    throw authVerificationError(error);
   }
   let appCheck;
   try {
@@ -237,8 +263,7 @@ async function verifyIdentityAndAppCheck(req) {
   try {
     decoded = await getAdminAuth().verifyIdToken(authorization[1], true);
   } catch (error) {
-    const isAuthError = String(error.code || '').startsWith('auth/');
-    throw new ApiError(isAuthError ? 401 : 403, isAuthError ? 'AUTH_TOKEN_INVALID' : 'AUTH_VERIFICATION_FAILED');
+    throw authVerificationError(error);
   }
   let appCheck;
   try {
