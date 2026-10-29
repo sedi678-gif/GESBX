@@ -269,8 +269,10 @@ async function allocateUserId({ uid }) {
 }
 
 exports.allocateUserId = secureCallable(
+  // Authenticated new users need a numeric profile ID during registration.
+  // This handler only reserves the next free ID; it does not expose admin data
+  // or perform an administrative mutation, so it must not bind ADMIN_UIDS.
   'allocateUserId', z.object({}).strict(), allocateUserId, { max: 10, windowMs: 60_000 },
-  [ADMIN_UIDS],
 );
 
 exports.bootstrapSuperAdmin = secureCallable(
