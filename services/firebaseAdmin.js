@@ -2,6 +2,7 @@ const { cert, getApps, initializeApp } = require('firebase-admin/app');
 const { getAppCheck } = require('firebase-admin/app-check');
 const { getAuth } = require('firebase-admin/auth');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { createPrivateKey } = require('node:crypto');
 
 const PROJECT_ID = 'gesbx-c4312';
 const APP_NAME = 'gesbx-vercel-api';
@@ -33,6 +34,26 @@ function getServiceAccount() {
     throw serviceAccountConfigError(
       'FIREBASE_SERVICE_ACCOUNT_INVALID',
       'Firebase service account JSON is missing required fields.',
+    );
+  }
+  if (typeof account.client_email !== 'string' || typeof account.private_key !== 'string') {
+    throw serviceAccountConfigError(
+      'FIREBASE_SERVICE_ACCOUNT_INVALID',
+      'Firebase service account JSON has invalid credential fields.',
+    );
+  }
+  // Vercel values are sometimes saved with literal backslash-n sequences in the PEM.
+  // Normalize those without ever logging or exposing the credential.
+  account.private_key = account.private_key
+    .replace(/\\r?\\n/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .trim();
+  try {
+    createPrivateKey(account.private_key);
+  } catch {
+    throw serviceAccountConfigError(
+      'FIREBASE_SERVICE_ACCOUNT_INVALID',
+      'Firebase service account private key is not a valid PEM key.',
     );
   }
   if (account.project_id !== PROJECT_ID) {

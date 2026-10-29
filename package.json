@@ -22,6 +22,7 @@
     "firebase:login": "firebase login",
     "firebase:use": "firebase use gesbx-c4312",
     "firebase:check": "node scripts/firebase-check.mjs",
+    "firebase:service-account:check": "node scripts/firebase-service-account-check.cjs",
     "firebase:deploy": "firebase deploy --project gesbx-c4312 --only firestore:rules,firestore:indexes,hosting",
     "firebase:deploy:all": "npm run build && firebase deploy --project gesbx-c4312 --only firestore:rules,firestore:indexes,hosting",
     "firebase:hosting": "firebase deploy --project gesbx-c4312 --only hosting",
