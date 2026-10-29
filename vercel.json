@@ -4,6 +4,11 @@
     { "source": "/model/:path*", "destination": "/models/:path*" },
     { "source": "/models/Mutant/:path*", "destination": "/models/mutant/:path*" }
   ],
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/models/(.*)\\.glb",
