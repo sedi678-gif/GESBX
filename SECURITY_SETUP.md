@@ -1,59 +1,67 @@
-# Firebase security rollout
+# GESBX security and runtime setup
 
-The repository now contains Firebase Functions, server owned wallet and XP operations, Firestore/Storage rules, Play Integrity verification, App Check token minting for Android, referral review, and withdrawal hold/review handlers. These controls remain fail closed until the Firebase and Play Console values below are configured and deployed.
+## Runtime layout
 
-## Configure functions
+The active Firebase client project is `gesbx-c4312`. The static site calls the security-sensitive HTTP handlers under the root `api/` directory on Vercel, including registration ID allocation, Android App Check token minting, and PayPal payouts. Next.js is configured for static export, so these handlers are standalone Vercel Node.js Functions.
 
-Create Firebase Functions secrets from the Firebase project used by this app:
+The Firebase deploy scripts explicitly target `gesbx-c4312` and deploy only Firestore rules, indexes, and static Hosting. They do not deploy Cloud Functions or Storage rules. Firebase Cloud Functions deployment requires Blaze, and Firebase Storage currently requires Blaze as well. The remaining callable and event-driven features in `functions/` (including Zego tokens, economy, alliances, referrals, withdrawal review, counters, and ad-pool settlement) have not been moved to Vercel; these features still need a server runtime before they can work against the Spark project. Media upload also needs a Spark-compatible storage backend. Do not run a broad `firebase deploy` command for this project.
 
-```powershell
-firebase functions:secrets:set ADMIN_UIDS
-firebase functions:secrets:set RISK_HASH_SECRET
-firebase functions:secrets:set REFERRAL_CODE_SECRET
-firebase functions:secrets:set ZEGO_SERVER_SECRET
-```
+Switching the client to `gesbx-c4312` does not copy data from the previous Firebase project, which has not been changed. Confirm the new project's Auth providers, Firestore data/rules, App Check apps, and indexes before directing real users to it.
 
-Use comma separated Firebase Auth UIDs for `ADMIN_UIDS`. Generate separate random values for the HMAC secrets and keep them in Secret Manager. `ZEGO_SERVER_SECRET` must be the newly rotated secret from the Zego Console; do not put it in the web app environment. Set the public Zego app ID as `ZEGO_APP_ID` in `functions/.env.youstu-cab15`.
+## Vercel environment variables
 
-Create `functions/.env.youstu-cab15` locally with these non-secret values. Do not commit that file:
+Set the following in the Vercel project that serves `https://gesbx.vercel.app`. Keep server-only values out of `.env*`, source control, and every `NEXT_PUBLIC_*` variable.
+
+### Public build settings
+
+Use the Web App settings from Firebase project `gesbx-c4312`:
 
 ```dotenv
-PLAY_INTEGRITY_PACKAGE_NAME=<the real Android applicationId>
-ANDROID_FIREBASE_APP_ID=<the Android Firebase app id, 1:<project-number>:android:<suffix>>
-APP_CHECK_ALLOWED_ORIGINS=<exact deployed web origin>,https://localhost,http://localhost
-WITHDRAWAL_MIN_AZN=10
-WITHDRAWAL_DAILY_LIMIT_AZN=500
-WITHDRAWAL_MANUAL_REVIEW_AZN=100
-ZEGO_APP_ID=<public Zego application id>
+NEXT_PUBLIC_FIREBASE_API_KEY=<gesbx-c4312 web API key>
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=gesbx-c4312.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=gesbx-c4312
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=gesbx-c4312.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<gesbx-c4312 sender ID>
+NEXT_PUBLIC_FIREBASE_APP_ID=<gesbx-c4312 web app ID>
+NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY=<registered reCAPTCHA Enterprise site key>
+NEXT_PUBLIC_API_BASE_URL=https://gesbx.vercel.app
 ```
 
-The origin list must match the actual web and Capacitor WebView origins. Remove entries the app does not use. The Android application ID and Firebase Android App ID must be the real registered values; `com.example.app` is only the current placeholder.
+The Web App API key is public configuration, but it must belong to the new Firebase project. Keep the site key aligned with the registered Firebase App Check Web app.
 
-## Play Integrity and App Check
+### Server-only settings
 
-1. Register the Android app in Firebase with the production package name and add its `google-services.json` to `android/app`.
-2. Enable the Play Integrity API for the Google Cloud project, link the Play Console app to that project, and use a Play-distributed build when checking the `PLAY_RECOGNIZED` and `LICENSED` verdicts.
-   Grant the deployed Functions runtime service account permission to call Play Integrity token decode.
-3. Register the Android app in Firebase App Check with the Play Integrity provider. The Functions endpoint mints an App Check token only after verifying the Play Integrity token, authenticated UID, one-time challenge, request hash, and verdicts.
-4. Create a score-based reCAPTCHA Enterprise site key in Google Cloud Fraud Defense for the deployed web domain. Register the web app in Firebase App Check with the Fraud Defense provider using that key, then put the same site key in the deployed web build as `NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY`.
-5. Deploy the Functions and rules first. After validating released clients, enable App Check enforcement for Firestore and Storage in Firebase Console. Callable Functions already require App Check in code.
-6. Enable Firestore TTL on `app_check_nonces.expiresAt` so used App Check challenges are eventually removed.
-7. When deploying the Storage rules, enable the requested Cloud Storage to Firestore rules connection so profile and post uploads can check the user's `firebaseUid` mapping.
-
-The wallet panel can link its existing anonymous Firebase account to email/password without changing its UID. Enable Email/Password in Firebase Authentication before users try email verification, referrals, or withdrawals.
-
-Until the web site key or Android app registration is configured, protected callable operations reject requests. Firestore and Storage App Check enforcement is a Firebase Console setting; it cannot be activated by these repository files alone.
-
-## Deploy
-
-After configuring secrets, environment values, the Android app registration, and App Check, deploy with:
-
-```powershell
-npm run firebase:deploy
+```dotenv
+FIREBASE_SERVICE_ACCOUNT_JSON=<service-account JSON for gesbx-c4312>
+RISK_HASH_SECRET=<random secret with at least 32 characters>
+PLAY_INTEGRITY_PACKAGE_NAME=<registered Android package name>
+ANDROID_FIREBASE_APP_ID=<1:project-number:android:app-suffix>
+APP_CHECK_ALLOWED_ORIGINS=https://gesbx.vercel.app,https://gesbx-c4312.web.app,https://gesbx-c4312.firebaseapp.com,https://localhost,capacitor://localhost,http://localhost,http://localhost:3000
+PAYPAL_CLIENT_ID=<rotated PayPal client ID>
+PAYPAL_CLIENT_SECRET=<rotated PayPal client secret>
+PAYPAL_MODE=live
+PAYPAL_WEBHOOK_ID=<PayPal webhook ID>
 ```
 
-For Android, set `CAPACITOR_APP_ID` to the registered production package before building. For local development, start the Auth, Firestore, Storage, and Functions emulators with `npm run firebase:emulators`.
+Create the service account in `gesbx-c4312` and grant the permissions needed by the API: Firebase Auth token verification, App Check token verification/creation, Firestore access, and Play Integrity token decoding. Firestore Admin SDK access applies at database level, so keep this credential only in the Vercel server environment. Generate an independent `RISK_HASH_SECRET`; do not reuse Firebase or PayPal credentials.
 
-Zego room tokens are minted by the `createZegoToken` callable Cloud Function. The Socket.io/MongoDB service in `server.js` remains a separate Node service; static Firebase Hosting does not run that process.
+`APP_CHECK_ALLOWED_ORIGINS` must contain the exact origins used by the deployed web app and native WebView. Remove any origin that the app does not use.
 
-Existing profile documents created before `firebaseUid` was stored need an authenticated account-linking migration. The new binding flow intentionally does not import balances, XP, cards, or cosmetics from an old UID-keyed document unless that document already carries the matching Firebase UID; local numeric profile IDs alone cannot prove ownership.
+The PayPal values are consumed by the Vercel payout handler. The live credentials previously pasted into chat must be rotated before production use. Do not add the replacement values to this repository.
+
+## Firebase and Play Console setup
+
+1. In `gesbx-c4312`, enable the Auth providers used by the app and create/configure Firestore.
+2. Register the production Web and Android apps in that project. Put the matching Android `google-services.json` in `android/app` and set the real Android package name.
+3. Register the Web app with Firebase App Check and its reCAPTCHA Enterprise provider. Register the Android app with Play Integrity.
+4. Enable Play Integrity API in the linked Google Cloud project and grant the Vercel service account token-decode access.
+5. Set the Vercel variables above and redeploy the Vercel project so public build variables are embedded in the static client.
+6. Deploy Firestore rules/indexes and Hosting only with `npm run firebase:deploy:all` after reviewing the target and data. Never use a generic deploy command that includes Functions or Storage.
+
+The Vercel ID-allocation endpoint verifies Firebase Auth, App Check, and (on Android) Play Integrity, then reserves the numeric ID in a Firestore transaction. The browser does not choose IDs, and repeated requests for the same Firebase UID return its existing reservation.
+
+## Local development
+
+Copy `.env.local.example` to `.env.local` and use the Web App values from `gesbx-c4312`. Keep `FIREBASE_SERVICE_ACCOUNT_JSON`, `RISK_HASH_SECRET`, and PayPal credentials in Vercel's server environment, or provide them only to a trusted local server process without committing them. The standalone Socket.IO process has separate host settings; use `FIREBASE_PROJECT_ID=gesbx-c4312` there.
+
+Some existing app functions still call Firebase callable Cloud Functions and are not covered by the new Vercel endpoints. They remain unavailable on Spark until migrated to an eligible server runtime. The Firebase emulator scripts are for local development and do not deploy those functions.

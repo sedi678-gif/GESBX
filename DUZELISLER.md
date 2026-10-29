@@ -93,7 +93,7 @@ client yalnız match ID göndərir, funksiya yekun nəticəni Firestore-dan öz�
 | `/api/users/*` Mongo endpointləri | Hamısı `410 Gone`; Mongo sxemləri, Mongoose və bağlı endpoint kodu çıxarılıb |
 
 Socket host env dəyişənləri: `ALLOWED_ORIGINS`, `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`.
-Zego secret Firebase Secret Manager-də saxlanılır; `firebase functions:secrets:set ZEGO_SERVER_SECRET`.
+Zego tokeni hələ `functions/src/zegoToken.js` Cloud Function-u ilə yaradılır; bu funksiya Vercel-ə köçürülməyib və Spark layihəsində deploy edilə bilməz. `ZEGO_SERVER_SECRET`-i sızdığı üçün Zego panelində yenilə; Firebase Functions Secret Manager-ə əlavə etmək yalnız Blaze backend deploy olunacaqsa məna daşıyır.
 
 ---
 

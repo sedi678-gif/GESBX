@@ -1,28 +1,29 @@
 # PayPal creator wallet payouts
 
-The payout API is served by Firebase Functions because this Next.js project uses `output: 'export'`; exported Next.js sites do not run API route handlers. The production paths are proxied to the `us-central1` Firebase Functions:
+Payouts run through standalone Vercel Node.js Functions in the root `api/` directory. The public endpoints are:
 
-- `POST /api/payout/request`
-- `POST /api/webhooks/paypal`
+- `POST https://gesbx.vercel.app/api/payout/request`
+- PayPal webhook: `https://gesbx.vercel.app/api/webhooks/paypal`
 
-Payouts debit `user_wallets/{playerId}` only when its owner matches the authenticated Firebase UID and its currency is `USD`. This is the creator ad revenue wallet. The separate `players/{playerId}.manat` balance is AZN and is not converted to USD by this integration.
+The site uses static Next.js export; Vercel serves these API files independently from the exported pages. Do not configure Firebase Hosting rewrites or Firebase Functions for these paths.
 
-## Secrets and deployment
+Payouts debit `user_wallets/{playerId}` only when the wallet owner matches the authenticated Firebase UID and its currency is `USD`. The separate `players/{playerId}.manat` balance is AZN and is not converted to USD by this integration.
 
-Set these Firebase Functions secrets interactively; never put credential values in source files or client-visible environment variables:
+## Vercel secrets and PayPal setup
 
-```powershell
-firebase functions:secrets:set PAYPAL_CLIENT_ID
-firebase functions:secrets:set PAYPAL_CLIENT_SECRET
-firebase functions:secrets:set PAYPAL_MODE
-firebase functions:secrets:set PAYPAL_WEBHOOK_ID
+Set these server-only variables in the Vercel project environment. Do not put credential values in source code, `.env.example`, client-visible variables, or Firebase Functions Secret Manager:
+
+```dotenv
+PAYPAL_CLIENT_ID=<rotated PayPal client ID>
+PAYPAL_CLIENT_SECRET=<rotated PayPal client secret>
+PAYPAL_MODE=live
+PAYPAL_WEBHOOK_ID=<PayPal webhook ID>
+FIREBASE_SERVICE_ACCOUNT_JSON=<service-account JSON for gesbx-c4312>
 ```
 
-Set `PAYPAL_MODE` to `live`. Create a PayPal webhook for the deployed PayPal app at `https://gbesx.vercel.app/api/webhooks/paypal`, copy its webhook ID into `PAYPAL_WEBHOOK_ID`, and subscribe to `PAYMENT.PAYOUTSBATCH.SUCCESS`, `PAYMENT.PAYOUTSBATCH.DENIED`, `PAYMENT.PAYOUTSBATCH.REVERSED`, and `PAYMENT.PAYOUTS-ITEM.SUCCEEDED` / failure events. The ID is distinct from the client ID.
+The live credentials previously pasted into chat must be rotated in PayPal before production use. Store only the replacement credentials in Vercel's server environment. `FIREBASE_SERVICE_ACCOUNT_JSON` must belong to `gesbx-c4312` and have access to the payout wallet and withdrawal collections.
 
-Then deploy Functions and the hosting rewrites. The Vercel rewrites target the existing Firebase project `youstu-cab15`; update that destination if the Firebase project changes. Firebase Hosting rewrites are also configured for deployments served from Firebase Hosting.
-
-The credentials previously pasted into chat should be rotated in PayPal before production use. Store the newly generated values only in Firebase Secret Manager.
+Create a webhook for the PayPal app and subscribe to `PAYMENT.PAYOUTSBATCH.SUCCESS`, `PAYMENT.PAYOUTSBATCH.DENIED`, `PAYMENT.PAYOUTSBATCH.REVERSED`, and the payout item success/failure events handled by the service. Put that webhook's ID in `PAYPAL_WEBHOOK_ID`; it is distinct from the client ID. After saving the variables, redeploy the Vercel project.
 
 ## Request contract
 

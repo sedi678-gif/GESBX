@@ -1,87 +1,62 @@
 #!/usr/bin/env node
-/**
- * Firebase layihə yoxlaması — CLI, layihə ID və Anonymous Auth təlimatı.
- * İstifadə: npm run firebase:check
- */
-
 import { execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const projectId = 'youstu-cab15';
+const projectId = 'gesbx-c4312';
+let ok = true;
 
-function runFirebase(args, timeoutMs = 20000) {
+function runFirebase(args) {
   return execSync(`npm exec -- firebase ${args}`, {
     cwd: root,
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
-    shell: true,
-    timeout: timeoutMs,
+    timeout: 20_000,
   }).trim();
 }
 
-console.log('\n🔥 Gesbx — Firebase yoxlaması\n');
+console.log(`GESBX Firebase configuration check (${projectId})`);
 
-let ok = true;
-
-if (existsSync(join(root, 'node_modules', 'firebase-tools', 'package.json'))) {
-  const pkg = JSON.parse(readFileSync(join(root, 'node_modules', 'firebase-tools', 'package.json'), 'utf8'));
-  console.log(`✓ firebase-tools: v${pkg.version}`);
-} else {
-  console.error('✗ firebase-tools yoxdur. İşlədin: npm install');
+try {
+  console.log(`Firebase CLI: ${runFirebase('--version')}`);
+} catch {
+  console.error('Firebase CLI is unavailable. Install dependencies or sign in.');
   ok = false;
 }
 
 try {
-  runFirebase('--version', 15000);
-  console.log('✓ Firebase CLI işləyir');
-} catch {
-  console.warn('⚠ Firebase CLI birbaşa işləmədi — npm skriptləri yenə də işləyə bilər');
-}
-
-if (existsSync(join(root, '.firebaserc'))) {
   const rc = JSON.parse(readFileSync(join(root, '.firebaserc'), 'utf8'));
   const active = rc.projects?.default;
-  console.log(`✓ Layihə (.firebaserc): ${active}`);
-  if (active !== projectId) {
-    console.warn(`  ⚠ Gözlənilən: ${projectId}`);
-  }
-} else {
-  console.error('✗ .firebaserc tapılmadı');
+  console.log(`.firebaserc default: ${active || '(missing)'}`);
+  if (active !== projectId) ok = false;
+} catch {
+  console.error('.firebaserc is missing or invalid.');
   ok = false;
 }
 
-for (const file of ['firestore.rules', 'storage.rules', 'firestore.indexes.json', 'firebase.json']) {
-  if (existsSync(join(root, file))) {
-    console.log(`✓ ${file}`);
-  } else {
-    console.error(`✗ ${file} yoxdur`);
+for (const file of ['firestore.rules', 'firestore.indexes.json', 'firebase.json']) {
+  if (!existsSync(join(root, file))) {
+    console.error(`Missing ${file}`);
     ok = false;
   }
 }
 
 try {
-  runFirebase('projects:list');
-  console.log('✓ Firebase hesabına giriş aktivdir');
+  runFirebase(`projects:list --json`);
+  console.log('Firebase CLI account is signed in.');
 } catch {
-  console.warn('⚠ Firebase-ə daxil deyilsiniz. İşlədin: npm run firebase:login');
+  console.warn('Firebase CLI is not signed in; run npm run firebase:login.');
   ok = false;
 }
 
-console.log(`
-📋 Firebase Console addımları (bir dəfə):
-   1. Authentication → Sign-in method → Anonymous → Enable
-   2. Firestore Database → Create database (test mode və ya rules deploy)
-   3. Storage → Get started
-
-   Console: https://console.firebase.google.com/project/${projectId}
-
-🚀 Əsas komandalar:
-   npm run firebase:deploy     — qaydalar + indekslər (Firestore + Storage)
-   npm run release:android     — Firebase deploy + build + Android sync
-   npm run dev                 — lokal inkişaf (Firebase avtomatik anonim giriş)
+console.log(`\nSetup reminders:
+  - Enable Anonymous sign-in and configure Firestore in ${projectId}.
+  - Configure Vercel API environment variables as documented in SECURITY_SETUP.md.
+  - The deploy scripts target ${projectId} explicitly and exclude Cloud Functions and Storage.
+  - Firebase Storage and Firebase Cloud Functions are unavailable on Spark; this repo's media and remaining callable features need separate backends.
+  - Run npm run firebase:deploy to deploy only Firestore rules/indexes and Hosting.
 `);
 
 process.exit(ok ? 0 : 1);
