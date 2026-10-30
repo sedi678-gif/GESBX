@@ -38,19 +38,24 @@ export default function LoginPage() {
 
       const localId = getLocalProfileUserId();
       if (localId) {
-        const status = await getAccountStatus(localId);
-        if (status.banned) {
-          await signOut(auth);
-          setError(t.auth.errors.banned);
-          return;
-        }
-        if (status.frozen) {
-          router.push('/settings');
-          return;
+        try {
+          const status = await getAccountStatus(localId);
+          if (status.banned) {
+            await signOut(auth);
+            setError(t.auth.errors.banned);
+            return;
+          }
+          if (status.frozen) {
+            router.push('/settings');
+            return;
+          }
+        } catch {
+          // Hesab statusunun yoxlanılması xətası girişə engel olmamalıdır.
+          console.warn('Hesab statusu yoxlanıldıqda xəta:', localId);
         }
       }
 
-      router.push('/');
+      router.push('/explore');
 
     } catch (err: any) {
       console.error('Giriş xətası:', err);
