@@ -50,7 +50,7 @@ export default function LoginPage() {
         }
       }
 
-      router.push('/profile');
+      router.push('/');
 
     } catch (err: any) {
       console.error('Giriş xətası:', err);
