@@ -83,16 +83,19 @@ export function ensureFirebaseAuth(): Promise<User | null> {
       // Firebase Auth attaches App Check to its sign-in request. Warm the
       // token first so a stalled reCAPTCHA provider is reported as App Check,
       // instead of looking like an anonymous Auth network timeout.
+      //
+      // App Check xətası GİRİŞİ BLOKELƏMƏYİR — yalnız xəbərdarlıq verir.
+      // Backend çağırışları üçün App Check tələbi secureFunctions-də gedir.
       if (appCheck) {
         try {
           await withTimeout(
             getAppCheckToken(appCheck),
             APP_CHECK_TOKEN_TIMEOUT_MS,
-            'Firebase App Check reCAPTCHA Enterprise tokeni alınmadı. Firebase Console → App Check → Apps bölməsində görünən Fraud Defense provider-i üçün Google Cloud Fraud Defense-də yaradılmış eyni Enterprise site key-dən istifadə edin. Vercel Production-da NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY dəyişəninə həmin Enterprise SITE KEY-i yazın və yenidən deploy edin. Enterprise üçün adi reCAPTCHA v3 açarı və secret key uyğun deyil.'
+            'Firebase App Check reCAPTCHA Enterprise tokeni alınmadı.'
           );
         } catch (error) {
           const detail = error instanceof Error ? ` ${error.message}` : '';
-          throw new Error(`Firebase App Check tokeni hazırlaya bilmədi.${detail}`);
+          console.warn(`[Firebase App Check] Token alınmadı, auth bu xətadan davam edir:${detail}`);
         }
       }
       const credential = await withTimeout(

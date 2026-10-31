@@ -25,24 +25,23 @@ function parseServiceAccountJson(raw) {
     cleaned = cleaned.slice(1, -1);
   }
 
-  // Unescaped control characters-ləri təmizləyirik
-  cleaned = cleaned.replace(/[\u0000-\u001F]+/g, "");
 
   try {
     return JSON.parse(cleaned);
   } catch (e1) {
-    // Əgər private_key daxilindəki \n simvolları problem yaradırsa, onları düzəldirik
+    // JSON icerisinde asagi satir sonlari duzgun escape edilmise, onlari duzeltirik.
     try {
-      // Literal \n-ləri əsl sətirsonuna çeviririk və ya əksinə
-      const repaired = cleaned
-        .replace(/\\n/g, '\n')
-        .replace(/\n/g, '\\n');
+      const repaired = cleaned.replace(/\n/g, '\\n');
       return JSON.parse(repaired);
     } catch (e2) {
-      throw e1;
+      // Iki defa escape edilmek \\n simvollarini duzeltirik.
+      try {
+        const repaired2 = cleaned.replace(/\\n/g, '\\n');
+        return JSON.parse(repaired2);
+      } catch (e3) {
+        throw e1;
+      }
     }
-  }
-}
 
 function getServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -86,8 +85,8 @@ function getServiceAccount() {
 
   // Private key sətirsonlarını qəti şəkildə düzgün PEM formatına salırıq
   let pk = account.private_key;
-  if (pk.includes('\\n')) {
-    pk = pk.replace(/\\n/g, '\n');
+  if (pk.includes('\n')) {
+    pk = pk.replace(/\n/g, '\n');
   }
   account.private_key = pk.trim();
 
