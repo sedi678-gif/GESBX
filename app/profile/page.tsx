@@ -1647,7 +1647,28 @@ function ProfilePageContent() {
             <div
               role="group"
               aria-label="Boost müddəti və XP seçimi"
-              style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 220, overflowY: 'auto', overscrollBehavior: 'contain', touchAction: 'pan-y', paddingRight: 4 }}
+              onWheel={(event) => {
+                const delta = Math.abs(event.deltaY) > Math.abs(event.deltaX)
+                  ? event.deltaY
+                  : event.deltaX;
+                event.currentTarget.scrollLeft += delta;
+                if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) event.preventDefault();
+              }}
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: 8,
+                maxWidth: '100%',
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                overscrollBehaviorX: 'contain',
+                overscrollBehaviorY: 'none',
+                scrollSnapType: 'x mandatory',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#6b7280 #1f2937',
+                touchAction: 'pan-x',
+                paddingBottom: 6,
+              }}
             >
               {DISCOVER_BOOST_OPTIONS.map((option) => {
                 const selected = option.durationMs === selectedDiscoverBoostOption.durationMs;
@@ -1661,18 +1682,21 @@ function ProfilePageContent() {
                     onClick={() => setSelectedDiscoverBoostDuration(option.durationMs)}
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 12,
-                      width: '100%',
-                      minHeight: 42,
-                      padding: '9px 12px',
+                      flex: '0 0 142px',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      justifyContent: 'center',
+                      gap: 6,
+                      minHeight: 68,
+                      padding: '10px 12px',
                       borderRadius: 10,
                       border: selected ? '1px solid #8b5cf6' : '1px solid #374151',
                       background: selected ? 'rgba(124,58,237,.22)' : '#1f2937',
                       color: hasEnoughXp ? '#f8fafc' : '#9ca3af',
                       textAlign: 'left',
                       cursor: buyingDiscoverBoost ? 'wait' : 'pointer',
+                      scrollSnapAlign: 'start',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     <strong>{option.label}</strong>
