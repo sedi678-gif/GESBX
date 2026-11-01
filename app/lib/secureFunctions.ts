@@ -176,6 +176,12 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
     if (code === 'PROFILE_NOT_BOUND') {
       throw new Error('Profil təhlükəsiz şəkildə bağlanmayıb. Hesabdan çıxıb yenidən daxil ol.');
     }
+    if (code === 'PROFILE_NOT_FOUND') {
+      throw new Error('Bu Firebase hesabına bağlı oyunçu profili tapılmadı. Profilin yaradıldığı hesabla yenidən daxil ol.');
+    }
+    if (code === 'PROFILE_LINK_MISMATCH') {
+      throw new Error('Firebase hesabı ilə oyunçu profilinin bağlantısı uyğun gəlmir. Profilin sahibi olan hesabla daxil ol.');
+    }
     throw new Error(`${action} uğursuz oldu: ${code}`);
   }
   return result as TResult;
