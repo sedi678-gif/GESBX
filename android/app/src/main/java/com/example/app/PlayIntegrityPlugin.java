@@ -11,7 +11,7 @@ import com.google.android.play.core.integrity.StandardIntegrityManager;
 
 @CapacitorPlugin(name = "PlayIntegrity")
 public final class PlayIntegrityPlugin extends Plugin {
-    private static final long CLOUD_PROJECT_NUMBER = 213802937871L;
+    private static final long CLOUD_PROJECT_NUMBER = 810938425668L;
     private StandardIntegrityManager.StandardIntegrityTokenProvider tokenProvider;
 
     @PluginMethod
