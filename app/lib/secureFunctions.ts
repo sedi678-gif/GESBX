@@ -167,6 +167,9 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
         'Firebase serverində istifadəçi təsdiqlənmədi. Vercel deployment logs-da Firebase Auth yoxlama xətasını araşdırın.',
       );
     }
+    if (code === 'REFERRALS_UNAVAILABLE') {
+      throw new Error('Dəvət məlumatları hazırda yüklənmir. Bir az sonra yenidən cəhd et.');
+    }
     throw new Error(`${action} uğursuz oldu: ${code}`);
   }
   return result as TResult;

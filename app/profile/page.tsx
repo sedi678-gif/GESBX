@@ -52,7 +52,7 @@ import profileStyles from '@/app/components/profile/profile.module.css';
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import { auth, db } from '@/firebase';
 import { setProPanelActive } from '@/app/lib/userPlan';
-import { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
+import { callSecureApi, callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
 import GoogleAdButton from '@/app/components/alliance/GoogleAdButton';
 import {
   activateDiscoverBoost,
@@ -657,10 +657,10 @@ function ProfilePageContent() {
     setWalletReferralProgressLoading(true);
     setWalletReferralProgressError('');
     try {
-      const result = await callSecureFunction<
+      const result = await callSecureApi<
         { userId: string },
         { activeCount: number; pendingCount: number }
-      >('getMyReferrals', { userId: currentUser.id });
+      >('/api/get-my-referrals', 'getMyReferrals', { userId: currentUser.id });
       const activeCount = Math.max(0, Number(result.activeCount) || 0);
       const pendingCount = Math.max(0, Number(result.pendingCount) || 0);
       setWalletReferralCount(activeCount + pendingCount);
