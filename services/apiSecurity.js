@@ -10,6 +10,8 @@ const {
 
 const REGION = 'us-central1';
 const PLAY_INTEGRITY_SCOPE = 'https://www.googleapis.com/auth/playintegrity';
+let cachedRiskHashKeyId = '';
+let cachedRiskHashKey = null;
 
 class ApiError extends Error {
   constructor(status, code, message = code) {
@@ -96,11 +98,37 @@ function getClientIp(req) {
 
 function hmacRiskHash(value, source) {
   const normalized = String(value || '').trim().toLowerCase();
-  const secret = String(process.env.RISK_HASH_SECRET || '').trim();
-  if (!normalized || secret.length < 32) {
+  const configuredSecret = String(process.env.RISK_HASH_SECRET || '').trim();
+  if (!normalized || (configuredSecret && configuredSecret.length < 32)) {
     throw new ApiError(503, 'SECURITY_CONFIGURATION_MISSING');
   }
-  return crypto.createHmac('sha256', secret).update(`${source}:${normalized}`).digest('hex');
+
+  let keyId;
+  let key;
+  if (configuredSecret) {
+    keyId = `configured:${sha256(configuredSecret)}`;
+    key = Buffer.from(configuredSecret, 'utf8');
+  } else {
+    // The service-account key is already required for this server API. Derive
+    // a purpose-specific key so a missing optional override cannot disable
+    // registration or reuse the credential directly as an HMAC key.
+    const privateKey = getServiceAccount().private_key;
+    keyId = `service-account:${sha256(privateKey)}`;
+    key = Buffer.from(crypto.hkdfSync(
+      'sha256',
+      Buffer.from(privateKey, 'utf8'),
+      Buffer.from('gesbx-c4312', 'utf8'),
+      Buffer.from('risk-hash/v1', 'utf8'),
+      32,
+    ));
+  }
+
+  if (keyId !== cachedRiskHashKeyId) {
+    cachedRiskHashKeyId = keyId;
+    cachedRiskHashKey = key;
+  }
+  return crypto.createHmac('sha256', cachedRiskHashKey)
+    .update(`${source}:${normalized}`).digest('hex');
 }
 
 function rateLimitRef(key) {
@@ -293,6 +321,7 @@ module.exports = {
   getAdminAuth,
   getAdminFirestore,
   getClientIp,
+  hmacRiskHash,
   getServiceAccount,
   header,
   sendJson,

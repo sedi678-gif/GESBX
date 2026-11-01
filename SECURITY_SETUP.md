@@ -27,7 +27,7 @@ The site key must match the reCAPTCHA Enterprise provider registered for this We
 
 ```dotenv
 FIREBASE_SERVICE_ACCOUNT_JSON=<service-account JSON for gesbx-c4312>
-RISK_HASH_SECRET=<random secret with at least 32 characters>
+RISK_HASH_SECRET=<optional random secret with at least 32 characters>
 PLAY_INTEGRITY_PACKAGE_NAME=<registered Android package name>
 ANDROID_FIREBASE_APP_ID=<1:project-number:android:app-suffix>
 APP_CHECK_ALLOWED_ORIGINS=https://gesbx.vercel.app,https://gesbx-c4312.web.app,https://gesbx-c4312.firebaseapp.com,https://localhost,capacitor://localhost,http://localhost,http://localhost:3000
@@ -37,7 +37,7 @@ PAYPAL_MODE=live
 PAYPAL_WEBHOOK_ID=<PayPal webhook ID>
 ```
 
-Create the service account in `gesbx-c4312` and grant the permissions needed by the API: Firebase Auth token verification including revoked-token checks, App Check token verification/creation, Firestore access, and Play Integrity token decoding. Firestore Admin SDK access applies at database level, so keep this credential only in the Vercel server environment. `FIREBASE_SERVICE_ACCOUNT_JSON` is required; registration returns a clear server-configuration error when it is missing, malformed, or from another project. Generate an independent `RISK_HASH_SECRET`; do not reuse Firebase or PayPal credentials.
+Create the service account in `gesbx-c4312` and grant the permissions needed by the API: Firebase Auth token verification including revoked-token checks, App Check token verification/creation, Firestore access, and Play Integrity token decoding. Firestore Admin SDK access applies at database level, so keep this credential only in the Vercel server environment. `FIREBASE_SERVICE_ACCOUNT_JSON` is required; registration returns a clear server-configuration error when it is missing, malformed, or from another project. `RISK_HASH_SECRET` is optional. When it is unset, the API derives a purpose-specific HMAC key from the required service-account private key; if you set an override, use a random value with at least 32 characters and keep it server-only.
 
 `APP_CHECK_ALLOWED_ORIGINS` must contain the exact origins used by the deployed web app and native WebView. Remove any origin that the app does not use.
 
