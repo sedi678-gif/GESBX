@@ -102,6 +102,16 @@ export default function ProfileHeroDisplay({
 
 }: ProfileHeroDisplayProps) {
 
+  const [avatarPreviewOpen, setAvatarPreviewOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!avatarPreviewOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAvatarPreviewOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [avatarPreviewOpen]);
+
   const banner = resolveBannerGradient(cosmetics, bannerFallback);
   const cosmeticBannerImage = resolveBannerImage(cosmetics);
 
@@ -224,9 +234,22 @@ export default function ProfileHeroDisplay({
 
           >
 
-            <div className={`${profileStyles.avatarInner} ${frameImage ? profileStyles.avatarInnerFramed : ''}`}>
+            <div
+              className={`${profileStyles.avatarInner} ${frameImage ? profileStyles.avatarInnerFramed : ''} ${profileStyles.avatarPreviewTarget}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${name} ${surname || ''} profil şəklinə bax`}
+              aria-haspopup="dialog"
+              onClick={() => setAvatarPreviewOpen(true)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  setAvatarPreviewOpen(true);
+                }
+              }}
+            >
 
-              <img src={avatar} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
             </div>
 
@@ -298,6 +321,32 @@ export default function ProfileHeroDisplay({
       </section>
 
       {children}
+
+      {avatarPreviewOpen && (
+        <div
+          className={profileStyles.avatarPreviewOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${name} ${surname || ''} profil şəkli`}
+          onClick={() => setAvatarPreviewOpen(false)}
+        >
+          <div className={profileStyles.avatarPreviewDialog} onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className={profileStyles.avatarPreviewClose}
+              onClick={() => setAvatarPreviewOpen(false)}
+              aria-label="Önizləməni bağla"
+            >
+              ✕
+            </button>
+            <img
+              className={profileStyles.avatarPreviewImage}
+              src={avatar}
+              alt={`${name} ${surname || ''} profil şəkli`}
+            />
+          </div>
+        </div>
+      )}
 
     </>
 
