@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { isConfiguredAdminUid } = require('./adminAllowlist');
 const {
   db,
   FieldValue,
@@ -7,7 +8,6 @@ const {
   operationDocId,
   ensureRateLimitTx,
   adminUid,
-  ownsSuperAdminProfile,
   storedManat,
   ADMIN_UIDS,
 } = require('./security');
@@ -26,7 +26,10 @@ function splitName(displayName) {
 }
 
 async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authToken }) {
-  if (!await ownsSuperAdminProfile(uid)) {
+  // Bootstrap must work when the profile-to-UID link is exactly what is
+  // missing. Authorize using the server-only allowlist, then retain the
+  // transaction checks below so an existing profile cannot be taken over.
+  if (!isConfiguredAdminUid(uid, ADMIN_UIDS.value())) {
     throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
   }
   const userRef = db.doc(`users/${ADMIN_PROFILE_ID}`);
