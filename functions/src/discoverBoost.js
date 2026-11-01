@@ -4,9 +4,20 @@ const {
   ensureRateLimitTx, writeXpLedger, storedXp,
 } = require('./security');
 
-const XP_COST = 5000;
-const BOOST_MS = 15 * 60 * 1000;
-const schema = z.object({ userId: z.string().regex(/^\d{1,20}$/) }).strict();
+const XP_COST_BY_DURATION = new Map([
+  [5_000, 100],
+  [10_000, 200],
+  [25_000, 500],
+  [60_000, 1_000],
+  [2 * 60_000, 2_000],
+  [3 * 60_000, 3_000],
+  [4 * 60_000, 4_000],
+  [5 * 60_000, 5_000],
+]);
+const schema = z.object({
+  userId: z.string().regex(/^\d{1,20}$/),
+  durationMs: z.number().int().refine((durationMs) => XP_COST_BY_DURATION.has(durationMs)),
+}).strict();
 
 async function purchaseDiscoverBoost({ uid, payload, operationId, rateLimit }) {
   const now = Date.now();
@@ -16,21 +27,24 @@ async function purchaseDiscoverBoost({ uid, payload, operationId, rateLimit }) {
     const rate = await ensureRateLimitTx(tx, uid, 'purchaseDiscoverBoost', rateLimit, now);
     const owned = await getOwnedPlayer(uid, payload.userId, tx);
     const balance = storedXp(owned.player);
-    if (balance < XP_COST) throw new HttpsError('failed-precondition', 'Kəşf boostu üçün 5000 XP lazımdır.');
+    const durationMs = payload.durationMs;
+    const cost = XP_COST_BY_DURATION.get(durationMs);
+    if (cost == null) throw new HttpsError('invalid-argument', 'Kəşf boost müddəti düzgün deyil.');
+    if (balance < cost) throw new HttpsError('failed-precondition', `Bu boost üçün ${cost} XP lazımdır.`);
 
     const boostRef = db.doc(`discover_boosts/${owned.playerId}`);
     const boostSnap = await tx.get(boostRef);
     const existingUntil = boostSnap.exists ? Number(boostSnap.data().until) : 0;
-    const until = Math.max(now, Number.isFinite(existingUntil) ? existingUntil : 0) + BOOST_MS;
-    const xpAfter = balance - XP_COST;
-    const result = { until, xpRemaining: xpAfter, durationMs: BOOST_MS, cost: XP_COST };
+    const until = Math.max(now, Number.isFinite(existingUntil) ? existingUntil : 0) + durationMs;
+    const xpAfter = balance - cost;
+    const result = { until, xpRemaining: xpAfter, durationMs, cost };
 
     tx.set(owned.playerRef, { xp: xpAfter, updatedAt: now }, { merge: true });
     tx.set(boostRef, { userId: owned.playerId, until, updatedAt: now, source: 'xp' }, { merge: true });
     writeXpLedger(tx, ledger.ref, {
       uid, playerId: owned.playerId, operationId,
-      type: 'discover_boost_purchase', amount: -XP_COST, xpAfter,
-      source: 'discover_15m', result,
+      type: 'discover_boost_purchase', amount: -cost, xpAfter,
+      source: `discover_${durationMs}ms`, result,
     });
     tx.set(rate.ref, rate.next);
     return result;

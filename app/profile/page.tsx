@@ -56,6 +56,8 @@ import { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureF
 import GoogleAdButton from '@/app/components/alliance/GoogleAdButton';
 import {
   activateDiscoverBoost,
+  DISCOVER_BOOST_OPTIONS,
+  formatDiscoverBoostDuration,
   isDiscoverBoostActive,
   listenUserDiscoverBoost,
 } from '@/app/lib/discoverBoost';
@@ -621,6 +623,12 @@ function ProfilePageContent() {
   const [discoverBoostUntil, setDiscoverBoostUntil] = useState(0);
   const [showBoostOptions, setShowBoostOptions] = useState(false);
   const [buyingDiscoverBoost, setBuyingDiscoverBoost] = useState(false);
+  const [selectedDiscoverBoostDuration, setSelectedDiscoverBoostDuration] = useState<number>(
+    DISCOVER_BOOST_OPTIONS[0].durationMs,
+  );
+  const selectedDiscoverBoostOption = DISCOVER_BOOST_OPTIONS.find(
+    (option) => option.durationMs === selectedDiscoverBoostDuration,
+  ) ?? DISCOVER_BOOST_OPTIONS[0];
   const [boostNow, setBoostNow] = useState(() => Date.now());
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [accountEmail, setAccountEmail] = useState('');
@@ -1625,7 +1633,7 @@ function ProfilePageContent() {
             aria-modal="true"
             aria-labelledby="discover-boost-title"
             onClick={(event) => event.stopPropagation()}
-            style={{ ...modalContentStyle, width: '92%', maxWidth: 420, height: 'auto', padding: 22, gap: 14, color: '#f8fafc', background: '#111827', border: '1px solid #374151' }}
+            style={{ ...modalContentStyle, width: '92%', maxWidth: 420, height: 'auto', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: 22, gap: 14, color: '#f8fafc', background: '#111827', border: '1px solid #374151' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 id="discover-boost-title" style={{ margin: 0, fontSize: 19 }}>Videonu Kəşfə çıxar</h2>
@@ -1636,17 +1644,57 @@ function ProfilePageContent() {
               <strong style={{ display: 'block' }}>▶ Reklama bax · 2 dəqiqə</strong>
               <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#9ca3af' }}>AdMob reklamı və server təsdiqi qoşulandan sonra aktiv olacaq.</span>
             </button>
+            <div
+              role="group"
+              aria-label="Boost müddəti və XP seçimi"
+              style={{ display: 'flex', flexDirection: 'column', gap: 7, maxHeight: 220, overflowY: 'auto', overscrollBehavior: 'contain', touchAction: 'pan-y', paddingRight: 4 }}
+            >
+              {DISCOVER_BOOST_OPTIONS.map((option) => {
+                const selected = option.durationMs === selectedDiscoverBoostOption.durationMs;
+                const hasEnoughXp = Number(playerProfile?.xp || 0) >= option.cost;
+                return (
+                  <button
+                    key={option.durationMs}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={buyingDiscoverBoost}
+                    onClick={() => setSelectedDiscoverBoostDuration(option.durationMs)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      width: '100%',
+                      minHeight: 42,
+                      padding: '9px 12px',
+                      borderRadius: 10,
+                      border: selected ? '1px solid #8b5cf6' : '1px solid #374151',
+                      background: selected ? 'rgba(124,58,237,.22)' : '#1f2937',
+                      color: hasEnoughXp ? '#f8fafc' : '#9ca3af',
+                      textAlign: 'left',
+                      cursor: buyingDiscoverBoost ? 'wait' : 'pointer',
+                    }}
+                  >
+                    <strong>{option.label}</strong>
+                    <span style={{ fontWeight: 700, color: selected ? '#c4b5fd' : '#d1d5db' }}>
+                      {option.cost.toLocaleString('az-AZ')} XP
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             <button
               type="button"
-              disabled={buyingDiscoverBoost || !userId}
+              disabled={buyingDiscoverBoost || !userId || Number(playerProfile?.xp || 0) < selectedDiscoverBoostOption.cost}
               onClick={async () => {
                 if (!userId || buyingDiscoverBoost) return;
                 setBuyingDiscoverBoost(true);
                 try {
-                  const result = await activateDiscoverBoost(userId);
+                  const result = await activateDiscoverBoost(userId, selectedDiscoverBoostOption.durationMs);
                   setDiscoverBoostUntil(result.until);
                   setShowBoostOptions(false);
-                  setXpModeNotice(`15 dəqiqəlik Kəşf boostu aktivdir · qalıq ${result.xpRemaining} XP`);
+                  const duration = formatDiscoverBoostDuration(result.durationMs);
+                  setXpModeNotice(`${duration} Kəşf boostu aktivdir · qalıq ${result.xpRemaining} XP`);
                 } catch (err) {
                   alert(err instanceof Error ? err.message : 'Kəşf boostu alınmadı');
                 } finally {
@@ -1655,8 +1703,17 @@ function ProfilePageContent() {
               }}
               style={{ textAlign: 'left', padding: 14, borderRadius: 12, border: 0, background: 'linear-gradient(100deg,#7c3aed,#4f46e5)', color: 'white', cursor: buyingDiscoverBoost ? 'wait' : 'pointer', opacity: buyingDiscoverBoost ? .7 : 1 }}
             >
-              <strong style={{ display: 'block' }}>{buyingDiscoverBoost ? 'Aktivləşdirilir…' : '⚡ 5000 XP xərclə · 15 dəqiqə'}</strong>
-              <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#e0e7ff' }}>Balans: {Number(playerProfile?.xp || 0).toLocaleString('az-AZ')} XP</span>
+              <strong style={{ display: 'block' }}>
+                {buyingDiscoverBoost
+                  ? 'Aktivləşdirilir…'
+                  : `⚡ ${selectedDiscoverBoostOption.cost.toLocaleString('az-AZ')} XP xərclə · ${selectedDiscoverBoostOption.label}`}
+              </strong>
+              <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#e0e7ff' }}>
+                Balans: {Number(playerProfile?.xp || 0).toLocaleString('az-AZ')} XP
+                {Number(playerProfile?.xp || 0) < selectedDiscoverBoostOption.cost
+                  ? ` · ${selectedDiscoverBoostOption.cost - Number(playerProfile?.xp || 0)} XP çatmır`
+                  : ''}
+              </span>
             </button>
           </section>
         </div>

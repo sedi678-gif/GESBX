@@ -20,14 +20,20 @@ export function isDiscoverBoostActive(until: number, now = Date.now()): boolean 
   return remainingDiscoverBoostMs(until, now) > 0;
 }
 
-export async function activateDiscoverBoost(userId: string): Promise<{ until: number; xpRemaining: number }> {
+export async function activateDiscoverBoost(
+  userId: string,
+  durationMs: number,
+): Promise<{ until: number; xpRemaining: number; durationMs: number; cost: number }> {
   if (!userId || userId === 'anonim_user_id') {
     throw new Error('Kəşf boostu üçün profil tələb olunur.');
   }
 
   await ensureFirebaseAuth();
-  return callSecureFunction<{ userId: string }, { until: number; xpRemaining: number }>(
-    'purchaseDiscoverBoost', { userId },
+  return callSecureFunction<
+    { userId: string; durationMs: number },
+    { until: number; xpRemaining: number; durationMs: number; cost: number }
+  >(
+    'purchaseDiscoverBoost', { userId, durationMs },
   );
 }
 
