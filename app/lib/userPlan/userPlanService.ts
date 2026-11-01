@@ -19,11 +19,11 @@ export async function activateFreeCreatorPanel(playerId: string): Promise<UserPl
 
 /** Profil düyməsi — sosial rejim. Açıq olanda XP verilmir, paket dəyişmir. */
 export async function setProPanelActive(playerId: string, active: boolean): Promise<UserPlanState> {
-  const id = sanitizePlayerId(playerId);
-  return callSecureApi<{ userId: string; active: boolean }, UserPlanState>(
+  sanitizePlayerId(playerId);
+  return callSecureApi<{ active: boolean }, UserPlanState>(
     '/api/set-xp-mode',
     'setProPanelActive',
-    { userId: id, active },
+    { active },
   );
 }
 
