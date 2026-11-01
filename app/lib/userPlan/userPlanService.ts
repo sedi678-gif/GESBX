@@ -1,5 +1,4 @@
-import { callSecureFunction } from '@/app/lib/secureFunctions';
-import { requireFirebaseAuth } from '@/app/lib/firebaseAuth';
+import { callSecureApi, callSecureFunction } from '@/app/lib/secureFunctions';
 import { sanitizePlayerId } from '@/app/lib/battleEventLog/sanitizeBattleEventMeta';
 import {
   DEFAULT_USER_PLAN_STATE,
@@ -21,14 +20,10 @@ export async function activateFreeCreatorPanel(playerId: string): Promise<UserPl
 /** Profil düyməsi — sosial rejim. Açıq olanda XP verilmir, paket dəyişmir. */
 export async function setProPanelActive(playerId: string, active: boolean): Promise<UserPlanState> {
   const id = sanitizePlayerId(playerId);
-  // Player documents intentionally reject client reads until the server has
-  // bound the account. Let the authenticated callable verify and bind it;
-  // reading the document here fails with Firestore permission-denied first.
-  await requireFirebaseAuth();
-  await callSecureFunction('bindPlayerIdentity', { userId: id });
-  return callSecureFunction<{ userId: string; active: boolean }, UserPlanState>(
+  return callSecureApi<{ userId: string; active: boolean }, UserPlanState>(
+    '/api/set-xp-mode',
     'setProPanelActive',
-    { userId: id, active }
+    { userId: id, active },
   );
 }
 

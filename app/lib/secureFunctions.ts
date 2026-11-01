@@ -170,6 +170,12 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
     if (code === 'REFERRALS_UNAVAILABLE') {
       throw new Error('Dəvət məlumatları hazırda yüklənmir. Bir az sonra yenidən cəhd et.');
     }
+    if (code === 'XP_MODE_UPDATE_FAILED') {
+      throw new Error('XP rejimini dəyişmək alınmadı. Yenidən cəhd et.');
+    }
+    if (code === 'PROFILE_NOT_BOUND') {
+      throw new Error('Profil təhlükəsiz şəkildə bağlanmayıb. Hesabdan çıxıb yenidən daxil ol.');
+    }
     throw new Error(`${action} uğursuz oldu: ${code}`);
   }
   return result as TResult;
