@@ -42,6 +42,8 @@ function parseServiceAccountJson(raw) {
         throw e1;
       }
     }
+  }
+}
 
 function getServiceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
