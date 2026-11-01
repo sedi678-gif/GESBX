@@ -18,35 +18,13 @@ export async function activateFreeCreatorPanel(playerId: string): Promise<UserPl
 }
 
 /** Profil düyməsi — sosial rejim. Açıq olanda XP verilmir, paket dəyişmir. */
-export async function setProPanelActive(
-  playerId: string,
-  active: boolean,
-  displayName = '',
-): Promise<UserPlanState> {
-  const id = sanitizePlayerId(playerId);
-  const updateMode = () => callSecureApi<{ active: boolean }, UserPlanState>(
+export async function setProPanelActive(playerId: string, active: boolean): Promise<UserPlanState> {
+  sanitizePlayerId(playerId);
+  return callSecureApi<{ active: boolean }, UserPlanState>(
     '/api/set-xp-mode',
     'setProPanelActive',
     { active },
   );
-
-  try {
-    return await updateMode();
-  } catch (error) {
-    const code = error && typeof error === 'object' && 'code' in error
-      ? String((error as { code?: unknown }).code || '')
-      : '';
-    if (id !== '92' || code !== 'PROFILE_NOT_FOUND') throw error;
-
-    // Super admin ID 92 is reserved and has no normal user_id_allocations row.
-    // The callable independently checks the UID against the server-side
-    // ADMIN_UIDS allowlist before it can restore the profile/session binding.
-    await callSecureFunction<{ displayName: string }, { userId: string; active: boolean }>(
-      'bootstrapSuperAdmin',
-      { displayName: displayName.trim() || 'Super admin' },
-    );
-    return updateMode();
-  }
 }
 
 export function planStateFromPlayer(raw?: Record<string, unknown> | null): UserPlanState {

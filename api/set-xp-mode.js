@@ -7,6 +7,7 @@ const {
   sha256,
   verifySecureRequest,
 } = require('../services/apiSecurity');
+const { isVerifiedAdminRecovery } = require('../services/verifiedAdminRecovery');
 
 const USER_ID_PATTERN = /^\d{1,20}$/;
 
@@ -27,6 +28,7 @@ module.exports = async function setXpModeHandler(req, res) {
     }
 
     const db = getAdminFirestore();
+    const verifiedAdminRecovery = isVerifiedAdminRecovery(identity);
     const [usersByUid, playersByUid] = await Promise.all([
       db.collection('users').where('firebaseUid', '==', identity.uid).limit(2).get(),
       db.collection('players').where('firebaseUid', '==', identity.uid).limit(2).get(),
@@ -58,8 +60,13 @@ module.exports = async function setXpModeHandler(req, res) {
       throw new ApiError(409, 'PROFILE_NOT_UNIQUE');
     }
     const adminSession = adminSessionSnap.exists ? adminSessionSnap.data() || {} : {};
-    const adminProfileId = adminSession.adminUid === identity.uid ? '92' : '';
-    const userId = userProfileId || playerProfileId || allocatedProfileId || adminProfileId;
+    const adminProfileId = adminSession.adminUid === identity.uid || verifiedAdminRecovery ? '92' : '';
+    const userId = adminProfileId || userProfileId || playerProfileId || allocatedProfileId;
+    if (adminProfileId && ((userProfileId && userProfileId !== '92')
+      || (playerProfileId && playerProfileId !== '92')
+      || (allocatedProfileId && allocatedProfileId !== '92'))) {
+      throw new ApiError(409, 'PROFILE_LINK_MISMATCH');
+    }
     if (userId && allocatedProfileId && userId !== allocatedProfileId) {
       throw new ApiError(409, 'PROFILE_LINK_MISMATCH');
     }
@@ -81,8 +88,8 @@ module.exports = async function setXpModeHandler(req, res) {
         tx.get(adminSessionRef),
       ]);
       const isBoundAdmin = userId === '92'
-        && currentAdminSession.exists
-        && currentAdminSession.data()?.adminUid === identity.uid;
+        && (verifiedAdminRecovery || (currentAdminSession.exists
+          && currentAdminSession.data()?.adminUid === identity.uid));
       if (!playerSnap.exists && !userSnap.exists && !currentAllocation.exists && !isBoundAdmin) {
         throw new ApiError(404, 'PROFILE_NOT_FOUND');
       }
@@ -99,6 +106,24 @@ module.exports = async function setXpModeHandler(req, res) {
       }
       if (player.frozen === true || user.frozen === true || user.banned === true) {
         throw new ApiError(403, 'PROFILE_UNAVAILABLE');
+      }
+
+      if (isBoundAdmin) {
+        tx.set(userRef, {
+          id: '92',
+          name: user.name || 'Admin',
+          surname: user.surname || '',
+          handle: user.handle || '@admin',
+          role: 'super_admin',
+          isAdmin: true,
+          isModerator: true,
+          canViewReports: true,
+          canAccessAdminPanel: true,
+          firebaseUid: identity.uid,
+          email: identity.email,
+          createdAt: user.createdAt || now,
+          updatedAt: now,
+        }, { merge: true });
       }
 
       const alreadyBound = Boolean(player.identityVerifiedAt);

@@ -1249,7 +1249,7 @@ function ProfilePageContent() {
                 setXpModeOn(next);
                 setXpModeToggling(true);
                 setXpModeNotice(next ? 'XP rejimi aktivləşdirildi' : 'XP rejimini söndürdünüz');
-                void setProPanelActive(userId, !next, `${currentUser.name} ${currentUser.surname}`.trim())
+                void setProPanelActive(userId, !next)
                   .catch((err) => {
                     setXpModeOn(!next);
                     setXpModeNotice(null);
