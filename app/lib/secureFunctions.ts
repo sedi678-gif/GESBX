@@ -82,6 +82,14 @@ export async function callSecureFunction<TPayload extends Record<string, unknown
     const code = error && typeof error === 'object' && 'code' in error
       ? String((error as { code?: unknown }).code || '')
       : '';
+    if (code === 'functions/internal') {
+      console.error(`Secure Cloud Function ${action} failed internally:`, error);
+      throw new Error('Serverdə müvəqqəti xəta baş verdi. Bir az sonra yenidən cəhd et.', { cause: error });
+    }
+    if (code === 'functions/not-found') {
+      console.error(`Secure Cloud Function ${action} is not deployed:`, error);
+      throw new Error('Bu funksiya hazırda əlçatan deyil. Bir az sonra yenidən cəhd et.', { cause: error });
+    }
     const message = error instanceof Error ? error.message : String(error);
     const operation = code ? `${action} (${code})` : action;
     throw new Error(`${operation} uğursuz oldu: ${message}`, { cause: error });

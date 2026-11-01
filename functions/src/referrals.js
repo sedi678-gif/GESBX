@@ -278,7 +278,10 @@ async function getMyReferrals({ uid, payload, operationId, rateLimit, ip }) {
     if (operationSnap.exists) return operationSnap.data().result;
 
     const rate = await ensureRateLimitTx(tx, uid, 'getMyReferrals', rateLimit, now);
-    const referralsSnap = await db.collection('referrals').where('inviterPlayerId', '==', payload.userId).get();
+    const owned = await getOwnedPlayer(uid, payload.userId, tx);
+    const referralsSnap = await tx.get(
+      db.collection('referrals').where('inviterPlayerId', '==', owned.playerId),
+    );
     const referrals = [];
     referralsSnap.forEach((doc) => {
       referrals.push({ id: doc.id, ...doc.data() });
