@@ -77,8 +77,25 @@ async function createWithdrawalRequest({ uid, authToken, payload, operationId, r
     if (ledger.data) return ledger.data.result;
     const rate = await ensureRateLimitTx(tx, uid, 'createWithdrawalRequest', rateLimit, now);
     const owned = await getOwnedPlayer(uid, payload.userId, tx);
-    const [dailySnap, existingRequest] = await Promise.all([tx.get(dailyRef), tx.get(requestRef)]);
+    const referralQuery = db.collection('referrals').where('inviterPlayerId', '==', owned.playerId);
+    const [dailySnap, existingRequest, referralSnap] = await Promise.all([
+      tx.get(dailyRef),
+      tx.get(requestRef),
+      tx.get(referralQuery),
+    ]);
     if (existingRequest.exists) return existingRequest.data();
+    const qualifiedReferralIds = new Set(
+      referralSnap.docs
+        .filter((doc) => ['pending', 'active'].includes(String(doc.data().status || '')))
+        .map((doc) => String(doc.data().referredUid || doc.data().referredPlayerId || ''))
+        .filter(Boolean),
+    );
+    if (qualifiedReferralIds.size < 2) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Pul çıxarışını aktivləşdirmək üçün dəvət kodunla qeydiyyatdan keçən 2 dost lazımdır (${qualifiedReferralIds.size}/2).`,
+      );
+    }
     const age = ageAtBirthDate(owned.user.birthDate, now);
     if (age == null || age < 18) {
       if (owned.user.parentalConsentVerified !== true) {

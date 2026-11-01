@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Gift, ShieldCheck, Trophy } from 'lucide-react';
@@ -644,6 +644,34 @@ function ProfilePageContent() {
   const [applyReferralCode, setApplyReferralCode] = useState('');
   const [referralBusy, setReferralBusy] = useState(false);
   const [referralMessage, setReferralMessage] = useState('');
+  const [walletReferralCount, setWalletReferralCount] = useState(0);
+  const [walletReferralProgressLoading, setWalletReferralProgressLoading] = useState(false);
+  const [walletReferralProgressReady, setWalletReferralProgressReady] = useState(false);
+  const [walletReferralProgressError, setWalletReferralProgressError] = useState('');
+
+  const loadWalletReferralProgress = useCallback(async () => {
+    if (!currentUser.id || currentUser.id === 'anonim_user_id') {
+      setWalletReferralProgressReady(false);
+      return;
+    }
+    setWalletReferralProgressLoading(true);
+    setWalletReferralProgressError('');
+    try {
+      const result = await callSecureFunction<
+        { userId: string },
+        { activeCount: number; pendingCount: number }
+      >('getMyReferrals', { userId: currentUser.id });
+      const activeCount = Math.max(0, Number(result.activeCount) || 0);
+      const pendingCount = Math.max(0, Number(result.pendingCount) || 0);
+      setWalletReferralCount(activeCount + pendingCount);
+      setWalletReferralProgressReady(true);
+    } catch (error) {
+      setWalletReferralProgressReady(false);
+      setWalletReferralProgressError(error instanceof Error ? error.message : 'Dost dəvətləri yoxlanmadı.');
+    } finally {
+      setWalletReferralProgressLoading(false);
+    }
+  }, [currentUser.id]);
 
   useEffect(() => {
     if (!currentUser.id) return;
@@ -656,7 +684,8 @@ function ProfilePageContent() {
     setAccountEmail(email);
     setWithdrawEmail(email);
     setAccountEmailVerified(auth.currentUser?.emailVerified === true);
-  }, [showWalletModal]);
+    void loadWalletReferralProgress();
+  }, [showWalletModal, loadWalletReferralProgress]);
 
   const handleLinkAndVerifyEmail = async () => {
     setAccountSecurityBusy(true);
@@ -697,6 +726,14 @@ function ProfilePageContent() {
       setWithdrawMessage('Pul çıxarışı üçün Firebase hesabının emailini əvvəlcə təsdiqlə.');
       return;
     }
+    if (!walletReferralProgressReady || walletReferralCount < 2) {
+      setWithdrawMessage(
+        walletReferralProgressReady
+          ? `Cüzdanı aktivləşdirmək üçün 2 dost dəvət kodunla qeydiyyatdan keçməlidir (${Math.min(walletReferralCount, 2)}/2).`
+          : walletReferralProgressError || 'Dəvət sayı yoxlanır. Bir az sonra yenidən yoxla.',
+      );
+      return;
+    }
     const amount = Number(withdrawAmount);
     if (!Number.isSafeInteger(amount) || amount < 10) {
       setWithdrawMessage('Minimum çıxarış məbləği 10 AZN-dir.');
@@ -734,6 +771,7 @@ function ProfilePageContent() {
         { code: string }
       >('getMyReferralCode', { userId: currentUser.id, installationId });
       setMyReferralCode(result.code);
+      void loadWalletReferralProgress();
     } catch (err) {
       setReferralMessage(err instanceof Error ? err.message : 'Referral kodu alınmadı.');
     } finally {
@@ -1472,12 +1510,9 @@ function ProfilePageContent() {
               {isBalanceVisible ? `${manat.toLocaleString('az-AZ')} Manat` : '••••••'}
             </div>
             <div className={profileStyles.walletModalActions}>
-              <button type="button" className={socialStyles.secondaryBtn} onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
+              <button type="button" className={socialStyles.secondaryBtn} style={{ flex: 1 }} onClick={() => setIsBalanceVisible(!isBalanceVisible)}>
                 {isBalanceVisible ? t.hide : t.show}
               </button>
-              <AppLink href="/shop" className={socialStyles.primaryBtn} style={{ textDecoration: 'none', textAlign: 'center', flex: 1 }}>
-                ⚔️ Mağazaya get
-              </AppLink>
             </div>
             <section style={{ marginTop: 18, padding: 14, borderRadius: 16, border: '1px solid rgba(34,211,238,0.24)', background: 'rgba(15,23,42,0.55)' }}>
               <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Təsdiqlənmiş email</h3>
@@ -1519,6 +1554,25 @@ function ProfilePageContent() {
 
             <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(168,85,247,0.25)', background: 'rgba(15,23,42,0.55)' }}>
               <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 800 }}>Dost dəvəti</h3>
+              <p style={{ margin: '0 0 10px', color: '#c4b5fd', fontSize: 12, lineHeight: 1.5 }}>
+                2 dost dəvət kodunla qeydiyyatdan keçəndən sonra cüzdandan pul çıxarışı aktiv olacaq.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(124,58,237,0.12)', color: '#e9d5ff', fontSize: 12 }}>
+                <span>
+                  Dəvət irəliləyişi: {walletReferralProgressReady ? `${Math.min(walletReferralCount, 2)}/2` : '—/2'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void loadWalletReferralProgress()}
+                  disabled={walletReferralProgressLoading}
+                  style={{ border: 0, background: 'transparent', color: '#c4b5fd', fontWeight: 700, cursor: walletReferralProgressLoading ? 'wait' : 'pointer' }}
+                >
+                  {walletReferralProgressLoading ? 'Yoxlanır…' : 'Yenilə'}
+                </button>
+              </div>
+              {walletReferralProgressError ? (
+                <p role="status" style={{ margin: '0 0 10px', color: '#fca5a5', fontSize: 12 }}>{walletReferralProgressError}</p>
+              ) : null}
               <button type="button" className={socialStyles.secondaryBtn} disabled={referralBusy} onClick={() => void handleLoadReferralCode()}>
                 {referralBusy ? 'Gözlə…' : 'Dəvət kodumu göstər'}
               </button>
@@ -1541,7 +1595,9 @@ function ProfilePageContent() {
             <section style={{ marginTop: 12, padding: 14, borderRadius: 16, border: '1px solid rgba(34,197,94,0.22)', background: 'rgba(15,23,42,0.55)' }}>
               <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800 }}>Manatı çıxar</h3>
               <p style={{ margin: '0 0 10px', color: '#94a3b8', fontSize: 12 }}>
-                Minimum 10 AZN. Sorğu balansdan ayrılır, 48 saatlıq gözləmə və yoxlamadan sonra işlənir.
+                {walletReferralProgressReady && walletReferralCount >= 2
+                  ? 'Minimum 10 AZN. Sorğu balansdan ayrılır, 48 saatlıq gözləmə və yoxlamadan sonra işlənir.'
+                  : 'Pul çıxarışı 2 dəvət kodu ilə qeydiyyatdan keçən dostdan sonra açılır.'}
               </p>
               <form onSubmit={handleCreateWithdrawal} style={{ display: 'grid', gap: 8 }}>
                 <input
@@ -1552,6 +1608,7 @@ function ProfilePageContent() {
                   onChange={(event) => setWithdrawAmount(event.target.value)}
                   className={profileStyles.registerInput}
                   aria-label="Çıxarış məbləği, AZN"
+                  disabled={!walletReferralProgressReady || walletReferralCount < 2}
                 />
                 <input
                   type="email"
@@ -1560,8 +1617,9 @@ function ProfilePageContent() {
                   placeholder="Təsdiqlənmiş PayPal emaili"
                   className={profileStyles.registerInput}
                   required
+                  disabled={!walletReferralProgressReady || walletReferralCount < 2}
                 />
-                <button type="submit" className={socialStyles.primaryBtn} disabled={withdrawBusy || !accountEmailVerified}>
+                <button type="submit" className={socialStyles.primaryBtn} disabled={withdrawBusy || !accountEmailVerified || !walletReferralProgressReady || walletReferralCount < 2}>
                   {withdrawBusy ? 'Sorğu göndərilir…' : 'Çıxarış sorğusu yarat'}
                 </button>
               </form>
