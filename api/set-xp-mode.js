@@ -40,7 +40,14 @@ module.exports = async function setXpModeHandler(req, res) {
       throw new ApiError(409, 'PROFILE_LINK_MISMATCH');
     }
     const allocationRef = db.doc(`user_id_allocations/${sha256(identity.uid).slice(0, 48)}`);
-    const allocationSnap = await allocationRef.get();
+    // Profile 92 is reserved for the super admin and is intentionally excluded
+    // from normal user ID allocations. Its server-written admin session is the
+    // authoritative UID-to-profile link when the profile documents are legacy.
+    const adminSessionRef = db.doc('admin_sessions/92');
+    const [allocationSnap, adminSessionSnap] = await Promise.all([
+      allocationRef.get(),
+      adminSessionRef.get(),
+    ]);
     const allocatedProfileId = allocationSnap.exists
       ? String(allocationSnap.data()?.userId || '').trim()
       : '';
@@ -50,7 +57,9 @@ module.exports = async function setXpModeHandler(req, res) {
     if (allocatedProfileId && !USER_ID_PATTERN.test(allocatedProfileId)) {
       throw new ApiError(409, 'PROFILE_NOT_UNIQUE');
     }
-    const userId = userProfileId || playerProfileId || allocatedProfileId;
+    const adminSession = adminSessionSnap.exists ? adminSessionSnap.data() || {} : {};
+    const adminProfileId = adminSession.adminUid === identity.uid ? '92' : '';
+    const userId = userProfileId || playerProfileId || allocatedProfileId || adminProfileId;
     if (userId && allocatedProfileId && userId !== allocatedProfileId) {
       throw new ApiError(409, 'PROFILE_LINK_MISMATCH');
     }
@@ -65,12 +74,16 @@ module.exports = async function setXpModeHandler(req, res) {
       const operationSnap = await tx.get(operationRef);
       if (operationSnap.exists) return operationSnap.data().result;
 
-      const [playerSnap, userSnap, currentAllocation] = await Promise.all([
+      const [playerSnap, userSnap, currentAllocation, currentAdminSession] = await Promise.all([
         tx.get(playerRef),
         tx.get(userRef),
         tx.get(allocationRef),
+        tx.get(adminSessionRef),
       ]);
-      if (!playerSnap.exists && !userSnap.exists && !currentAllocation.exists) {
+      const isBoundAdmin = userId === '92'
+        && currentAdminSession.exists
+        && currentAdminSession.data()?.adminUid === identity.uid;
+      if (!playerSnap.exists && !userSnap.exists && !currentAllocation.exists && !isBoundAdmin) {
         throw new ApiError(404, 'PROFILE_NOT_FOUND');
       }
       if (currentAllocation.exists
