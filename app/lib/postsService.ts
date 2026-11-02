@@ -538,7 +538,14 @@ export function listenUserPosts(
     },
     (err) => {
       console.error('Profil paylaşımları xətası:', err);
-      onError?.('Paylaşımlar yüklənmədi.');
+      const code = typeof (err as { code?: unknown })?.code === 'string'
+        ? (err as { code: string }).code
+        : '';
+      onError?.(code === 'permission-denied'
+        ? 'Firestore oxuma icazəsini rədd etdi (permission-denied). gesbx-c4312 qaydalarında profil sahibinin öz gözləyən paylaşımlarını oxumasına icazə olmalıdır.'
+        : code
+          ? `Paylaşımlar yüklənmədi (${code}).`
+          : 'Paylaşımlar yüklənmədi. İnternet bağlantısını yoxlayıb yenidən cəhd edin.');
       callback([]);
     }
   );
