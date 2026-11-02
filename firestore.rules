@@ -3220,6 +3220,38 @@ service cloud.firestore {
           || request.resource.data.giftCount == resource.data.get('giftCount', 0) + 1);
       allow delete: if resource.data.userId is string
         && (ownsProfileId(resource.data.userId) || isTrustedModerator());
+
+      // Spark-plan post media is stored as bounded chunks in this post's
+      // Firestore subcollection. The server serves it publicly only after approval.
+      match /media/{chunkId} {
+        allow read: if isSignedIn()
+          && exists(/databases/$(database)/documents/posts/$(postId))
+          && ownsProfileId(get(/databases/$(database)/documents/posts/$(postId)).data.userId);
+        allow create: if isSignedIn()
+          && exists(/databases/$(database)/documents/posts/$(postId))
+          && get(/databases/$(database)/documents/posts/$(postId)).data.moderationStatus == 'pending'
+          && get(/databases/$(database)/documents/posts/$(postId)).data.userId is string
+          && ownsProfileId(get(/databases/$(database)/documents/posts/$(postId)).data.userId)
+          && request.resource.data.ownerId == get(/databases/$(database)/documents/posts/$(postId)).data.userId
+          && request.resource.data.index is int
+          && request.resource.data.chunkCount is int
+          && request.resource.data.chunkCount > 0
+          && request.resource.data.chunkCount <= 64
+          && request.resource.data.index >= 0
+          && request.resource.data.index < request.resource.data.chunkCount
+          && request.resource.data.contentType in [
+            'image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime'
+          ]
+          && request.resource.data.data is string
+          && request.resource.data.data.size() > 0
+          && request.resource.data.data.size() <= 980000
+          && request.resource.data.keys().hasOnly(['ownerId', 'index', 'chunkCount', 'contentType', 'data']);
+        allow update: if false;
+        allow delete: if isSignedIn()
+          && exists(/databases/$(database)/documents/posts/$(postId))
+          && get(/databases/$(database)/documents/posts/$(postId)).data.userId is string
+          && ownsProfileId(get(/databases/$(database)/documents/posts/$(postId)).data.userId);
+      }
     }
 
     match /post_likes/{likeId} {

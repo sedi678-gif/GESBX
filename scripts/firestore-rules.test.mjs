@@ -75,6 +75,21 @@ test('profile owner can create a post with a numeric userAge field', async () =>
 
   await assertSucceeds(setDoc(doc(db, 'posts/post-with-age'), post('post-with-age', 34)));
   await assertFails(setDoc(doc(db, 'posts/post-with-invalid-age'), post('post-with-invalid-age', '34')));
+  await assertSucceeds(setDoc(doc(db, 'posts/post-with-age/media/000'), {
+    ownerId: 'owner-1',
+    index: 0,
+    chunkCount: 1,
+    contentType: 'image/jpeg',
+    data: 'ZmFrZS1pbWFnZS1ieXRlcw==',
+  }));
+  const strangerDb = env.authenticatedContext('stranger-uid').firestore();
+  await assertFails(setDoc(doc(strangerDb, 'posts/post-with-age/media/001'), {
+    ownerId: 'owner-1',
+    index: 1,
+    chunkCount: 2,
+    contentType: 'image/jpeg',
+    data: 'ZmFrZS1pbWFnZS1ieXRlcw==',
+  }));
 });
 
 test('signed-in clients cannot create weekly settlement receipts or events', async () => {

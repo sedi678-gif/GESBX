@@ -9,13 +9,14 @@ import {
   updateDoc,
   deleteDoc,
   getDoc,
+  getDocs,
   increment,
   runTransaction,
   setDoc,
+  writeBatch,
   Unsubscribe,
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '@/firebase';
+import { apiBaseUrl, db } from '@/firebase';
 import { ensureFirebaseAuth, compressImageSafe, withTimeout } from './firebaseAuth';
 import { SocialPost, UserFeedItem, AppUserProfile, PostComment } from './socialTypes';
 import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discoverBoost';
@@ -23,10 +24,12 @@ import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discove
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
-const POST_IMAGE_MAX_WIDTH = 1280;
-const POST_IMAGE_QUALITY = 0.78;
-const UPLOAD_TIMEOUT_MS = 45_000;
-const CREATE_POST_TIMEOUT_MS = 75_000;
+const POST_IMAGE_MAX_WIDTH = 960;
+const POST_IMAGE_QUALITY = 0.66;
+const MAX_INLINE_MEDIA_BYTES = 700 * 1024;
+const MEDIA_CHUNK_BYTES = 700 * 1024;
+const MAX_MEDIA_CHUNKS = 64;
+const CREATE_POST_TIMEOUT_MS = 180_000;
 
 function calcAge(birthDate?: string): number | undefined {
   if (!birthDate) return undefined;
@@ -45,7 +48,17 @@ function isExpired(raw: Record<string, unknown>, now = Date.now()): boolean {
 }
 
 function scheduleExpiredPostDelete(postId: string) {
-  void deleteDoc(doc(db, 'posts', postId)).catch((error) => { console.warn('Background task failed', error); });
+  void clearPostMedia(postId)
+    .then(() => deleteDoc(doc(db, 'posts', postId)))
+    .catch((error) => { console.warn('Expired post cleanup failed', error); });
+}
+
+async function clearPostMedia(postId: string): Promise<void> {
+  const media = await getDocs(collection(db, 'posts', postId, 'media'));
+  if (media.empty) return;
+  const batch = writeBatch(db);
+  media.docs.forEach((chunk) => batch.delete(chunk.ref));
+  await batch.commit();
 }
 
 function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null {
@@ -83,7 +96,10 @@ function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null
 /** Fayl seçiləndə arxa planda çağır — paylaşım daha tez başlayır */
 export async function preparePostMediaFile(file: File): Promise<File> {
   if (!file.type.startsWith('image/')) return file;
-  const blob = await compressImageSafe(file, POST_IMAGE_MAX_WIDTH, POST_IMAGE_QUALITY);
+  if (file.type === 'image/jpeg' && file.size <= MAX_INLINE_MEDIA_BYTES) return file;
+  let blob = await compressImageSafe(file, POST_IMAGE_MAX_WIDTH, POST_IMAGE_QUALITY);
+  if (blob.size > MAX_INLINE_MEDIA_BYTES) blob = await compressImageSafe(file, 640, 0.48);
+  if (blob.size > MAX_INLINE_MEDIA_BYTES) throw new Error('Şəkil çox böyük qaldı. Daha kiçik şəkil seçin.');
   const baseName = file.name.replace(/\.[^.]+$/, '') || 'photo';
   return new File([blob], `${baseName}.jpg`, {
     type: 'image/jpeg',
@@ -148,12 +164,13 @@ async function readVideoDurationSeconds(file: File): Promise<number> {
   }
 }
 
-async function uploadBlobToStorage(blob: Blob, userId: string, postId: string, contentType: string): Promise<{ url: string; path: string }> {
-  const ext = contentType.startsWith('video/') ? 'mp4' : 'jpg';
-  const path = `posts/${userId}/${postId}/${postId}.${ext}`;
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, blob, { contentType: contentType || 'application/octet-stream' });
-  return { url: await getDownloadURL(storageRef), path };
+function encodeBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const blockSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += blockSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + blockSize));
+  }
+  return btoa(binary);
 }
 
 async function uploadMedia(file: File, userId: string, postId: string): Promise<{ url: string; path: string }> {
@@ -164,14 +181,35 @@ async function uploadMedia(file: File, userId: string, postId: string): Promise<
     throw new Error('Şəkil çox böyükdür (maks. 8 MB).');
   }
 
-  const authPromise = ensureFirebaseAuth();
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser || firebaseUser.isAnonymous) {
+    throw new Error('Paylaşım üçün Firebase hesabına daxil olun.');
+  }
 
-  await authPromise;
-  return withTimeout(
-    uploadBlobToStorage(file, userId, postId, file.type || (file.name.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4')),
-    UPLOAD_TIMEOUT_MS,
-    'Video yükləmə vaxtı bitdi. İnternet bağlantısını yoxlayın.'
-  );
+  const contentType = file.type || (file.name.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4');
+  const chunkCount = Math.ceil(file.size / MEDIA_CHUNK_BYTES);
+  if (!chunkCount || chunkCount > MAX_MEDIA_CHUNKS) throw new Error('Media faylı çox böyükdür.');
+
+  const mediaCollection = collection(db, 'posts', postId, 'media');
+  for (let batchStart = 0; batchStart < chunkCount; batchStart += 5) {
+    const writes: Promise<void>[] = [];
+    const batchEnd = Math.min(batchStart + 5, chunkCount);
+    for (let index = batchStart; index < batchEnd; index++) {
+      const start = index * MEDIA_CHUNK_BYTES;
+      const bytes = new Uint8Array(await file.slice(start, Math.min(start + MEDIA_CHUNK_BYTES, file.size)).arrayBuffer());
+      writes.push(setDoc(doc(mediaCollection, String(index).padStart(3, '0')), {
+        ownerId: userId,
+        index,
+        chunkCount,
+        contentType,
+        data: encodeBase64(bytes),
+      }));
+    }
+    await Promise.all(writes);
+  }
+
+  const path = `posts/${postId}/media`;
+  return { url: `${apiBaseUrl}/api/post-media?postId=${encodeURIComponent(postId)}`, path };
 }
 
 async function createPostInternal(
@@ -200,7 +238,7 @@ async function createPostInternal(
     userAvatar: user.avatar || '',
     userGender: user.gender || '',
     userRegion: user.region || '',
-    userAge: calcAge(user.birthDate),
+    ...(calcAge(user.birthDate) !== undefined ? { userAge: calcAge(user.birthDate) } : {}),
     title: title.trim(),
     mediaUrl: '',
     mediaPath,
@@ -218,6 +256,7 @@ async function createPostInternal(
     const uploadedMedia = await uploadMedia(uploadFile, user.id, postRef.id);
     await updateDoc(postRef, { mediaUrl: uploadedMedia.url });
   } catch (error) {
+    await clearPostMedia(postRef.id).catch((cleanupError) => console.warn('Yarımçıq paylaşım mediası silinmədi:', cleanupError));
     await deleteDoc(postRef).catch((cleanupError) => console.warn('Yarımçıq paylaşım qeydi silinmədi:', cleanupError));
     throw error;
   }
