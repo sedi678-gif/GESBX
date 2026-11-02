@@ -30,9 +30,15 @@ import {
 
   grantManatToUser,
 
-  bootstrapSuperAdmin,
+  bootstrapAdminPanel,
 
-  recordAdminSession,
+  setAdminPanelSession,
+
+  listPendingPostReviews,
+
+  getPendingPostMediaGroup,
+
+  decidePendingPostReview,
 
   AdminUserRow,
 
@@ -41,6 +47,8 @@ import {
   AdminMessageRow,
 
   AdminCommandRow,
+
+  PendingPostReview,
 
 } from '@/app/lib/adminService';
 
@@ -108,7 +116,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
   const [code, setCode] = useState('');
 
-  const [tab, setTab] = useState<'users' | 'reports' | 'messages' | 'chat' | 'commands' | 'security'>('users');
+  const [tab, setTab] = useState<'users' | 'reports' | 'messages' | 'chat' | 'commands' | 'security' | 'posts'>('users');
 
   const [users, setUsers] = useState<AdminUserRow[]>([]);
 
@@ -125,6 +133,15 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securityError, setSecurityError] = useState('');
   const [securityBusyId, setSecurityBusyId] = useState('');
+  const [pendingPostReviews, setPendingPostReviews] = useState<PendingPostReview[]>([]);
+  const [pendingPostReviewLoading, setPendingPostReviewLoading] = useState(false);
+  const [pendingPostReviewError, setPendingPostReviewError] = useState('');
+  const [pendingPostReviewBusyId, setPendingPostReviewBusyId] = useState('');
+  const [pendingPostPreview, setPendingPostPreview] = useState<{
+    id: string;
+    url: string;
+    mediaType: 'image' | 'video';
+  } | null>(null);
 
 
 
@@ -154,6 +171,75 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
       setSecurityLoading(false);
     }
   }, []);
+
+  const refreshPendingPostReviews = useCallback(async () => {
+    setPendingPostReviewLoading(true);
+    setPendingPostReviewError('');
+    try {
+      setPendingPostReviews(await listPendingPostReviews());
+    } catch (error) {
+      setPendingPostReviewError(error instanceof Error ? error.message : 'Gözləyən paylaşımlar yüklənmədi.');
+    } finally {
+      setPendingPostReviewLoading(false);
+    }
+  }, []);
+
+  const openPendingPostPreview = async (post: PendingPostReview) => {
+    if (!post.chunkCount || post.chunkCount > 64) {
+      setPendingPostReviewError('Media natamamdır, paylaşımı təsdiqləmək mümkün deyil.');
+      return;
+    }
+    setPendingPostReviewBusyId(post.id);
+    setPendingPostReviewError('');
+    try {
+      const parts: Uint8Array[] = [];
+      let contentType = '';
+      for (let startIndex = 0; startIndex < post.chunkCount; startIndex += 4) {
+        const group = await getPendingPostMediaGroup(
+          post.id,
+          startIndex,
+          Math.min(4, post.chunkCount - startIndex),
+        );
+        if (!contentType) contentType = group.contentType;
+        if (contentType !== group.contentType) throw new Error('Media hissələrinin formatı uyğun gəlmir.');
+        group.chunks.forEach((chunk) => {
+          const binary = atob(chunk.data);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+          parts.push(bytes);
+        });
+      }
+      if (parts.length !== post.chunkCount || !contentType) throw new Error('Media faylı tam yüklənmədi.');
+      setPendingPostPreview({
+        id: post.id,
+        url: URL.createObjectURL(new Blob(parts, { type: contentType })),
+        mediaType: post.mediaType,
+      });
+    } catch (error) {
+      setPendingPostReviewError(error instanceof Error ? error.message : 'Media önizləməsi açıla bilmədi.');
+    } finally {
+      setPendingPostReviewBusyId('');
+    }
+  };
+
+  const decidePostReview = async (post: PendingPostReview, decision: 'approve' | 'reject') => {
+    if (decision === 'approve' && pendingPostPreview?.id !== post.id) {
+      setPendingPostReviewError('Əvvəl paylaşımı önizləyib yoxlayın.');
+      return;
+    }
+    if (decision === 'reject' && !confirm('Bu paylaşımı rədd etmək istəyirsiniz?')) return;
+    setPendingPostReviewBusyId(post.id);
+    setPendingPostReviewError('');
+    try {
+      await decidePendingPostReview(post.id, decision);
+      setPendingPostPreview((current) => current?.id === post.id ? null : current);
+      setPendingPostReviews((current) => current.filter((item) => item.id !== post.id));
+    } catch (error) {
+      setPendingPostReviewError(error instanceof Error ? error.message : 'Qərar saxlanmadı.');
+    } finally {
+      setPendingPostReviewBusyId('');
+    }
+  };
 
   const reviewSecurityItem = async (item: SecurityReview, decision: 'approve' | 'reject' | 'paid') => {
     setSecurityBusyId(item.id);
@@ -241,6 +327,15 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
     void refreshSecurityReviews();
   }, [unlocked, tab, refreshSecurityReviews]);
 
+  useEffect(() => {
+    if (!unlocked || tab !== 'posts') return;
+    void refreshPendingPostReviews();
+  }, [unlocked, tab, refreshPendingPostReviews]);
+
+  useEffect(() => () => {
+    if (pendingPostPreview?.url) URL.revokeObjectURL(pendingPostPreview.url);
+  }, [pendingPostPreview]);
+
 
 
   const handleUnlock = async () => {
@@ -257,9 +352,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
     try {
 
-      await bootstrapSuperAdmin(displayName);
-
-      await recordAdminSession(userId, displayName, true);
+      await bootstrapAdminPanel(displayName);
 
       setUnlocked(true);
 
@@ -271,7 +364,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
       console.error(err);
 
-      alert('Admin girişi uğursuz oldu.');
+      alert(err instanceof Error ? err.message : 'Admin girişi uğursuz oldu.');
 
     }
 
@@ -281,7 +374,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
   const handleLogout = () => {
 
-    void recordAdminSession(userId, displayName, false);
+    void setAdminPanelSession(displayName, false).catch((error) => console.warn('Admin çıxış qeydi saxlanmadı:', error));
 
     lockAdminSession();
 
@@ -427,11 +520,12 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
       <div className={styles.tabRow} style={{ padding: 0, marginBottom: 12 }}>
 
-        {(['users', 'reports', 'messages', 'chat', 'commands', 'security'] as const).map((t) => (
+        {(['users', 'reports', 'messages', 'chat', 'commands', 'security', 'posts'] as const).map((t) => (
 
-          <button key={t} type="button" className={`${styles.tabPill} ${tab === t ? styles.tabPillActive : ''}`} onClick={() => setTab(t)}>
+          <button key={t} type="button" aria-label={t === 'posts' ? 'Paylaşımları yoxla' : `Admin ${t}`}
+            className={`${styles.tabPill} ${tab === t ? styles.tabPillActive : ''}`} onClick={() => setTab(t)}>
 
-            {t === 'users' ? '👥' : t === 'reports' ? '⚠️' : t === 'messages' ? '💬' : t === 'chat' ? '🏰' : t === 'security' ? '🛡️' : '📋'}
+            {t === 'users' ? '👥' : t === 'reports' ? '⚠️' : t === 'messages' ? '💬' : t === 'chat' ? '🏰' : t === 'security' ? '🛡️' : t === 'posts' ? '📝' : '📋'}
 
           </button>
 
@@ -576,6 +670,53 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
         </div>
 
+      )}
+
+      {tab === 'posts' && (
+        <div style={{ maxHeight: 420, overflowY: 'auto', fontSize: 11 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <strong>Gözləyən paylaşımlar ({pendingPostReviews.length})</strong>
+            <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '5px 9px', margin: 0 }}
+              onClick={() => void refreshPendingPostReviews()} disabled={pendingPostReviewLoading}>
+              {pendingPostReviewLoading ? 'Yüklənir…' : 'Yenilə'}
+            </button>
+          </div>
+          <p style={{ color: '#94a3b8', margin: '0 0 10px' }}>
+            Spark planında avtomatik media skanı yoxdur. Faylı önizləyib əl ilə təsdiqləyin və ya rədd edin.
+          </p>
+          {pendingPostReviewError && <p style={{ color: '#f87171', margin: '8px 0' }}>{pendingPostReviewError}</p>}
+          {pendingPostPreview && (
+            <div style={{ margin: '8px 0 12px', padding: 8, borderRadius: 10, background: 'rgba(2,6,23,.75)' }}>
+              {pendingPostPreview.mediaType === 'video'
+                ? <video src={pendingPostPreview.url} controls playsInline style={{ width: '100%', maxHeight: 280, objectFit: 'contain' }} />
+                : <img src={pendingPostPreview.url} alt="Yoxlanılan paylaşım" style={{ display: 'block', width: '100%', maxHeight: 280, objectFit: 'contain' }} />}
+            </div>
+          )}
+          {!pendingPostReviewLoading && pendingPostReviews.length === 0 && !pendingPostReviewError && (
+            <div style={{ color: '#94a3b8', padding: 12 }}>Gözləyən paylaşım yoxdur.</div>
+          )}
+          {pendingPostReviews.map((post) => (
+            <div key={post.id} style={{ padding: 10, borderBottom: '1px solid rgba(148,163,184,.2)' }}>
+              <div><strong>{post.title || 'Başlıqsız paylaşım'}</strong> · {post.mediaType === 'video' ? 'Video' : 'Şəkil'}</div>
+              <div style={{ color: '#94a3b8', marginTop: 3 }}>#{post.userId} · {post.userName} · {new Date(post.createdAt).toLocaleString('az-AZ')}</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 7 }}>
+                <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '5px 8px', margin: 0 }}
+                  onClick={() => void openPendingPostPreview(post)} disabled={pendingPostReviewBusyId === post.id || !post.chunkCount}>
+                  {pendingPostReviewBusyId === post.id ? 'Yüklənir…' : 'Önizlə'}
+                </button>
+                <button type="button" className={styles.primaryBtn} style={{ width: 'auto', padding: '5px 8px', margin: 0 }}
+                  onClick={() => void decidePostReview(post, 'approve')}
+                  disabled={pendingPostReviewBusyId === post.id || pendingPostPreview?.id !== post.id}>
+                  Təsdiqlə
+                </button>
+                <button type="button" className={styles.dangerBtn} style={{ width: 'auto', padding: '5px 8px', margin: 0 }}
+                  onClick={() => void decidePostReview(post, 'reject')} disabled={pendingPostReviewBusyId === post.id}>
+                  Rədd et
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
 

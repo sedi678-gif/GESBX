@@ -67,7 +67,8 @@ function mapPostDoc(
   includePending = false,
 ): SocialPost | null {
   const moderationStatus = raw.moderationStatus;
-  if (moderationStatus !== 'approved' && !(includePending && moderationStatus === 'pending')) return null;
+  const ownerReviewStatus = includePending && (moderationStatus === 'pending' || moderationStatus === 'rejected');
+  if (moderationStatus !== 'approved' && !ownerReviewStatus) return null;
   if (isExpired(raw)) {
     scheduleExpiredPostDelete(id);
     return null;
@@ -79,7 +80,7 @@ function mapPostDoc(
   return {
     id,
     userId: String(raw.userId),
-    moderationStatus,
+    moderationStatus: moderationStatus as SocialPost['moderationStatus'],
     userName: String(raw.userName || 'İstifadəçi'),
     userHandle: String(raw.userHandle || ''),
     userAvatar: String(raw.userAvatar || ''),
@@ -462,7 +463,7 @@ export function listenUserPosts(
 
   const publish = () => {
     callback(latestPosts
-      .map((post) => post.moderationStatus === 'pending'
+      .map((post) => post.moderationStatus !== 'approved'
         ? { ...post, mediaUrl: pendingMediaUrls.get(post.id) || '' }
         : post)
       .sort((a, b) => b.createdAt - a.createdAt));
@@ -471,7 +472,8 @@ export function listenUserPosts(
   const loadPendingMedia = async (postId: string): Promise<string> => {
     const postSnap = await getDoc(doc(db, 'posts', postId));
     const post = postSnap.data();
-    if (!postSnap.exists() || post?.userId !== userId || post?.moderationStatus !== 'pending') {
+    if (!postSnap.exists() || post?.userId !== userId
+      || !['pending', 'rejected'].includes(String(post?.moderationStatus || ''))) {
       throw new Error('Pending post is no longer available to its owner.');
     }
 
@@ -510,9 +512,11 @@ export function listenUserPosts(
         if (mapped) posts.push(mapped);
       });
       latestPosts = posts;
-      const pendingIds = new Set(posts.filter((post) => post.moderationStatus === 'pending').map((post) => post.id));
+      const ownerReviewIds = new Set(posts
+        .filter((post) => post.moderationStatus === 'pending' || post.moderationStatus === 'rejected')
+        .map((post) => post.id));
       pendingMediaUrls.forEach((url, postId) => {
-        if (!pendingIds.has(postId)) {
+        if (!ownerReviewIds.has(postId)) {
           URL.revokeObjectURL(url);
           pendingMediaUrls.delete(postId);
         }
@@ -521,11 +525,13 @@ export function listenUserPosts(
 
       if (!includePending) return;
       posts.forEach((post) => {
-        if (post.moderationStatus !== 'pending' || pendingMediaUrls.has(post.id) || pendingMediaLoads.has(post.id)) return;
+        if ((post.moderationStatus !== 'pending' && post.moderationStatus !== 'rejected')
+          || pendingMediaUrls.has(post.id) || pendingMediaLoads.has(post.id)) return;
         pendingMediaLoads.add(post.id);
         void loadPendingMedia(post.id)
           .then((url) => {
-            if (!active || !latestPosts.some((current) => current.id === post.id && current.moderationStatus === 'pending')) {
+            if (!active || !latestPosts.some((current) => current.id === post.id
+              && (current.moderationStatus === 'pending' || current.moderationStatus === 'rejected'))) {
               URL.revokeObjectURL(url);
               return;
             }

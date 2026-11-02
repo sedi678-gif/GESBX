@@ -243,7 +243,10 @@ async function verifyPlayIntegrity(integrityToken, packageName, expectedHash) {
   return verdict;
 }
 
-async function verifySecureRequest(req, action, payload, { requireIdempotency = false } = {}) {
+async function verifySecureRequest(req, action, payload, {
+  requireIdempotency = false,
+  uidLimit = { max: 10, windowMs: 60_000 },
+} = {}) {
   const authorization = header(req, 'authorization').match(/^Bearer\s+(.+)$/i);
   const appCheckToken = header(req, 'x-firebase-appcheck').trim();
   const installationId = header(req, 'x-firebase-installation-id').trim();
@@ -271,7 +274,7 @@ async function verifySecureRequest(req, action, payload, { requireIdempotency = 
     const requestHash = actionRequestHash(decoded.uid, action, operationId, payload, installationId);
     await verifyPlayIntegrity(integrityToken, packageName, requestHash);
   }
-  await enforceClientRateLimits(decoded.uid, installationId, getClientIp(req), action);
+  await enforceClientRateLimits(decoded.uid, installationId, getClientIp(req), action, uidLimit);
   return {
     uid: decoded.uid,
     email: String(decoded.email || '').trim().toLowerCase(),

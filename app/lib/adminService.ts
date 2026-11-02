@@ -43,6 +43,23 @@ export interface AdminReportRow {
   createdAt: number;
 }
 
+export interface PendingPostReview {
+  id: string;
+  userId: string;
+  userName: string;
+  title: string;
+  mediaType: 'image' | 'video';
+  createdAt: number;
+  expiresAt: number;
+  chunkCount: number;
+}
+
+export interface PendingPostMediaGroup {
+  contentType: string;
+  chunkCount: number;
+  chunks: { index: number; data: string }[];
+}
+
 export interface AdminMessageRow {
   id: string;
   senderId: string;
@@ -295,6 +312,60 @@ export function listenAllianceChat(callback: (rows: { id: string; user: string; 
 export async function resolveReport(adminId: string, reportId: string, status: 'resolved' | 'dismissed') {
   assertSuperAdmin(adminId);
   await callSecureFunction('adminResolveReport', { reportId, status });
+}
+
+export async function listPendingPostReviews(): Promise<PendingPostReview[]> {
+  const result = await callSecureApi<
+    { action: 'list' },
+    { posts: PendingPostReview[] }
+  >('/api/admin-moderate-post', 'adminModeratePost', { action: 'list' });
+  return result.posts;
+}
+
+export async function getPendingPostMediaGroup(
+  postId: string,
+  startIndex: number,
+  count: number,
+): Promise<PendingPostMediaGroup> {
+  return callSecureApi<
+    { action: 'media'; postId: string; startIndex: number; count: number },
+    PendingPostMediaGroup
+  >('/api/admin-moderate-post', 'adminModeratePost', {
+    action: 'media', postId, startIndex, count,
+  });
+}
+
+export async function decidePendingPostReview(
+  postId: string,
+  decision: 'approve' | 'reject',
+): Promise<{ id: string; status: 'approved' | 'rejected' }> {
+  return callSecureApi<
+    { action: 'decide'; postId: string; decision: 'approve' | 'reject' },
+    { id: string; status: 'approved' | 'rejected' }
+  >('/api/admin-moderate-post', 'adminModeratePost', {
+    action: 'decide', postId, decision,
+  });
+}
+
+export async function setAdminPanelSession(
+  displayName: string,
+  active: boolean,
+): Promise<{ active: boolean }> {
+  return callSecureApi<
+    { action: 'session'; displayName: string; active: boolean },
+    { active: boolean }
+  >('/api/admin-moderate-post', 'adminModeratePost', {
+    action: 'session', displayName, active,
+  });
+}
+
+export async function bootstrapAdminPanel(displayName: string): Promise<{ userId: string; active: boolean }> {
+  return callSecureApi<
+    { action: 'bootstrap'; displayName: string },
+    { userId: string; active: boolean }
+  >('/api/admin-moderate-post', 'adminModeratePost', {
+    action: 'bootstrap', displayName,
+  });
 }
 
 export async function punishUser(adminId: string, userId: string, days: number, reason: string) {

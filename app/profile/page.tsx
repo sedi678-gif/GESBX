@@ -73,7 +73,7 @@ interface GiftItem {
 interface PostItem {
   id: string;
   userId: string;
-  moderationStatus: 'approved' | 'pending';
+  moderationStatus: 'approved' | 'pending' | 'rejected';
   title: string;
   mediaUrl: string;
   thumbnail: string;
@@ -1153,7 +1153,7 @@ function ProfilePageContent() {
       setPostAuthRecovery(false);
       setPostAuthPassword('');
       setIsUploadModalOpen(false);
-      alert('Paylaşım profilinizə əlavə olundu. Yoxlamada olduğu üçün hazırda yalnız sizə görünür.');
+      alert('Paylaşım profilinizə əlavə olundu. Admin təsdiqləyənədək yalnız sizə görünəcək.');
     } finally {
       setIsUploadingPost(false);
       setUploadProgress('');
@@ -1416,7 +1416,10 @@ function ProfilePageContent() {
                     <img src={post.mediaUrl} alt={post.title} />
                   )) : <span className={profileStyles.postMediaPending}>Media yüklənir...</span>}
                   {post.moderationStatus === 'pending' && (
-                    <span className={profileStyles.pendingPostBadge}>Yoxlanılır</span>
+                    <span className={profileStyles.pendingPostBadge}>Admin təsdiqi gözlənilir</span>
+                  )}
+                  {post.moderationStatus === 'rejected' && (
+                    <span className={profileStyles.pendingPostBadge}>Rədd edildi</span>
                   )}
                 </div>
               ))}
@@ -1465,8 +1468,12 @@ function ProfilePageContent() {
             </div>
 
             <div className={profileStyles.postViewerBody}>
-              {activePost.moderationStatus === 'pending' ? (
-                <p className={profileStyles.postPendingNotice}>Bu paylaşım hazırda yalnız sizə görünür və yoxlama tamamlanana qədər Kəşf et-də göstərilmir.</p>
+              {activePost.moderationStatus !== 'approved' ? (
+                <p className={profileStyles.postPendingNotice}>
+                  {activePost.moderationStatus === 'pending'
+                    ? 'Bu paylaşım yalnız sizə görünür. GESBX administratorunun təsdiqindən sonra Kəşf et-də yayımlanacaq.'
+                    : 'Bu paylaşım administrator tərəfindən rədd edilib və başqalarına göstərilmir. Yenidən paylaşmaq üçün yeni paylaşım yarada bilərsiniz.'}
+                </p>
               ) : <div className={profileStyles.postViewerActions}>
                 <div className={profileStyles.postViewerActionGroup}>
                   <button

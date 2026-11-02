@@ -185,6 +185,21 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
     if (code === 'PROFILE_LINK_MISMATCH') {
       throw new Error('Firebase hesabı ilə oyunçu profilinin bağlantısı uyğun gəlmir. Profilin sahibi olan hesabla daxil ol.');
     }
+    if (code === 'ADMIN_BOOTSTRAP_NOT_CONFIGURED') {
+      throw new Error('Admin rolu hələ qurulmayıb. Vercel-də yalnız admin Firebase UID-si üçün ADMIN_FIREBASE_UIDS dəyişənini əlavə edib redeploy edin.');
+    }
+    if (code === 'ADMIN_PROFILE_NOT_BOUND' || code === 'ADMIN_REVIEW_FORBIDDEN') {
+      throw new Error('Bu Firebase hesabının admin profilinə icazəsi yoxdur. Admin hesabı və ID 92 bağlantısını yoxlayın.');
+    }
+    if (code === 'POST_NOT_PENDING') {
+      throw new Error('Bu paylaşım artıq yoxlama növbəsində deyil. Növbəni yeniləyin.');
+    }
+    if (code === 'MEDIA_INCOMPLETE' || code === 'MEDIA_INVALID' || code === 'MEDIA_TOO_LARGE') {
+      throw new Error('Paylaşım mediası natamam və ya düzgün formatda deyil; onu təsdiqləmək mümkün olmadı.');
+    }
+    if (code === 'POST_MODERATION_UNAVAILABLE') {
+      throw new Error('Paylaşım yoxlama xidməti hazırda əlçatan deyil. Vercel deployment loglarını yoxlayın.');
+    }
     throw new Error(`${action} uğursuz oldu: ${code}`);
   }
   return result as TResult;
