@@ -29,7 +29,8 @@ const POST_IMAGE_QUALITY = 0.66;
 const MAX_INLINE_MEDIA_BYTES = 700 * 1024;
 const MEDIA_CHUNK_BYTES = 700 * 1024;
 const MAX_MEDIA_CHUNKS = 64;
-const CREATE_POST_TIMEOUT_MS = 180_000;
+const IMAGE_POST_TIMEOUT_MS = 30_000;
+const VIDEO_POST_TIMEOUT_MS = 90_000;
 
 function calcAge(birthDate?: string): number | undefined {
   if (!birthDate) return undefined;
@@ -173,17 +174,17 @@ function encodeBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function uploadMedia(file: File, userId: string, postId: string): Promise<{ url: string; path: string }> {
+async function uploadMedia(
+  file: File,
+  userId: string,
+  postId: string,
+  onProgress?: (message: string) => void
+): Promise<{ url: string; path: string }> {
   if (file.type.startsWith('video/') && file.size > MAX_VIDEO_BYTES) {
     throw new Error('Video çox böyükdür (maks. 25 MB).');
   }
   if (file.type.startsWith('image/') && file.size > MAX_IMAGE_BYTES) {
     throw new Error('Şəkil çox böyükdür (maks. 8 MB).');
-  }
-
-  const firebaseUser = await ensureFirebaseAuth();
-  if (!firebaseUser || firebaseUser.isAnonymous) {
-    throw new Error('Paylaşım üçün Firebase hesabına daxil olun.');
   }
 
   const contentType = file.type || (file.name.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4');
@@ -206,6 +207,7 @@ async function uploadMedia(file: File, userId: string, postId: string): Promise<
       }));
     }
     await Promise.all(writes);
+    onProgress?.(`Media yüklənir (${batchEnd}/${chunkCount})...`);
   }
 
   const path = `posts/${postId}/media`;
@@ -216,22 +218,30 @@ async function createPostInternal(
   user: AppUserProfile,
   title: string,
   file: File,
-  mediaType: 'video' | 'image'
+  mediaType: 'video' | 'image',
+  onProgress?: (message: string) => void
 ): Promise<string> {
   if (!user.id?.trim()) {
     throw new Error('Profil tapılmadı. Əvvəlcə qeydiyyatdan keçin.');
   }
 
+  onProgress?.(mediaType === 'image' ? 'Şəkil hazırlanır...' : 'Video məlumatları oxunur...');
   const uploadFile = mediaType === 'image' ? await preparePostMediaFile(file) : file;
   await validatePostMediaDimensions(uploadFile, mediaType);
   const durationSeconds = mediaType === 'video' ? await readVideoDurationSeconds(uploadFile) : undefined;
+  onProgress?.('Hesab təsdiqlənir...');
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser || firebaseUser.isAnonymous) {
+    throw new Error('Paylaşım üçün Firebase hesabına daxil olun.');
+  }
   const postRef = doc(collection(db, 'posts'));
   const ext = mediaType === 'video' ? 'mp4' : 'jpg';
   const mediaPath = `posts/${user.id}/${postRef.id}/${postRef.id}.${ext}`;
   const now = Date.now();
   const fullName = [user.name, user.surname].filter(Boolean).join(' ').trim();
 
-  await setDoc(postRef, {
+  const mediaUrl = `${apiBaseUrl}/api/post-media?postId=${encodeURIComponent(postRef.id)}`;
+  const postData = {
     userId: user.id,
     userName: fullName || user.name || 'İstifadəçi',
     userHandle: user.handle || '',
@@ -240,7 +250,7 @@ async function createPostInternal(
     userRegion: user.region || '',
     ...(calcAge(user.birthDate) !== undefined ? { userAge: calcAge(user.birthDate) } : {}),
     title: title.trim(),
-    mediaUrl: '',
+    mediaUrl,
     mediaPath,
     mediaType,
     moderationStatus: 'pending',
@@ -251,10 +261,33 @@ async function createPostInternal(
     giftCount: 0,
     createdAt: now,
     expiresAt: now + POST_TTL_MS,
-  });
+  };
+
+  const isSingleImageChunk = mediaType === 'image'
+    && uploadFile.size > 0
+    && uploadFile.size <= MEDIA_CHUNK_BYTES;
+  if (isSingleImageChunk) {
+    const bytes = new Uint8Array(await uploadFile.arrayBuffer());
+    const mediaRef = doc(collection(db, 'posts', postRef.id, 'media'), '000');
+    const batch = writeBatch(db);
+    batch.set(postRef, postData);
+    batch.set(mediaRef, {
+      ownerId: user.id,
+      index: 0,
+      chunkCount: 1,
+      contentType: uploadFile.type || 'image/jpeg',
+      data: encodeBase64(bytes),
+    });
+    onProgress?.('Şəkil birbaşa paylaşılır...');
+    await batch.commit();
+    return postRef.id;
+  }
+
+  await setDoc(postRef, postData);
   try {
-    const uploadedMedia = await uploadMedia(uploadFile, user.id, postRef.id);
-    await updateDoc(postRef, { mediaUrl: uploadedMedia.url });
+    onProgress?.('Media yüklənir...');
+    const uploadedMedia = await uploadMedia(uploadFile, user.id, postRef.id, onProgress);
+    if (uploadedMedia.url !== mediaUrl) await updateDoc(postRef, { mediaUrl: uploadedMedia.url });
   } catch (error) {
     await clearPostMedia(postRef.id).catch((cleanupError) => console.warn('Yarımçıq paylaşım mediası silinmədi:', cleanupError));
     await deleteDoc(postRef).catch((cleanupError) => console.warn('Yarımçıq paylaşım qeydi silinmədi:', cleanupError));
@@ -268,11 +301,12 @@ export async function createPost(
   user: AppUserProfile,
   title: string,
   file: File,
-  mediaType: 'video' | 'image'
+  mediaType: 'video' | 'image',
+  onProgress?: (message: string) => void
 ): Promise<string> {
   return withTimeout(
-    createPostInternal(user, title, file, mediaType),
-    CREATE_POST_TIMEOUT_MS,
+    createPostInternal(user, title, file, mediaType, onProgress),
+    mediaType === 'image' ? IMAGE_POST_TIMEOUT_MS : VIDEO_POST_TIMEOUT_MS,
     'Paylaşım vaxtı bitdi. İnternet bağlantısını yoxlayın və yenidən cəhd edin.'
   );
 }

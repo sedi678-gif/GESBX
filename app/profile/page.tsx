@@ -833,6 +833,7 @@ function ProfilePageContent() {
   const postGalleryInputRef = useRef<HTMLInputElement>(null);
   const postCameraInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingPost, setIsUploadingPost] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [postsLoadError, setPostsLoadError] = useState('');
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const likedPostIdsRef = useRef(likedPostIds);
@@ -1091,6 +1092,7 @@ function ProfilePageContent() {
     const fileToUpload = uploadReadyFile ?? selectedFile;
 
     setIsUploadingPost(true);
+    setUploadProgress('Paylaşım hazırlanır...');
     try {
       await createPost(
         {
@@ -1105,7 +1107,8 @@ function ProfilePageContent() {
         },
         newPostTitle.trim(),
         fileToUpload,
-        newPostType
+        newPostType,
+        setUploadProgress
       );
 
       if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
@@ -1121,6 +1124,7 @@ function ProfilePageContent() {
       alert(msg);
     } finally {
       setIsUploadingPost(false);
+      setUploadProgress('');
     }
   };
 
@@ -1866,7 +1870,7 @@ function ProfilePageContent() {
               ) : null}
               {isUploadingPost ? (
                 <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 8 }}>
-                  Paylaşım göndərilir, zəhmət olmasa gözləyin...
+                  {uploadProgress || 'Paylaşım göndərilir...'}
                 </p>
               ) : null}
             </form>

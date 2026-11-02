@@ -5,7 +5,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes } from 'firebase/storage';
 
 let env;
@@ -82,6 +82,20 @@ test('profile owner can create a post with a numeric userAge field', async () =>
     contentType: 'image/jpeg',
     data: 'ZmFrZS1pbWFnZS1ieXRlcw==',
   }));
+  const atomicPostRef = doc(db, 'posts/post-with-atomic-media');
+  const atomicBatch = writeBatch(db);
+  atomicBatch.set(atomicPostRef, {
+    ...post('post-with-atomic-media', 34),
+    mediaUrl: 'https://gesbx.vercel.app/api/post-media?postId=post-with-atomic-media',
+  });
+  atomicBatch.set(doc(db, 'posts/post-with-atomic-media/media/000'), {
+    ownerId: 'owner-1',
+    index: 0,
+    chunkCount: 1,
+    contentType: 'image/jpeg',
+    data: 'ZmFrZS1pbWFnZS1ieXRlcw==',
+  });
+  await assertSucceeds(atomicBatch.commit());
   const strangerDb = env.authenticatedContext('stranger-uid').firestore();
   await assertFails(setDoc(doc(strangerDb, 'posts/post-with-age/media/001'), {
     ownerId: 'owner-1',

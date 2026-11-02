@@ -3228,11 +3228,10 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/posts/$(postId))
           && ownsProfileId(get(/databases/$(database)/documents/posts/$(postId)).data.userId);
         allow create: if isSignedIn()
-          && exists(/databases/$(database)/documents/posts/$(postId))
-          && get(/databases/$(database)/documents/posts/$(postId)).data.moderationStatus == 'pending'
-          && get(/databases/$(database)/documents/posts/$(postId)).data.userId is string
-          && ownsProfileId(get(/databases/$(database)/documents/posts/$(postId)).data.userId)
-          && request.resource.data.ownerId == get(/databases/$(database)/documents/posts/$(postId)).data.userId
+          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.moderationStatus == 'pending'
+          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.userId is string
+          && ownsProfileId(getAfter(/databases/$(database)/documents/posts/$(postId)).data.userId)
+          && request.resource.data.ownerId == getAfter(/databases/$(database)/documents/posts/$(postId)).data.userId
           && request.resource.data.index is int
           && request.resource.data.chunkCount is int
           && request.resource.data.chunkCount > 0
