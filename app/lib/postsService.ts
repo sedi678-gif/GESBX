@@ -231,8 +231,8 @@ async function createPostInternal(
   const durationSeconds = mediaType === 'video' ? await readVideoDurationSeconds(uploadFile) : undefined;
   onProgress?.('Hesab təsdiqlənir...');
   const firebaseUser = await ensureFirebaseAuth();
-  if (!firebaseUser || firebaseUser.isAnonymous) {
-    throw new Error('Paylaşım üçün Firebase hesabına daxil olun.');
+  if (!firebaseUser) {
+    throw new Error('Firebase bağlantısı qurulmadı. Səhifəni yeniləyib təkrar yoxlayın.');
   }
   const postRef = doc(collection(db, 'posts'));
   const ext = mediaType === 'video' ? 'mp4' : 'jpg';
