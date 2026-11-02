@@ -11,6 +11,7 @@ export interface PostComment {
 export interface SocialPost {
   id: string;
   userId: string;
+  moderationStatus: 'approved' | 'pending';
   userName: string;
   userHandle: string;
   userAvatar: string;

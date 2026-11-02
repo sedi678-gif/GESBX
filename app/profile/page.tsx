@@ -73,6 +73,7 @@ interface GiftItem {
 interface PostItem {
   id: string;
   userId: string;
+  moderationStatus: 'approved' | 'pending';
   title: string;
   mediaUrl: string;
   thumbnail: string;
@@ -876,6 +877,7 @@ function ProfilePageContent() {
           mediaUrl: p.mediaUrl,
           thumbnail: p.mediaUrl,
           mediaType: p.mediaType,
+          moderationStatus: p.moderationStatus,
           views: p.views,
           likes: p.likes,
           isLiked: likedPostIdsRef.current.has(p.id),
@@ -884,7 +886,8 @@ function ProfilePageContent() {
           createdAt: p.createdAt,
         })));
       },
-      setPostsLoadError
+      setPostsLoadError,
+      { includePending: true },
     );
   }, [currentUser.id, isRegistered]);
 
@@ -1150,7 +1153,7 @@ function ProfilePageContent() {
       setPostAuthRecovery(false);
       setPostAuthPassword('');
       setIsUploadModalOpen(false);
-      alert('Paylaşım uğurla yerləşdirildi! Kəşf et səhifəsində hamı görə bilər (24 saat).');
+      alert('Paylaşım profilinizə əlavə olundu. Yoxlamada olduğu üçün hazırda yalnız sizə görünür.');
     } finally {
       setIsUploadingPost(false);
       setUploadProgress('');
@@ -1407,10 +1410,13 @@ function ProfilePageContent() {
             <div className={profileStyles.postGridPremium}>
               {posts.map((post) => (
                 <div key={post.id} className={profileStyles.postTile} onClick={() => setSelectedPostId(post.id)}>
-                  {post.mediaType === 'video' ? (
+                  {post.mediaUrl ? (post.mediaType === 'video' ? (
                     <video src={post.mediaUrl} muted />
                   ) : (
                     <img src={post.mediaUrl} alt={post.title} />
+                  )) : <span className={profileStyles.postMediaPending}>Media yüklənir...</span>}
+                  {post.moderationStatus === 'pending' && (
+                    <span className={profileStyles.pendingPostBadge}>Yoxlanılır</span>
                   )}
                 </div>
               ))}
@@ -1451,15 +1457,17 @@ function ProfilePageContent() {
             </div>
 
             <div className={profileStyles.postViewerMedia}>
-              {activePost.mediaType === 'video' ? (
+              {activePost.mediaUrl ? activePost.mediaType === 'video' ? (
                 <video src={activePost.mediaUrl} controls playsInline />
               ) : (
                 <img src={activePost.mediaUrl} alt={activePost.title} />
-              )}
+              ) : <span className={profileStyles.postMediaPending}>Media yüklənir...</span>}
             </div>
 
             <div className={profileStyles.postViewerBody}>
-              <div className={profileStyles.postViewerActions}>
+              {activePost.moderationStatus === 'pending' ? (
+                <p className={profileStyles.postPendingNotice}>Bu paylaşım hazırda yalnız sizə görünür və yoxlama tamamlanana qədər Kəşf et-də göstərilmir.</p>
+              ) : <div className={profileStyles.postViewerActions}>
                 <div className={profileStyles.postViewerActionGroup}>
                   <button
                     type="button"
@@ -1488,7 +1496,7 @@ function ProfilePageContent() {
                     <PostActionIcon kind="report" alt="Bildir" size="sm" />
                   </button>
                 </div>
-              </div>
+              </div>}
 
               <div className={profileStyles.postViewerSection}>
                 Alınan hədiyyələr ({activePost.receivedGifts.length})

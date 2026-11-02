@@ -3163,7 +3163,8 @@ service cloud.firestore {
 
     // Postlar — hamı oxuyur, yalnız sahibi yazır/silir.
     match /posts/{postId} {
-      allow read: if resource.data.moderationStatus == 'approved';
+      allow read: if resource.data.moderationStatus == 'approved'
+        || (isSignedIn() && ownsProfileId(resource.data.userId));
       allow create: if isSignedIn()
         && request.resource.data.userId is string
         && ownsProfileId(request.resource.data.userId)

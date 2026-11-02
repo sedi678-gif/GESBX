@@ -61,8 +61,13 @@ async function clearPostMedia(postId: string): Promise<void> {
   await batch.commit();
 }
 
-function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null {
-  if (raw.moderationStatus !== 'approved') return null;
+function mapPostDoc(
+  id: string,
+  raw: Record<string, unknown>,
+  includePending = false,
+): SocialPost | null {
+  const moderationStatus = raw.moderationStatus;
+  if (moderationStatus !== 'approved' && !(includePending && moderationStatus === 'pending')) return null;
   if (isExpired(raw)) {
     scheduleExpiredPostDelete(id);
     return null;
@@ -74,6 +79,7 @@ function mapPostDoc(id: string, raw: Record<string, unknown>): SocialPost | null
   return {
     id,
     userId: String(raw.userId),
+    moderationStatus,
     userName: String(raw.userName || 'İstifadəçi'),
     userHandle: String(raw.userHandle || ''),
     userAvatar: String(raw.userAvatar || ''),
@@ -439,24 +445,96 @@ export function listenExploreFeed(
 export function listenUserPosts(
   userId: string,
   callback: (posts: SocialPost[]) => void,
-  onError?: (message: string) => void
+  onError?: (message: string) => void,
+  options: { includePending?: boolean } = {},
 ): Unsubscribe {
-  // orderBy olmadan — indeks tələb etmir, client-side sıralama
-  const q = query(
-    collection(db, 'posts'),
-    where('userId', '==', userId),
-    where('moderationStatus', '==', 'approved')
-  );
+  const includePending = options.includePending === true;
+  // Pending records are only requested by the authenticated owner's profile.
+  // Firestore Rules enforce ownership; public profile callers stay approved-only.
+  const q = includePending
+    ? query(collection(db, 'posts'), where('userId', '==', userId))
+    : query(collection(db, 'posts'), where('userId', '==', userId), where('moderationStatus', '==', 'approved'));
 
-  return onSnapshot(
+  let active = true;
+  let latestPosts: SocialPost[] = [];
+  const pendingMediaUrls = new Map<string, string>();
+  const pendingMediaLoads = new Set<string>();
+
+  const publish = () => {
+    callback(latestPosts
+      .map((post) => post.moderationStatus === 'pending'
+        ? { ...post, mediaUrl: pendingMediaUrls.get(post.id) || '' }
+        : post)
+      .sort((a, b) => b.createdAt - a.createdAt));
+  };
+
+  const loadPendingMedia = async (postId: string): Promise<string> => {
+    const postSnap = await getDoc(doc(db, 'posts', postId));
+    const post = postSnap.data();
+    if (!postSnap.exists() || post?.userId !== userId || post?.moderationStatus !== 'pending') {
+      throw new Error('Pending post is no longer available to its owner.');
+    }
+
+    const chunksSnap = await getDocs(collection(db, 'posts', postId, 'media'));
+    const chunks = chunksSnap.docs
+      .map((chunkDoc) => chunkDoc.data())
+      .sort((a, b) => Number(a.index) - Number(b.index));
+    const first = chunks[0];
+    const contentType = String(first?.contentType || '');
+    const chunkCount = Number(first?.chunkCount);
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']);
+    if (!chunks.length || chunks.length > MAX_MEDIA_CHUNKS || chunks.length !== chunkCount || !allowedTypes.has(contentType)) {
+      throw new Error('Pending post media is incomplete.');
+    }
+
+    const parts = chunks.map((chunk, index) => {
+      if (Number(chunk.index) !== index || Number(chunk.chunkCount) !== chunkCount
+        || chunk.contentType !== contentType || chunk.ownerId !== userId || typeof chunk.data !== 'string') {
+        throw new Error('Pending post media is invalid.');
+      }
+      const binary = atob(chunk.data);
+      const bytes = new Uint8Array(binary.length);
+      for (let offset = 0; offset < binary.length; offset += 1) bytes[offset] = binary.charCodeAt(offset);
+      return bytes;
+    });
+
+    return URL.createObjectURL(new Blob(parts, { type: contentType }));
+  };
+
+  const unsubscribe = onSnapshot(
     q,
     (snap) => {
       const posts: SocialPost[] = [];
       snap.forEach((d) => {
-        const mapped = mapPostDoc(d.id, d.data() as Record<string, unknown>);
+        const mapped = mapPostDoc(d.id, d.data() as Record<string, unknown>, includePending);
         if (mapped) posts.push(mapped);
       });
-      callback(posts.sort((a, b) => b.createdAt - a.createdAt));
+      latestPosts = posts;
+      const pendingIds = new Set(posts.filter((post) => post.moderationStatus === 'pending').map((post) => post.id));
+      pendingMediaUrls.forEach((url, postId) => {
+        if (!pendingIds.has(postId)) {
+          URL.revokeObjectURL(url);
+          pendingMediaUrls.delete(postId);
+        }
+      });
+      publish();
+
+      if (!includePending) return;
+      posts.forEach((post) => {
+        if (post.moderationStatus !== 'pending' || pendingMediaUrls.has(post.id) || pendingMediaLoads.has(post.id)) return;
+        pendingMediaLoads.add(post.id);
+        void loadPendingMedia(post.id)
+          .then((url) => {
+            if (!active || !latestPosts.some((current) => current.id === post.id && current.moderationStatus === 'pending')) {
+              URL.revokeObjectURL(url);
+              return;
+            }
+            pendingMediaUrls.set(post.id, url);
+            publish();
+          })
+          .catch((error) => console.warn(`Pending post preview could not be loaded (${post.id}):`, error))
+          .finally(() => pendingMediaLoads.delete(post.id));
+      });
     },
     (err) => {
       console.error('Profil paylaşımları xətası:', err);
@@ -464,6 +542,13 @@ export function listenUserPosts(
       callback([]);
     }
   );
+
+  return () => {
+    active = false;
+    unsubscribe();
+    pendingMediaUrls.forEach((url) => URL.revokeObjectURL(url));
+    pendingMediaUrls.clear();
+  };
 }
 
 export function likesReceivedStorageKey(userId: string): string {
