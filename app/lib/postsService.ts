@@ -5,7 +5,6 @@ import {
   onSnapshot,
   query,
   where,
-  orderBy,
   updateDoc,
   deleteDoc,
   getDoc,
@@ -382,7 +381,10 @@ export function listenExploreFeed(
   blockedUserIds: string[] = [],
   onError?: (message: string) => void
 ): Unsubscribe {
-  const q = query(collection(db, 'posts'), where('moderationStatus', '==', 'approved'), orderBy('createdAt', 'desc'));
+  // Firestore only needs its automatic single-field index here. Sorting by
+  // creation time happens locally in rankExploreFeed, avoiding a composite
+  // index deployment dependency for the public feed.
+  const q = query(collection(db, 'posts'), where('moderationStatus', '==', 'approved'));
   let posts: SocialPost[] = [];
   let boosts = new Map<string, number>();
   let expireTimer: ReturnType<typeof setTimeout> | null = null;
