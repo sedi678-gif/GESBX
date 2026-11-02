@@ -43,6 +43,40 @@ test('signed-in clients cannot create arena reward records or reward events', as
   }));
 });
 
+test('profile owner can create a post with a numeric userAge field', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'users/owner-1'), {
+      id: 'owner-1',
+      firebaseUid: 'owner-uid',
+    });
+  });
+
+  const db = env.authenticatedContext('owner-uid').firestore();
+  const post = (id, userAge) => ({
+    userId: 'owner-1',
+    userName: 'Owner',
+    userHandle: '@owner',
+    userAvatar: '',
+    userGender: '',
+    userRegion: '',
+    userAge,
+    title: 'Test post',
+    mediaUrl: '',
+    mediaPath: `posts/owner-1/${id}/${id}.jpg`,
+    mediaType: 'image',
+    moderationStatus: 'pending',
+    likes: 0,
+    views: 0,
+    commentsCount: 0,
+    giftCount: 0,
+    createdAt: 100,
+    expiresAt: 200,
+  });
+
+  await assertSucceeds(setDoc(doc(db, 'posts/post-with-age'), post('post-with-age', 34)));
+  await assertFails(setDoc(doc(db, 'posts/post-with-invalid-age'), post('post-with-invalid-age', '34')));
+});
+
 test('signed-in clients cannot create weekly settlement receipts or events', async () => {
   const db = env.authenticatedContext('player-1').firestore();
   await assertFails(setDoc(doc(db, 'arena_reward_settlements/2026-10-12_AZ'), {

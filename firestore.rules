@@ -3176,9 +3176,14 @@ service cloud.firestore {
         && request.resource.data.mediaType in ['image', 'video']
         && request.resource.data.keys().hasOnly([
           'userId', 'userName', 'userHandle', 'userAvatar', 'userGender', 'userRegion',
+          'userAge',
           'title', 'mediaUrl', 'mediaPath', 'mediaType', 'moderationStatus', 'durationSeconds', 'likes', 'views',
           'commentsCount', 'giftCount', 'createdAt', 'expiresAt'
         ])
+        && (!('userAge' in request.resource.data)
+          || (request.resource.data.userAge is int
+            && request.resource.data.userAge >= 0
+            && request.resource.data.userAge <= 130))
         && request.resource.data.likes == 0
         && request.resource.data.views == 0
         && request.resource.data.commentsCount == 0
