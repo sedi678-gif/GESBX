@@ -3,6 +3,7 @@ import {
   linkWithCredential,
   sendEmailVerification,
   signInAnonymously,
+  signInWithEmailAndPassword,
   connectAuthEmulator,
   User,
 } from 'firebase/auth';
@@ -128,6 +129,18 @@ export async function requireFirebaseAuth(): Promise<User> {
     throw new Error(`Firebase girişi alınmadı. Firebase Console-da Anonymous girişin aktiv, sayt domeninin isə Authentication → Settings → Authorized domains siyahısında olduğunu yoxlayın.${detail}`);
   }
   return user;
+}
+
+/** Restore a profile's linked Firebase identity when this browser has a stale anonymous session. */
+export async function signInFirebaseAccount(email: string, password: string): Promise<User> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !password) throw new Error('Firebase email və şifrəsini daxil edin.');
+  const credential = await withTimeout(
+    signInWithEmailAndPassword(auth, normalizedEmail, password),
+    20_000,
+    'Firebase hesabına giriş vaxtı bitdi.'
+  );
+  return credential.user;
 }
 
 /** Attach email/password to the current anonymous account without changing its UID. */
