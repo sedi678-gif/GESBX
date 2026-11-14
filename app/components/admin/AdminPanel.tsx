@@ -192,7 +192,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
     setPendingPostReviewBusyId(post.id);
     setPendingPostReviewError('');
     try {
-      const parts: Uint8Array[] = [];
+    const parts: ArrayBuffer[] = [];
       let contentType = '';
       for (let startIndex = 0; startIndex < post.chunkCount; startIndex += 4) {
         const group = await getPendingPostMediaGroup(
@@ -206,7 +206,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
           const binary = atob(chunk.data);
           const bytes = new Uint8Array(binary.length);
           for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-          parts.push(bytes);
+          parts.push(bytes.buffer);
         });
       }
       if (parts.length !== post.chunkCount || !contentType) throw new Error('Media faylı tam yüklənmədi.');
