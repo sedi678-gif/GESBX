@@ -66,10 +66,8 @@ function resolveUserId(firebaseUser: User | null): string {
 
   if (localId) return localId;
 
-  if (firebaseUser?.uid) return firebaseUser.uid;
-
-  if (firebaseUser?.email) return firebaseUser.email;
-
+  // A Firebase UID is not a public GESBX profile ID. Until a numeric
+  // profile is restored or created, keep the app in the unregistered state.
   return 'anonim_user_id';
 
 }
@@ -136,7 +134,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const applyId = () => {
       const currentUser = auth.currentUser;
       const localId = currentUser?.uid ? getLocalProfileUserId(currentUser.uid) : null;
-      setUserId(localId || currentUser?.uid || 'anonim_user_id');
+      setUserId(localId || 'anonim_user_id');
     };
 
     applyId();
