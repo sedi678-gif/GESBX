@@ -9,9 +9,9 @@ import {
   limit,
   Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { apiBaseUrl, db } from '@/firebase';
 import { ensureFirebaseAuth } from '@/app/lib/firebaseAuth';
-import { callSecureApi, callSecureFunction } from '@/app/lib/secureFunctions';
+import { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
 import { resolvePlayerManat } from '@/app/lib/manat';
 import { SUPER_ADMIN_ID } from './adminConfig';
 
@@ -192,12 +192,30 @@ export async function syncUserIdCounterFromFirebase(): Promise<number> {
 }
 
 export async function allocateNextUserId(): Promise<string> {
-  await ensureFirebaseAuth();
-  const result = await callSecureApi<Record<string, never>, { userId: string }>(
-    '/api/allocate-user-id',
-    'allocateUserId',
-    {},
-  );
+  const user = await ensureFirebaseAuth();
+  if (!user) throw new Error('Firebase hesabı yaradılmadı. İnternet bağlantısını yoxlayın.');
+
+  // Registration ID allocation uses Firebase Auth + server-side rate limits.
+  // App Check remains required for all other secure APIs.
+  const installationId = await getFirebaseInstallationId();
+  const response = await fetch(`${apiBaseUrl}/api/allocate-user-id-registration`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${await user.getIdToken()}`,
+      'Content-Type': 'application/json',
+      'X-Firebase-Installation-Id': installationId,
+    },
+    body: JSON.stringify({}),
+  });
+  const result = await response.json().catch(() => ({})) as { userId?: string; error?: string };
+  if (!response.ok || !result.userId) {
+    const code = result.error || 'USER_ID_ALLOCATION_FAILED';
+    if (code === 'RATE_LIMITED') throw new Error('Çox tez-tez cəhd edildi. Bir neçə dəqiqə sonra yenidən yoxlayın.');
+    if (code === 'AUTH_TOKEN_INVALID' || code === 'AUTH_HEADERS_REQUIRED') {
+      throw new Error('Firebase sessiyası etibarsızdır. Səhifəni yeniləyib yenidən cəhd edin.');
+    }
+    throw new Error(`İstifadəçi ID-si ayrılmadı: ${code}`);
+  }
   return result.userId;
 }
 
