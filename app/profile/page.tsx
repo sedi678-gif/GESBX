@@ -365,13 +365,11 @@ function ProfilePageContent() {
         (expectedFirebaseUid && signedInUser.uid !== expectedFirebaseUid)
       ) return;
 
-      // Restore only documents explicitly linked to this authenticated Firebase UID.
-      // A previous attempt may have written users/{id} but failed before players/{id}.
-      const [playersSnap, usersSnap] = await Promise.all([
-        getDocs(query(collection(db, 'players'), where('firebaseUid', '==', signedInUser.uid))),
-        getDocs(query(collection(db, 'users'), where('firebaseUid', '==', signedInUser.uid))),
-      ]);
-      const snap = !playersSnap.empty ? playersSnap : usersSnap;
+      // Query users only: Firestore rules intentionally restrict listing the
+      // private players collection to moderators. Public user docs are UID-filtered.
+      const snap = await getDocs(
+        query(collection(db, 'users'), where('firebaseUid', '==', signedInUser.uid))
+      );
 
       if (!snap.empty) {
         const docSnap = snap.docs[0];
