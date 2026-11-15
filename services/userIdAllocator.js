@@ -45,7 +45,12 @@ async function allocateUserId(uid) {
       tx.get(db.collection('users').where('firebaseUid', '==', uid)),
       tx.get(db.collection('players').where('firebaseUid', '==', uid)),
     ]);
-    if (allocationSnap.exists) return { userId: String(allocationSnap.data().userId) };
+    if (allocationSnap.exists) {
+      const allocatedId = numericId(allocationSnap.data().userId);
+      if (allocatedId != null) return { userId: String(allocatedId) };
+      // Older builds could reserve the Firebase UID itself as a profile ID.
+      // Replace that invalid reservation with a numeric GESBX ID below.
+    }
 
     // Ignore legacy orphan documents keyed directly by a Firebase UID.
     // Only numeric GESBX profile IDs represent completed/allocated profiles.
@@ -65,7 +70,7 @@ async function allocateUserId(uid) {
       if ((user && user.firebaseUid !== uid) || (player && player.firebaseUid !== uid)) {
         throw new Error('PROFILE_OWNER_MISMATCH');
       }
-      tx.create(allocationRef, {
+      tx.set(allocationRef, {
         authUid: uid,
         userId: existingId,
         createdAt: FieldValue.serverTimestamp(),
@@ -93,7 +98,7 @@ async function allocateUserId(uid) {
         reservedAdminId: String(ADMIN_PROFILE_ID),
         updatedAt: Date.now(),
       }, { merge: true });
-      tx.create(allocationRef, {
+      tx.set(allocationRef, {
         authUid: uid,
         userId: String(candidate),
         createdAt: FieldValue.serverTimestamp(),
