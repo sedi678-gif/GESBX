@@ -2104,7 +2104,16 @@ service cloud.firestore {
 
     match /players/{playerId} {
       // Balances, inventory and VIP flags are private to the owner and trusted moderators.
-      allow read: if isPlayerOwner(playerId) || isTrustedModerator();
+      // A linked account may GET its own missing player document during first-time setup.
+      // Collection listing remains restricted to trusted moderators.
+      allow get: if isPlayerOwner(playerId)
+        || isTrustedModerator()
+        || (
+          request.auth != null
+          && !exists(/databases/$(database)/documents/players/$(playerId))
+          && hasLinkedUserProfile(playerId, request.auth.uid)
+        );
+      allow list: if isTrustedModerator();
       allow create: if isSafeNewPlayer(playerId);
       allow update: if isPlayerOwner(playerId)
         && request.resource.data.firebaseUid == resource.data.firebaseUid
