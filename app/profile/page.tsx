@@ -291,12 +291,14 @@ const DEFAULT_PROFILE_USER = {
   allianceName: '',
 };
 
-function readStoredProfile() {
+function readStoredProfile(firebaseUid: string | null) {
   if (typeof window === 'undefined') return null;
   try {
     const savedUser = localStorage.getItem('app_current_user_v6');
     if (!savedUser) return null;
     const parsed = JSON.parse(savedUser);
+    // Never reuse another Firebase account's cached profile (for example ID 92).
+    if (!firebaseUid || parsed?.firebaseUid !== firebaseUid) return null;
     const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
     return { ...parsed, allianceName: savedAlliance || parsed.allianceName || '' };
   } catch {
@@ -331,7 +333,7 @@ function ProfilePageContent() {
   const searchParams = useSearchParams();
   const viewUserId = searchParams.get('user');
 
-  const { manat, playerProfile, spendManat, userId } = useUser();
+  const { manat, playerProfile, spendManat, userId, user: firebaseUser, authReady } = useUser();
   const { language: settingsLang, setLanguage: setSettingsLang } = useSettings();
   const language = settingsLang;
   const t = translations[language] ?? translations.az;
@@ -354,28 +356,35 @@ function ProfilePageContent() {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const mediaSyncPausedRef = useRef(false);
 
-  const restoreExistingProfile = async () => {
+  const restoreExistingProfile = async (expectedFirebaseUid?: string) => {
     try {
-      const firebaseUser = await ensureFirebaseAuth();
-      if (!firebaseUser || firebaseUser.isAnonymous) return;
+      const signedInUser = await ensureFirebaseAuth();
+      if (
+        !signedInUser ||
+        signedInUser.isAnonymous ||
+        (expectedFirebaseUid && signedInUser.uid !== expectedFirebaseUid)
+      ) return;
 
-      // Look for an existing player profile linked to this Firebase UID
-      const playersRef = collection(db, 'players');
-      const q = query(playersRef, where('firebaseUid', '==', firebaseUser.uid));
-      const snap = await getDocs(q);
+      // Restore only documents explicitly linked to this authenticated Firebase UID.
+      // A previous attempt may have written users/{id} but failed before players/{id}.
+      const [playersSnap, usersSnap] = await Promise.all([
+        getDocs(query(collection(db, 'players'), where('firebaseUid', '==', signedInUser.uid))),
+        getDocs(query(collection(db, 'users'), where('firebaseUid', '==', signedInUser.uid))),
+      ]);
+      const snap = !playersSnap.empty ? playersSnap : usersSnap;
 
       if (!snap.empty) {
         const docSnap = snap.docs[0];
         const data = docSnap.data() as Record<string, unknown>;
         const playerId = docSnap.id;
-        const privateProfile = await getDoc(doc(db, 'private_user_profiles', firebaseUser.uid));
+        const privateProfile = await getDoc(doc(db, 'private_user_profiles', signedInUser.uid));
         const privateData = privateProfile.exists() ? privateProfile.data() : {};
 
         const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
 
         const restoredUser = {
           id: playerId,
-          firebaseUid: firebaseUser.uid,
+          firebaseUid: signedInUser.uid,
           name: (data.name || data.displayName || '') as string,
           surname: (data.surname || '') as string,
           handle: (data.handle || '') as string,
@@ -390,6 +399,7 @@ function ProfilePageContent() {
           createdAt: (data.createdAt || Date.now()) as number,
         };
 
+        await ensurePlayerProfile(playerId, `${restoredUser.name} ${restoredUser.surname}`.trim(), signedInUser.uid);
         setCurrentUser(restoredUser);
         setIsRegistered(true);
         localStorage.setItem('app_current_user_v6', JSON.stringify(restoredUser));
@@ -405,17 +415,31 @@ function ProfilePageContent() {
       setProfileBooting(false);
       return;
     }
-    const stored = readStoredProfile();
-    if (stored) {
-      setCurrentUser(stored);
-      setIsRegistered(true);
-      localStorage.setItem('app_current_user_v6', JSON.stringify(stored));
-      notifyUserIdChanged();
-    } else {
-      void restoreExistingProfile();
+    if (!authReady) {
+      setProfileBooting(true);
+      return;
     }
-    setProfileBooting(false);
-  }, [viewUserId]);
+
+    let cancelled = false;
+    const loadAccountProfile = async () => {
+      setProfileBooting(true);
+      const stored = readStoredProfile(firebaseUser?.uid ?? null);
+      if (stored) {
+        setCurrentUser(stored);
+        setIsRegistered(true);
+        localStorage.setItem('app_current_user_v6', JSON.stringify(stored));
+        notifyUserIdChanged();
+      } else {
+        await restoreExistingProfile(firebaseUser?.uid);
+      }
+      if (!cancelled) setProfileBooting(false);
+    };
+
+    void loadAccountProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewUserId, authReady, firebaseUser?.uid]);
 
   useEffect(() => {
     if (isRegistered) void ensureFirebaseAuth();
