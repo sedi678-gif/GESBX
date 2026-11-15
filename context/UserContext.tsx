@@ -197,69 +197,53 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const displayName = resolveDisplayName(user);
 
     let cancelled = false;
+    let unsub: (() => void) | undefined;
 
+    const startPlayerProfile = async () => {
+      try {
+        // Sənəd yaradılmadan onSnapshot qoşulmasın.
+        await ensurePlayerProfile(userId, displayName, user?.uid ?? null);
+        if (cancelled) return;
 
+        setProfileReady(true);
+        const ref = doc(db, 'players', userId);
 
-    void ensurePlayerProfile(userId, displayName, user?.uid ?? null).then(() => {
-
-      if (!cancelled) setProfileReady(true);
-
-    });
-
-
-
-    const ref = doc(db, 'players', userId);
-
-    const unsub = onSnapshot(
-
-      ref,
-
-      (snap) => {
-
-        if (snap.exists()) {
-
-          const raw = snap.data() as Record<string, unknown>;
-
-          const nextManat = resolvePlayerManat(raw);
-
-          setPlayerProfile({ ...(raw as unknown as PlayerProfile), odId: userId, manat: nextManat });
-
-          pendingManatDeltaRef.current = 0;
-
-          setManat(nextManat);
-
-        } else {
-
+        unsub = onSnapshot(
+          ref,
+          (snap) => {
+            if (snap.exists()) {
+              const raw = snap.data() as Record<string, unknown>;
+              const nextManat = resolvePlayerManat(raw);
+              setPlayerProfile({ ...(raw as unknown as PlayerProfile), odId: userId, manat: nextManat });
+              pendingManatDeltaRef.current = 0;
+              setManat(nextManat);
+            } else {
+              setPlayerProfile(null);
+              pendingManatDeltaRef.current = 0;
+              setManat(0);
+            }
+            setManatReady(true);
+          },
+          (err) => {
+            console.error('Firebase players dinləyicisi xətası:', err);
+            setManatReady(true);
+          }
+        );
+      } catch (err) {
+        console.error('Firebase player profili yaradılmadı və ya oxunmadı:', err);
+        if (!cancelled) {
           setPlayerProfile(null);
-
-          pendingManatDeltaRef.current = 0;
-
-          setManat(0);
-
+          setManatReady(true);
+          setProfileReady(true);
         }
-
-        setManatReady(true);
-
-      },
-
-      (err) => {
-
-        console.error('Firebase players dinləyicisi xətası:', err);
-
-        setManatReady(true);
-
       }
+    };
 
-    );
-
-
+    void startPlayerProfile();
 
     return () => {
-
       cancelled = true;
-
-      unsub();
-
+      unsub?.();
     };
 
   }, [userId, user?.displayName, user?.email, user?.uid]);
