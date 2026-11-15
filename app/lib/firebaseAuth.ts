@@ -53,7 +53,7 @@ let authFailure: string | null = null;
 const APP_CHECK_TOKEN_TIMEOUT_MS = 12_000;
 const ANONYMOUS_AUTH_TIMEOUT_MS = 20_000;
 
-/** Anonim Firebase auth — vaxt bitərsə null qaytarır, prosesi bloklamır. */
+/** Firebase sessiyasını bərpa edir; yalnız sessiya yoxdursa anonim giriş yaradır. */
 export function ensureFirebaseAuth(): Promise<User | null> {
   connectFirebaseEmulators();
 
