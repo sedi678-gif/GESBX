@@ -632,7 +632,7 @@ function ProfilePageContent() {
         const prev = parseInt(localStorage.getItem('app_last_id_num_v6') || '1', 10);
         localStorage.setItem('app_last_id_num_v6', String(Math.max(prev, idNum)));
       }
-      setCurrentUser(newUser);
+      setCurrentUser({ ...DEFAULT_PROFILE_USER, ...newUser });
       setIsRegistered(true);
       notifyUserIdChanged();
     } catch (error) {
