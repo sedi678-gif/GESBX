@@ -37,7 +37,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // until Firebase Auth has restored the signed-in account.
   const resolvedId =
     authReady && user
-      ? (userId !== 'anonim_user_id' ? userId : getLocalProfileUserId() || '')
+      ? (userId !== 'anonim_user_id' ? userId : getLocalProfileUserId(user.uid) || '')
       : '';
 
   const [settings, setSettings] = useState<UserSettings | null>(null);
