@@ -2074,8 +2074,13 @@ service cloud.firestore {
         && d.keys().hasOnly([
           'firebaseUid', 'odId', 'displayName', 'allianceId', 'allianceName', 'isLeader',
           'score', 'manat', 'coins', 'battleCards', 'activeShields', 'cosmetics', 'identityVerifiedAt',
-          'userPlan', 'hasVipPass', 'isVipLifetime', 'proPanelActive', 'battleCardsVersion', 'updatedAt'
+          'userPlan', 'hasVipPass', 'isVipLifetime', 'proPanelActive',
+          'creatorPanelExpiresAt', 'adFreeUntil', 'freeCreatorPanelClaimedAt',
+          'battleCardsVersion', 'updatedAt'
         ])
+        && d.creatorPanelExpiresAt == 0
+        && d.adFreeUntil == 0
+        && d.freeCreatorPanelClaimedAt == 0
         && d.identityVerifiedAt == request.time
         && d.manat == 0
         && d.coins == 0
