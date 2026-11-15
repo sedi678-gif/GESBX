@@ -50,7 +50,6 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, message: string)
 
 let authReady: Promise<User | null> | null = null;
 let authFailure: string | null = null;
-const AUTH_STATE_TIMEOUT_MS = 4_000;
 const APP_CHECK_TOKEN_TIMEOUT_MS = 12_000;
 const ANONYMOUS_AUTH_TIMEOUT_MS = 20_000;
 
@@ -58,25 +57,12 @@ const ANONYMOUS_AUTH_TIMEOUT_MS = 20_000;
 export function ensureFirebaseAuth(): Promise<User | null> {
   connectFirebaseEmulators();
 
-  if (auth.currentUser) {
-    authFailure = null;
-    return Promise.resolve(auth.currentUser);
-  }
-
   if (!authReady) {
     const pending = (async () => {
-      // A stale/unavailable browser persistence store must not prevent the
-      // app from trying anonymous sign-in. The Firebase sign-in operation
-      // itself waits for Auth initialization and returns its real SDK error.
-      try {
-        await withTimeout(
-          auth.authStateReady(),
-          AUTH_STATE_TIMEOUT_MS,
-          'Firebase Auth sessiyasının bərpası gecikir.'
-        );
-      } catch (error) {
-        console.warn('[Firebase Auth] Persisted session restore timed out; trying anonymous sign-in.', error);
-      }
+      // Wait until Firebase has completely restored the persisted session.
+      // Starting anonymous sign-in before this finishes can race a valid
+      // Gmail session and cause Firestore owner checks to fail.
+      await auth.authStateReady();
       if (auth.currentUser) {
         authFailure = null;
         return auth.currentUser;
