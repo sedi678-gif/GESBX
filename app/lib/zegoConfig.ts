@@ -63,34 +63,6 @@ function readFromSessionCache(): boolean {
   }
 }
 
-async function fetchJsonConfig(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) return false;
-    const data = (await res.json()) as Partial<ZegoPublicConfig>;
-    const id = Number(data.appId);
-    // public/*.json yalnız public açarları daşıyır — serverSecret qəsdən oxunmur.
-    return applyConfig(id);
-  } catch {
-    return false;
-  }
-}
-
-async function loadFromRuntimeJson(): Promise<boolean> {
-  if (typeof window === 'undefined') return false;
-  const origin = window.location.origin.replace(/\/$/, '');
-  const paths = [
-    `${origin}/zego-runtime-config.json`,
-    `${origin}/zego-runtime-config.json/`,
-    '/zego-runtime-config.json',
-    './zego-runtime-config.json',
-  ];
-  for (const url of paths) {
-    if (await fetchJsonConfig(url)) return true;
-  }
-  return false;
-}
-
 async function loadFromFirestore(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   try {
@@ -127,14 +99,14 @@ export async function ensureZegoConfig(): Promise<boolean> {
 
     if (readFromSessionCache()) return true;
     if (readFromProcessEnv()) return true;
-    if (await loadFromRuntimeJson()) return true;
 
+    // The old public JSON file was removed because it once contained a
+    // server signing secret. Never request that deleted public asset again.
     for (let attempt = 0; attempt < 4; attempt += 1) {
       if (await loadFromFirestore()) return true;
       if (attempt < 3) await sleep(800 * (attempt + 1));
     }
 
-    if (await loadFromRuntimeJson()) return true;
     if (readFromProcessEnv()) return true;
 
     return false;
