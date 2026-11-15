@@ -264,7 +264,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
 
-    if (!userId || userId === 'anonim_user_id') return;
+    if (!userId || userId === 'anonim_user_id' || !/^\d+$/.test(userId)) return;
 
     if (!user?.uid || user.uid === userId) return;
 
