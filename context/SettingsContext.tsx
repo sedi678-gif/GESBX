@@ -32,9 +32,13 @@ function withLanguage(base: UserSettings, language: AppLanguage): UserSettings {
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const { userId } = useUser();
+  const { userId, user, authReady } = useUser();
+  // Do not attach a Firestore settings listener from a cached local ID
+  // until Firebase Auth has restored the signed-in account.
   const resolvedId =
-    userId !== 'anonim_user_id' ? userId : getLocalProfileUserId() || '';
+    authReady && user
+      ? (userId !== 'anonim_user_id' ? userId : getLocalProfileUserId() || '')
+      : '';
 
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [ready, setReady] = useState(false);
