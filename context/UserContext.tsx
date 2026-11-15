@@ -134,8 +134,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     clearLegacyBalanceStorage();
 
     const applyId = () => {
-      const localId = getLocalProfileUserId();
-      if (localId) setUserId(localId);
+      const currentUser = auth.currentUser;
+      const localId = currentUser?.uid ? getLocalProfileUserId(currentUser.uid) : null;
+      setUserId(localId || currentUser?.uid || 'anonim_user_id');
     };
 
     applyId();
@@ -145,7 +146,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (!active) return;
       setUser(firebaseUser);
-      const localId = getLocalProfileUserId();
+      const localId = firebaseUser?.uid ? getLocalProfileUserId(firebaseUser.uid) : null;
       setUserId(localId || resolveUserId(firebaseUser));
     });
 
