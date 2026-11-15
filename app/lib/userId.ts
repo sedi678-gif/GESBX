@@ -17,7 +17,8 @@ export function getLocalProfileUserId(expectedFirebaseUid?: string | null): stri
 export function getAppUserId(contextUserId?: string | null): string {
   // Prefer the identity resolved by UserContext. A stale local cache must never
   // override a different signed-in Firebase account.
-  if (contextUserId && contextUserId !== 'anonim_user_id') return String(contextUserId).trim();
+  if (contextUserId === 'anonim_user_id') return '';
+  if (contextUserId) return String(contextUserId).trim();
   const local = getLocalProfileUserId();
   if (local) return String(local).trim();
   return '';
