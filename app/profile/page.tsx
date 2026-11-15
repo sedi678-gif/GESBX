@@ -380,7 +380,7 @@ function ProfilePageContent() {
         const privateProfile = await getDoc(doc(db, 'private_user_profiles', signedInUser.uid));
         const privateData = privateProfile.exists() ? privateProfile.data() : {};
 
-        const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
+        const savedAlliance = ''; // Account-specific alliance data comes from Firestore, never another account's local cache.
 
         const restoredUser = {
           id: playerId,
@@ -430,6 +430,10 @@ function ProfilePageContent() {
         localStorage.setItem('app_current_user_v6', JSON.stringify(stored));
         notifyUserIdChanged();
       } else {
+        // Do not leave the previous account's profile visible while this
+        // Firebase UID is checked for its own profile.
+        setCurrentUser(DEFAULT_PROFILE_USER);
+        setIsRegistered(false);
         await restoreExistingProfile(firebaseUser?.uid);
       }
       if (!cancelled) setProfileBooting(false);
@@ -594,7 +598,7 @@ function ProfilePageContent() {
       accountUid = firebaseUser.uid;
       const generatedId = await allocateNextUserId();
       const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;
-      const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
+      const savedAlliance = ''; // A new Firebase account must not inherit the previous account's alliance.
 
       const newUser = {
         id: generatedId,
