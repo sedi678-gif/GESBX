@@ -100,6 +100,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const [profileReady, setProfileReady] = useState(false);
 
+  const [authInitialized, setAuthInitialized] = useState(false);
+
   const pendingManatDeltaRef = useRef(0);
 
 
@@ -126,57 +128,66 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
 
+    let active = true;
     clearLegacyBalanceStorage();
 
-    void ensureFirebaseAuth();
-
-
-
     const applyId = () => {
-
       const localId = getLocalProfileUserId();
-
       if (localId) setUserId(localId);
-
     };
-
-
 
     applyId();
-
     window.addEventListener('gesbx_user_updated', applyId);
-
     window.addEventListener('storage', applyId);
 
-
-
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-
+      if (!active) return;
       setUser(firebaseUser);
-
       const localId = getLocalProfileUserId();
-
       setUserId(localId || resolveUserId(firebaseUser));
-
     });
 
-
+    // Wait for persisted Gmail auth (or completed anonymous auth) before
+    // allowing any Firestore player-profile read.
+    void ensureFirebaseAuth()
+      .then((firebaseUser) => {
+        if (!active) return;
+        setUser(firebaseUser);
+        const localId = getLocalProfileUserId();
+        setUserId(localId || resolveUserId(firebaseUser));
+        setAuthInitialized(true);
+      })
+      .catch((error) => {
+        console.error('Firebase Auth ilkinləşdirilmədi:', error);
+        if (active) setAuthInitialized(true);
+      });
 
     return () => {
-
+      active = false;
       unsubscribe();
-
       window.removeEventListener('gesbx_user_updated', applyId);
-
       window.removeEventListener('storage', applyId);
-
     };
-
   }, []);
 
 
 
   useEffect(() => {
+
+    // A local profile ID is not proof that Firebase Auth has finished
+    // restoring the account. Wait first, or this read can be denied.
+    if (!authInitialized) {
+      setManatReady(false);
+      return;
+    }
+
+    if (!user) {
+      setPlayerProfile(null);
+      setManat(0);
+      setManatReady(true);
+      setProfileReady(true);
+      return;
+    }
 
     if (!userId || userId === 'anonim_user_id') {
 
@@ -246,7 +257,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       unsub?.();
     };
 
-  }, [userId, user?.displayName, user?.email, user?.uid]);
+  }, [authInitialized, userId, user?.displayName, user?.email, user?.uid]);
 
 
 
