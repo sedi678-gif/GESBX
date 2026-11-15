@@ -1,10 +1,12 @@
 /** Profil localStorage ID + Firebase auth ID birləşdirilməsi */
-export function getLocalProfileUserId(): string | null {
+export function getLocalProfileUserId(expectedFirebaseUid?: string | null): string | null {
   if (typeof window === 'undefined') return null;
   try {
     const saved = localStorage.getItem('app_current_user_v6');
     if (!saved) return null;
-    const parsed = JSON.parse(saved) as { id?: string };
+    const parsed = JSON.parse(saved) as { id?: string; firebaseUid?: string };
+    // A cached numeric profile ID belongs only to the Firebase account that created it.
+    if (expectedFirebaseUid && parsed?.firebaseUid !== expectedFirebaseUid) return null;
     return parsed?.id ? String(parsed.id) : null;
   } catch {
     return null;
