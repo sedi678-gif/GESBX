@@ -35,7 +35,6 @@ import { listenFollowCounts, reportContent } from '@/app/lib/socialService';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import AdminPanel from '@/app/components/admin/AdminPanel';
 import { isSuperAdmin } from '@/app/lib/adminConfig';
-import { allocateNextUserId } from '@/app/lib/adminService';
 import {
   listenUserProfileMedia,
   updateProfileAvatar,
