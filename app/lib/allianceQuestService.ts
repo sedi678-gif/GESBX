@@ -1,5 +1,5 @@
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { auth, db } from '@/firebase';
 import { DAILY_ALLIANCE_QUESTS, getTodayKey, QuestType } from './allianceQuestConfig';
 import { callSecureFunction } from './secureFunctions';
 import { getLocalProfileUserId } from './userId';
@@ -34,7 +34,8 @@ export async function incrementQuestProgress(
   _type: QuestType,
   _amount = 1
 ): Promise<void> {
-  const userId = getLocalProfileUserId();
+  const firebaseUid = auth.currentUser?.uid;
+  const userId = firebaseUid ? getLocalProfileUserId(firebaseUid) : null;
   if (!userId) return;
   await callSecureFunction('refreshQuestProgress', { allianceId, userId });
 }
