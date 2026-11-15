@@ -50,6 +50,8 @@ interface UserContextType {
 
   refreshUserId: () => void;
 
+  authReady: boolean;
+
 }
 
 
@@ -392,6 +394,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     applyManatDelta,
 
     refreshUserId,
+
+    authReady: authInitialized,
 
   };
 
