@@ -62,7 +62,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 function resolveUserId(firebaseUser: User | null): string {
 
-  const localId = getLocalProfileUserId();
+  const localId = firebaseUser?.uid ? getLocalProfileUserId(firebaseUser.uid) : null;
 
   if (localId) return localId;
 
@@ -156,7 +156,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       .then((firebaseUser) => {
         if (!active) return;
         setUser(firebaseUser);
-        const localId = getLocalProfileUserId();
+        const localId = firebaseUser?.uid ? getLocalProfileUserId(firebaseUser.uid) : null;
         setUserId(localId || resolveUserId(firebaseUser));
         setAuthInitialized(true);
       })
