@@ -36,7 +36,7 @@ export default function LoginPage() {
         return;
       }
 
-      const localId = getLocalProfileUserId();
+      const localId = getLocalProfileUserId(user.uid);
       if (localId) {
         try {
           const status = await getAccountStatus(localId);
