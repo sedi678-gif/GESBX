@@ -17,7 +17,7 @@ module.exports = async function allocateRegistrationUserId(req, res) {
   }
 
   try {
-    const authorization = header(req, 'authorization').match(/^Bearer\\s+(.+)$/i);
+    const authorization = header(req, 'authorization').match(/^Bearer\s+(.+)$/i);
     const installationId = header(req, 'x-firebase-installation-id').trim();
     if (!authorization || !/^[A-Za-z0-9_-]{8,200}$/.test(installationId)) {
       throw new ApiError(401, 'AUTH_HEADERS_REQUIRED');
