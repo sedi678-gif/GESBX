@@ -594,38 +594,38 @@ function ProfilePageContent() {
       const firebaseUser = await ensureFirebaseAuth();
       if (!firebaseUser) throw new Error('Firebase hesabı yaradılmadı. İnternet bağlantısını yoxlayın.');
       accountUid = firebaseUser.uid;
-      const generatedId = await allocateNextUserId();
-      const formattedHandle = inputHandle.trim() ? (inputHandle.startsWith('@') ? inputHandle : `@${inputHandle}`) : `@${inputName.toLowerCase().replace(/\s+/g, '')}`;
-      const savedAlliance = ''; // A new Firebase account must not inherit the previous account's alliance.
-
+      const installationId = await getFirebaseInstallationId();
+      const response = await fetch('/api/complete-profile-registration', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${await firebaseUser.getIdToken()}`,
+          'Content-Type': 'application/json',
+          'X-Firebase-Installation-Id': installationId,
+        },
+        body: JSON.stringify({
+          name: inputName.trim(),
+          surname: inputSurname.trim(),
+          handle: inputHandle.trim(),
+          gender: inputGender,
+          birthDate: inputBirthDate,
+        }),
+      });
+      const result = await response.json().catch(() => ({})) as {
+        userId?: string;
+        profile?: Record<string, unknown>;
+        birthDate?: string;
+        error?: string;
+      };
+      if (!response.ok || !result.userId || !result.profile) {
+        throw new Error(result.error || 'PROFILE_REGISTRATION_FAILED');
+      }
+      const generatedId = String(result.userId);
       const newUser = {
+        ...result.profile,
         id: generatedId,
         firebaseUid: accountUid,
-        name: inputName,
-        surname: inputSurname,
-        handle: formattedHandle,
-        gender: inputGender,
-        birthDate: inputBirthDate,
-        role: 'user',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
-        bannerImage: '',
-        bannerGradient: 'linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #3b82f6 100%)',
-        bio: 'Yeni başlanğıc 🚀',
-        allianceName: savedAlliance,
-        createdAt: Date.now(),
-        likesReceived: 0,
-        viewsReceived: 0,
+        birthDate: result.birthDate || inputBirthDate,
       };
-
-      const { birthDate: privateBirthDate, ...publicUser } = newUser;
-      await Promise.all([
-        setDoc(doc(db, 'users', generatedId), publicUser),
-        setDoc(doc(db, 'private_user_profiles', accountUid), {
-          birthDate: privateBirthDate,
-          updatedAt: Date.now(),
-        }),
-      ]);
-      await ensurePlayerProfile(generatedId, `${inputName} ${inputSurname}`.trim(), accountUid);
 
       localStorage.setItem('app_current_user_v6', JSON.stringify(newUser));
       const idNum = parseInt(generatedId, 10);
