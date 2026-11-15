@@ -42,22 +42,26 @@ async function allocateUserId(uid) {
       tx.get(allocationRef),
       tx.get(counterRef),
       tx.get(configRef),
-      tx.get(db.collection('users').where('firebaseUid', '==', uid).limit(2)),
-      tx.get(db.collection('players').where('firebaseUid', '==', uid).limit(2)),
+      tx.get(db.collection('users').where('firebaseUid', '==', uid)),
+      tx.get(db.collection('players').where('firebaseUid', '==', uid)),
     ]);
     if (allocationSnap.exists) return { userId: String(allocationSnap.data().userId) };
 
-    if (existingUsers.size > 1 || existingPlayers.size > 1) throw new Error('PROFILE_UID_NOT_UNIQUE');
+    // Ignore legacy orphan documents keyed directly by a Firebase UID.
+    // Only numeric GESBX profile IDs represent completed/allocated profiles.
+    const numericUsers = existingUsers.docs.filter((document) => numericId(document.id) != null);
+    const numericPlayers = existingPlayers.docs.filter((document) => numericId(document.id) != null);
+    if (numericUsers.length > 1 || numericPlayers.length > 1) throw new Error('PROFILE_UID_NOT_UNIQUE');
     const registeredIds = [
-      ...existingUsers.docs.map((doc) => doc.id),
-      ...existingPlayers.docs.map((doc) => doc.id),
+      ...numericUsers.map((document) => document.id),
+      ...numericPlayers.map((document) => document.id),
     ];
     if (registeredIds.length) {
       const uniqueIds = [...new Set(registeredIds)];
       if (uniqueIds.length !== 1) throw new Error('PROFILE_ID_MISMATCH');
       const existingId = uniqueIds[0];
-      const user = existingUsers.docs[0]?.data();
-      const player = existingPlayers.docs[0]?.data();
+      const user = numericUsers[0]?.data();
+      const player = numericPlayers[0]?.data();
       if ((user && user.firebaseUid !== uid) || (player && player.firebaseUid !== uid)) {
         throw new Error('PROFILE_OWNER_MISMATCH');
       }
