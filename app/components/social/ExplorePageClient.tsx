@@ -12,7 +12,7 @@ import {
 import { reportContent, searchUsers, listenBlockedUsers } from '@/app/lib/socialService';
 import { UserFeedItem, AppUserProfile } from '@/app/lib/socialTypes';
 import { useUser } from '@/context/UserContext';
-import { getLocalProfileUserId, getLocalProfileDisplayName } from '@/app/lib/userId';
+import { getLocalProfileDisplayName } from '@/app/lib/userId';
 import { useAppStrings } from '@/app/lib/useAppStrings';
 import PostCommentsSheet from './PostCommentsSheet';
 import PostActionIcon from './PostActionIcon';
@@ -99,7 +99,7 @@ const AZ_REGIONS = [
 export default function ExplorePageClient() {
   const { userId } = useUser();
   const t = useAppStrings();
-  const myId = userId !== 'anonim_user_id' ? userId : getLocalProfileUserId() || userId;
+  const myId = userId;
 
   const [feed, setFeed] = useState<UserFeedItem[]>([]);
   const [filtered, setFiltered] = useState<UserFeedItem[]>([]);
