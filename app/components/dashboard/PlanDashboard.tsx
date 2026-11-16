@@ -138,7 +138,7 @@ export default function PlanDashboard() {
                 <h1 className={styles.brandTitle}>{data.name || t.studio.channel}</h1>
               </div>
             </div>
-            <AppLink href="/profile" className={styles.createBtn}>
+            <AppLink href="/dashboard" className={styles.createBtn}>
               {t.studio.create}
             </AppLink>
           </header>
