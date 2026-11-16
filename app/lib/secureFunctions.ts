@@ -133,11 +133,23 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const response = await fetch(`${apiBaseUrl}${normalizedPath}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${normalizedPath}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      // Never leave Creator activation stuck on “Gözləyin...” forever.
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch (error) {
+    const timedOut = error instanceof Error
+      && (error.name === 'TimeoutError' || error.name === 'AbortError');
+    if (timedOut) {
+      throw new Error('Server 25 saniyə ərzində cavab vermədi. Creator aktivləşdirməsi tamamlanmadı; bir az sonra yenidən cəhd edin.');
+    }
+    throw new Error('Creator aktivləşdirmə sorğusu serverə çatmadı. İnternet bağlantısını yoxlayıb yenidən cəhd edin.');
+  }
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     const code = result && typeof result.error === 'string' ? result.error : 'REQUEST_FAILED';
