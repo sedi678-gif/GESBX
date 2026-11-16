@@ -366,16 +366,22 @@ async function buyVipPro({ uid, payload, operationId, rateLimit }) {
 
 async function activateFreeCreator({ uid, payload, operationId, rateLimit }) {
   const now = Date.now();
-  const duration = 7 * 24 * 60 * 60 * 1000;
   return db.runTransaction(async (tx) => {
     const ledger = await getLedgerOrThrow(tx, uid, operationId);
     if (ledger.duplicate) return ledger.data.result;
     const rate = await ensureRateLimitTx(tx, uid, 'activateFreeCreatorPanel', rateLimit, now);
     const owned = await getOwnedPlayer(uid, payload.userId, tx);
-    if ((Number(owned.player.xp) || 0) < 30000) throw new HttpsError('failed-precondition', 'Creator Panel üçün 30.000 XP lazımdır.');
-    if (Number(owned.player.freeCreatorPanelClaimedAt) > 0) throw new HttpsError('already-exists', 'Pulsuz Creator Panel artıq istifadə olunub.');
-    const expiresAt = now + duration;
-    const result = { userPlan: 'PRO', hasVipPass: owned.player.hasVipPass === true, isVipLifetime: owned.player.isVipLifetime === true, proPanelActive: owned.player.proPanelActive === true, creatorPanelExpiresAt: expiresAt, adFreeUntil: Number(owned.player.adFreeUntil) || 0, freeCreatorPanelClaimedAt: now };
+    // Standard Creator access is permanent and independent of XP, referrals,
+    // wallet activation, views, or the VIP purchase.
+    const result = {
+      userPlan: owned.player.userPlan || 'FREE',
+      hasVipPass: owned.player.hasVipPass === true,
+      isVipLifetime: owned.player.isVipLifetime === true,
+      proPanelActive: owned.player.proPanelActive === true,
+      creatorPanelExpiresAt: Number(owned.player.creatorPanelExpiresAt) || 0,
+      adFreeUntil: Number(owned.player.adFreeUntil) || 0,
+      freeCreatorPanelClaimedAt: Number(owned.player.freeCreatorPanelClaimedAt) || now,
+    };
     tx.set(owned.playerRef, { ...result, updatedAt: now }, { merge: true });
     tx.set(owned.userRef, { ...result, updatedAt: now }, { merge: true });
     tx.set(ledger.ref, { authUid: uid, playerId: owned.playerId, operationId, type: 'free_creator_panel', amount: 0, source: 'free_creator_panel', result, createdAt: FieldValue.serverTimestamp() });
