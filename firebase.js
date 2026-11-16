@@ -97,7 +97,21 @@ function randomChallenge() {
 export async function requestPlayIntegrityToken(requestHash) {
   if (!Capacitor.isNativePlatform()) return null;
 
-  const result = await PlayIntegrity.requestToken({ requestHash });
+  let timeoutId;
+  let result;
+  try {
+    result = await Promise.race([
+      PlayIntegrity.requestToken({ requestHash }),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("Android Play Integrity 12 saniyə ərzində cavab vermədi.")),
+          12_000
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   if (!result?.token) {
     throw new Error("Play Integrity tokeni alınmadı.");
@@ -149,6 +163,7 @@ if (typeof window !== "undefined") {
               integrityToken,
               installationId,
             }),
+            signal: AbortSignal.timeout(15_000),
           });
 
           if (!response.ok) {
