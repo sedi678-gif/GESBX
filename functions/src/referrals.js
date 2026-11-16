@@ -24,7 +24,6 @@ const applySchema = z.object({ userId: playerIdSchema, code: codeSchema, install
 const reviewSchema = z.object({ referralId: z.string().min(12).max(100), decision: z.enum(['approve', 'reject']), note: z.string().trim().max(500).optional() }).strict();
 const checkActivationSchema = z.object({ referralId: z.string().min(12).max(100) }).strict();
 const getMyReferralsSchema = z.object({ userId: playerIdSchema }).strict();
-const activateManatWalletSchema = z.object({ userId: playerIdSchema }).strict();
 const REFERRAL_XP_THRESHOLD = 6500;
 const REFERRAL_REWARD_XP = 6500;
 
@@ -270,38 +269,6 @@ async function checkReferralActivation({ uid, payload, operationId, rateLimit, i
   });
 }
 
-async function activateManatWallet({ uid, payload, operationId, rateLimit }) {
-  const now = Date.now();
-  const operationRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
-  return db.runTransaction(async (tx) => {
-    const operationSnap = await tx.get(operationRef);
-    if (operationSnap.exists) return operationSnap.data().result;
-    const rate = await ensureRateLimitTx(tx, uid, 'activateManatWallet', rateLimit, now);
-    const owned = await getOwnedPlayer(uid, payload.userId, tx);
-    if (Number(owned.player.walletActivatedAt) > 0) {
-      const result = { walletActivated: true, alreadyActive: true, activatedAt: Number(owned.player.walletActivatedAt) };
-      tx.create(operationRef, { authUid: uid, operationId, action: 'activateManatWallet', result, createdAt: FieldValue.serverTimestamp() });
-      tx.set(rate.ref, rate.next);
-      return result;
-    }
-    const referralsSnap = await tx.get(db.collection('referrals')
-      .where('inviterPlayerId', '==', owned.playerId)
-      .where('status', '==', 'active'));
-    const referralIds = [...new Set(referralsSnap.docs.map((doc) => String(doc.data().referredPlayerId || '')).filter(Boolean))];
-    const referredPlayers = await Promise.all(referralIds.map((id) => tx.get(db.doc(`players/${id}`))));
-    const qualifiedCount = referredPlayers.filter((snap) => snap.exists && storedXp(snap.data()) >= REFERRAL_XP_THRESHOLD).length;
-    if (qualifiedCount < 2) {
-      throw new HttpsError('failed-precondition', `Cüzdanı aktivləşdirmək üçün 6.500 XP toplamış 2 aktiv referal lazımdır (${qualifiedCount}/2).`);
-    }
-    const result = { walletActivated: true, alreadyActive: false, activatedAt: now };
-    tx.set(owned.playerRef, { walletActivatedAt: now, walletStatus: 'active', updatedAt: now }, { merge: true });
-    tx.set(owned.userRef, { walletActivatedAt: now, walletStatus: 'active', updatedAt: now }, { merge: true });
-    tx.create(operationRef, { authUid: uid, operationId, action: 'activateManatWallet', result, createdAt: FieldValue.serverTimestamp() });
-    tx.set(rate.ref, rate.next);
-    return result;
-  });
-}
-
 async function getMyReferrals({ uid, payload, operationId, rateLimit, ip }) {
   const now = Date.now();
   const operationRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
@@ -361,7 +328,6 @@ const applyReferralCallable = secureCallable('applyReferral', applySchema, apply
 const reviewReferralCallable = secureCallable('reviewReferral', reviewSchema, reviewReferral, { max: 30, windowMs: 60_000 }, [REFERRAL_CODE_SECRET, ADMIN_UIDS]);
 const checkReferralActivationCallable = secureCallable('checkReferralActivation', checkActivationSchema, checkReferralActivation, { max: 10, windowMs: 60_000 }, referralSecrets);
 const getMyReferralsCallable = secureCallable('getMyReferrals', getMyReferralsSchema, getMyReferrals, { max: 10, windowMs: 60_000 }, referralSecrets);
-const activateManatWalletCallable = secureCallable('activateManatWallet', activateManatWalletSchema, activateManatWallet, { max: 3, windowMs: 60_000 }, referralSecrets);
 
 module.exports = {
   getMyReferralCode: getMyReferralCodeCallable,
@@ -369,5 +335,4 @@ module.exports = {
   reviewReferral: reviewReferralCallable,
   checkReferralActivation: checkReferralActivationCallable,
   getMyReferrals: getMyReferralsCallable,
-  activateManatWallet: activateManatWalletCallable,
 };
