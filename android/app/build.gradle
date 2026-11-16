@@ -1,8 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.example.app"
-    def configuredApplicationId = System.getenv("CAPACITOR_APP_ID") ?: "com.example.app"
+    namespace = "az.gesbx.app"
+    def configuredApplicationId = System.getenv("CAPACITOR_APP_ID") ?: "az.gesbx.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId configuredApplicationId
