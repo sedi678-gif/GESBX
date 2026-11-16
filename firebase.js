@@ -167,9 +167,19 @@ if (typeof window !== "undefined") {
           });
 
           if (!response.ok) {
-            throw new Error(
-              `App Check tokeni alınmadı (${response.status}).`
-            );
+            const failure = await response.json().catch(() => ({}));
+            const reason = typeof failure?.error === "string" ? failure.error : "unknown";
+            if (reason === "android_app_check_not_configured") {
+              throw new Error(
+                "Vercel-də ANDROID_FIREBASE_APP_ID və PLAY_INTEGRITY_PACKAGE_NAME dəyişənləri yoxdur. Firebase Android App ID və tətbiqin Play Store package name dəyərlərini əlavə edib redeploy etmək lazımdır."
+              );
+            }
+            if (reason === "integrity_rejected") {
+              throw new Error(
+                "Google Play Integrity bu tətbiqin imzasını və ya package name məlumatını təsdiqləmədi. Play Console-da eyni package name və SHA-256 imza sertifikatını yoxlamaq lazımdır."
+              );
+            }
+            throw new Error(`App Check tokeni alınmadı (${response.status}: ${reason}).`);
           }
 
           return response.json();
