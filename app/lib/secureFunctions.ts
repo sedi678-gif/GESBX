@@ -97,7 +97,7 @@ export async function callSecureFunction<TPayload extends Record<string, unknown
 }
 
 /** Secure Vercel API wrapper for server operations moved off Firebase Functions. */
-export async function callSecureApi<TPayload extends Record<string, unknown>, TResult>(
+async function callSecureApiInternal<TPayload extends Record<string, unknown>, TResult>(
   path: string,
   action: string,
   payload: TPayload,
@@ -221,6 +221,32 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
     throw new Error(`${action} uğursuz oldu: ${code}`);
   }
   return result as TResult;
+}
+
+/**
+ * Bound the entire secure-request preparation, not just fetch().
+ * Firebase Auth, App Check (including native Play Integrity), and installation
+ * ID acquisition can otherwise leave the Creator button spinning forever.
+ */
+export async function callSecureApi<TPayload extends Record<string, unknown>, TResult>(
+  path: string,
+  action: string,
+  payload: TPayload,
+  operationId = createOperationId(),
+): Promise<TResult> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      callSecureApiInternal<TPayload, TResult>(path, action, payload, operationId),
+      new Promise<TResult>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(
+          'Təhlükəsiz bağlantı 30 saniyə ərzində tamamlanmadı. Firebase App Check və ya Android Play Integrity cavab vermir. Yenidən cəhd edin.',
+        )), 30_000);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 export function createSecureOperationId(): string {
