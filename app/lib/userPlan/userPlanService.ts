@@ -9,12 +9,16 @@ import {
 /** 30 AZN VIP Creator: one month tools/ad-free plus six-month shop pass. */
 export async function purchaseVipProPlan(playerId: string): Promise<UserPlanState> {
   const id = sanitizePlayerId(playerId);
-  return callSecureFunction<{ userId: string }, UserPlanState>('purchaseVipProPlan', { userId: id });
+  return callSecureApi<{ userId: string; creatorType: 'vip' }, UserPlanState>(
+    '/api/creator-activation', 'purchaseVipProPlan', { userId: id, creatorType: 'vip' },
+  );
 }
 
 export async function activateFreeCreatorPanel(playerId: string): Promise<UserPlanState> {
   const id = sanitizePlayerId(playerId);
-  return callSecureFunction<{ userId: string }, UserPlanState>('activateFreeCreatorPanel', { userId: id });
+  return callSecureApi<{ userId: string; creatorType: 'standard' }, UserPlanState>(
+    '/api/creator-activation', 'activateFreeCreatorPanel', { userId: id, creatorType: 'standard' },
+  );
 }
 
 /** Profil düyməsi — sosial rejim. Açıq olanda XP verilmir, paket dəyişmir. */
