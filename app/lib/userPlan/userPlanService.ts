@@ -1,4 +1,4 @@
-import { callSecureApi, callSecureFunction } from '@/app/lib/secureFunctions';
+import { callSecureApi } from '@/app/lib/secureFunctions';
 import { sanitizePlayerId } from '@/app/lib/battleEventLog/sanitizeBattleEventMeta';
 import {
   DEFAULT_USER_PLAN_STATE,
