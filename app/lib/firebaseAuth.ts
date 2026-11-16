@@ -67,6 +67,21 @@ export function ensureFirebaseAuth(): Promise<User | null> {
         authFailure = null;
         return auth.currentUser;
       }
+
+      // Qeydiyyat/giriş səhifələrində avtomatik anonim giriş yaratma.
+      // Əks halda UserProvider və AppShell-in anonim sign-in sorğusu
+      // createUserWithEmailAndPassword ilə yarışa bilər; nəticədə yeni
+      // hesab sessiyası anonim sessiya ilə əvəzlənib forma yenidən açıla bilər.
+      // Kök səhifə də /register-ə yönləndirdiyi üçün burada anonim giriş olmaz.
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname.replace(/\\/+$/, '') || '/';
+        const authOnlyPaths = ['/','/register','/login','/forgot-password','/onboarding'];
+        if (authOnlyPaths.includes(path)) {
+          authFailure = null;
+          return null;
+        }
+      }
+
       // Firebase Auth attaches App Check to its sign-in request. Warm the
       // token first so a stalled reCAPTCHA provider is reported as App Check,
       // instead of looking like an anonymous Auth network timeout.
