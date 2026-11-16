@@ -42,12 +42,14 @@ export function normalizeUserPlanState(raw?: Partial<UserPlanState> | Record<str
   };
 }
 
-export function hasActiveCreatorAccess(user: Pick<UserPlanState, 'userPlan' | 'creatorPanelExpiresAt' | 'isVipLifetime'> | null | undefined, now = Date.now()): boolean {
-  return user?.isVipLifetime === true || ((user?.userPlan === 'PRO' || user?.userPlan === 'VIP_PRO') && Number(user?.creatorPanelExpiresAt) > now);
+export function hasActiveCreatorAccess(_user: Pick<UserPlanState, 'userPlan' | 'creatorPanelExpiresAt' | 'isVipLifetime'> | null | undefined, _now = Date.now()): boolean {
+  // The standard Creator dashboard is free and available to every signed-in user.
+  return true;
 }
 
 export function canViewAnalytics(user: Pick<UserPlanState, 'userPlan' | 'creatorPanelExpiresAt' | 'isVipLifetime'> | null | undefined): boolean {
-  return hasActiveCreatorAccess(user);
+  // Advanced analytics remain part of the paid Creator/VIP plan.
+  return user?.isVipLifetime === true || ((user?.userPlan === 'PRO' || user?.userPlan === 'VIP_PRO') && Number(user?.creatorPanelExpiresAt) > Date.now());
 }
 
 export function canAccessAllFeatures(user: Pick<UserPlanState, 'userPlan' | 'creatorPanelExpiresAt' | 'isVipLifetime'> | null | undefined): boolean {
