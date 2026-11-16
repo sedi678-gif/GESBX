@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '../../firebase';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { browserLocalPersistence, createUserWithEmailAndPassword, sendEmailVerification, setPersistence, signInWithEmailAndPassword } from 'firebase/auth';
 import { useAppStrings } from '@/app/lib/useAppStrings';
 import LanguageSwitch from '@/app/components/LanguageSwitch';
 
@@ -25,27 +25,56 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1. İstifadəçini Firebase-də yaradırıq
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const normalizedEmail = email.trim().toLowerCase();
 
-      // 2. Emailə təsdiq linki göndəririk
-      await sendEmailVerification(user);
+      // Keep the new Firebase account signed in when the page changes.
+      await setPersistence(auth, browserLocalPersistence);
 
-      setSuccessMsg(t.auth.successRegister);
-      
-      setTimeout(() => {
-        router.push('/onboarding');
-      }, 4000);
+      let user;
+      try {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          normalizedEmail,
+          password
+        );
+        user = userCredential.user;
+      } catch (createError: any) {
+        // A previous attempt may have created the account before the
+        // verification/navigation step completed. Resume that account.
+        if (createError?.code !== 'auth/email-already-in-use') throw createError;
 
+        const existingCredential = await signInWithEmailAndPassword(
+          auth,
+          normalizedEmail,
+          password
+        );
+        user = existingCredential.user;
+      }
+
+      await user.reload();
+      if (!user.emailVerified) {
+        await sendEmailVerification(user);
+        setSuccessMsg('Hesab yaradıldı. E-poçtunuza təsdiq linki göndərildi. Linki açdıqdan sonra davam edin.');
+      } else {
+        setSuccessMsg('E-poçt artıq təsdiqlənib. Profilinizi tamamlaya bilərsiniz.');
+      }
+
+      // Wait until Firebase has restored the signed-in user before navigating.
+      await auth.authStateReady();
+      if (!auth.currentUser) {
+        throw new Error('Firebase sessiyası saxlanmadı. Zəhmət olmasa yenidən cəhd edin.');
+      }
+      router.replace('/onboarding');
     } catch (err: any) {
       console.error('Qeydiyyat xətası:', err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError(t.auth.errors.emailInUse);
-      } else if (err.code === 'auth/weak-password') {
+      if (err.code === 'auth/weak-password') {
         setError(t.auth.errors.weakPassword);
       } else if (err.code === 'auth/invalid-email') {
         setError(t.auth.errors.badEmail);
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+        setError('Bu Gmail ilə hesab artıq yaradılıb, lakin daxil etdiyiniz şifrə düzgün deyil.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Çox sayda cəhd edilib. Bir az gözləyib yenidən yoxlayın.');
       } else {
         setError(`${t.auth.errors.registerFail} ${err.message || ''}`);
       }
