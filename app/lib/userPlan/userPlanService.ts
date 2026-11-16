@@ -10,14 +10,14 @@ import {
 export async function purchaseVipProPlan(playerId: string): Promise<UserPlanState> {
   const id = sanitizePlayerId(playerId);
   return callSecureApi<{ userId: string; creatorType: 'vip' }, UserPlanState>(
-    '/api/creator-activation', 'purchaseVipProPlan', { userId: id, creatorType: 'vip' },
+    '/api/set-xp-mode', 'purchaseVipProPlan', { userId: id, creatorType: 'vip' },
   );
 }
 
 export async function activateFreeCreatorPanel(playerId: string): Promise<UserPlanState> {
   const id = sanitizePlayerId(playerId);
   return callSecureApi<{ userId: string; creatorType: 'standard' }, UserPlanState>(
-    '/api/creator-activation', 'activateFreeCreatorPanel', { userId: id, creatorType: 'standard' },
+    '/api/set-xp-mode', 'activateFreeCreatorPanel', { userId: id, creatorType: 'standard' },
   );
 }
 
