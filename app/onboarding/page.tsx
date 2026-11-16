@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const STEPS = [
   { title: 'Profilini tamamla', description: 'Adını, şəklini və oyun məlumatlarını əlavə et.', href: '/profile', action: 'Profilə keç' },
@@ -17,12 +18,32 @@ export default function OnboardingPage() {
   const [emailVerified, setEmailVerified] = useState(false);
 
   useEffect(() => {
-    if (!auth.currentUser) {
-      router.replace('/login');
-      return;
-    }
-    setEmailVerified(auth.currentUser.emailVerified);
-    setReady(true);
+    // Firebase Auth bərpa olunmamışdan əvvəl currentUser müvəqqəti null ola bilər.
+    // İlk auth-state cavabını gözləmədən /login-ə yönləndirmək qeydiyyatı yarımçıq qoyurdu.
+    let active = true;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!active) return;
+
+      if (!user) {
+        router.replace('/login');
+        return;
+      }
+
+      try {
+        await user.reload();
+      } catch (error) {
+        console.warn('Qeydiyyat sessiyası yenilənmədi:', error);
+      }
+
+      if (!active) return;
+      setEmailVerified(Boolean(auth.currentUser?.emailVerified));
+      setReady(true);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [router]);
 
   if (!ready) return <main style={styles.page} aria-busy="true">Yüklənir…</main>;
