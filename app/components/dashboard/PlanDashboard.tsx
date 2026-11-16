@@ -11,6 +11,7 @@ import {
   hasActiveCreatorAccess,
   normalizeUserPlanState,
   purchaseVipProPlan,
+  activateFreeCreatorPanel,
   setProPanelActive,
   shouldShowAds,
 } from '@/app/lib/userPlan';
@@ -68,6 +69,7 @@ export default function PlanDashboard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  const [creatorChoiceOpen, setCreatorChoiceOpen] = useState(false);
 
   useEffect(() => {
     const status = new URLSearchParams(window.location.search).get('creatorStatus');
@@ -79,19 +81,39 @@ export default function PlanDashboard() {
   const creatorAccess = hasActiveCreatorAccess(plan);
   const showAds = shouldShowAds(plan);
 
-  const run = async (fn: () => Promise<unknown>, successMessage = '') => {
-    if (!userId || busy) return;
+  const run = async (fn: () => Promise<unknown>, successMessage = ''): Promise<boolean> => {
+    if (!userId || busy) return false;
     setBusy(true);
     setError(null);
     try {
       await fn();
       if (successMessage) setNotice(successMessage);
+      return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : t.auth.errors.generic;
-      setError(/30 AZN|VIP Professional/i.test(message) ? 'Balansınızda kifayət qədər məbləğ yoxdur.' : message);
+      setError(/30 AZN|VIP Professional|kifayət qədər manat/i.test(message)
+        ? 'Balansınızda VIP Creator almaq üçün kifayət qədər məbləğ yoxdur. VIP Creator qiyməti 30 AZN-dir.'
+        : message);
+      return false;
     } finally {
       setBusy(false);
     }
+  };
+
+  const chooseStandardCreator = async () => {
+    const ok = await run(
+      () => activateFreeCreatorPanel(userId),
+      'Siz Adi Creator panelini aktivləşdirdiniz.',
+    );
+    if (ok) setCreatorChoiceOpen(false);
+  };
+
+  const chooseVipCreator = async () => {
+    const ok = await run(
+      () => purchaseVipProPlan(userId),
+      'VIP Creator paneli aktivləşdirildi. 30 AZN balansınızdan çıxıldı.',
+    );
+    if (ok) setCreatorChoiceOpen(false);
   };
 
   const tabLabel: Record<StudioTab, string> = {
@@ -147,11 +169,69 @@ export default function PlanDashboard() {
                 <h1 className={styles.brandTitle}>{data.name || t.studio.channel}</h1>
               </div>
             </div>
-            <AppLink href="/dashboard" className={styles.createBtn}>
+            <button
+              type="button"
+              className={styles.createBtn}
+              onClick={() => { setError(null); setCreatorChoiceOpen(true); }}
+              disabled={busy}
+            >
               {t.studio.create}
-            </AppLink>
+            </button>
           </header>
 
+          {creatorChoiceOpen ? (
+            <div
+              role="presentation"
+              onClick={(event) => { if (event.target === event.currentTarget && !busy) setCreatorChoiceOpen(false); }}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center',
+                padding: 20, background: 'rgba(2, 6, 23, .78)', backdropFilter: 'blur(8px)',
+              }}
+            >
+              <section
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="creator-choice-title"
+                style={{
+                  width: 'min(100%, 440px)', padding: 22, borderRadius: 22,
+                  border: '1px solid rgba(148,163,184,.28)', background: '#111827',
+                  color: '#f8fafc', boxShadow: '0 24px 80px rgba(0,0,0,.45)',
+                }}
+              >
+                <h2 id="creator-choice-title" style={{ margin: '0 0 8px', fontSize: 22 }}>Hansı Creator olmaq istəyirsiniz?</h2>
+                <p style={{ margin: '0 0 18px', color: '#cbd5e1', lineHeight: 1.5 }}>
+                  Adi Creator pulsuzdur. VIP Creator üçün balansınızdan 30 AZN çıxılır.
+                </p>
+                {error ? <p role="alert" className={styles.error}>{error}</p> : null}
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <button
+                    type="button"
+                    className={styles.buyBtn}
+                    disabled={busy}
+                    onClick={() => void chooseStandardCreator()}
+                  >
+                    {busy ? t.studio.wait : 'Adi Creator — Pulsuz'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.buyBtn}
+                    disabled={busy}
+                    onClick={() => void chooseVipCreator()}
+                  >
+                    {busy ? t.studio.wait : 'VIP Creator — 30 AZN'}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
+                    disabled={busy}
+                    onClick={() => setCreatorChoiceOpen(false)}
+                  >
+                    Bağla
+                  </button>
+                </div>
+              </section>
+            </div>
+          ) : null}
           {notice ? <p role="status" className={styles.empty}>{notice}</p> : null}
           <div className={styles.tabs} role="tablist">
             {NAV_ICONS.map((item) => (
