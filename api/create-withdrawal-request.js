@@ -21,6 +21,13 @@ function normalizedName(value) {
     .toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function storedManat(player) {
+  const manat = Number.isFinite(Number(player.manat)) ? Math.max(0, Math.floor(Number(player.manat))) : null;
+  const coins = Number.isFinite(Number(player.coins)) ? Math.max(0, Math.floor(Number(player.coins))) : null;
+  if (manat !== null && coins !== null) return Math.min(manat, coins);
+  return manat ?? coins ?? 0;
+}
+
 function ageAtBirthDate(value, now = Date.now()) {
   const birth = new Date(String(value || ''));
   if (!Number.isFinite(birth.getTime()) || birth.getTime() > now) return null;
@@ -73,6 +80,9 @@ module.exports = async function createWithdrawalRequestHandler(req, res) {
     const user = userSnap.data() || {};
     if (player.firebaseUid !== identity.uid || user.firebaseUid !== identity.uid) throw new ApiError(403, 'PROFILE_OWNER_MISMATCH');
     if (player.frozen === true || user.frozen === true || user.banned === true) throw new ApiError(403, 'PROFILE_UNAVAILABLE');
+    const identityVerifiedAt = player.identityVerifiedAt && typeof player.identityVerifiedAt.toMillis === 'function'
+      ? player.identityVerifiedAt.toMillis() : Number(player.identityVerifiedAt);
+    if (!Number.isFinite(identityVerifiedAt) || identityVerifiedAt <= 0) throw new ApiError(409, 'PROFILE_NOT_VERIFIED');
     if (!(Number(player.walletActivatedAt) > 0)) throw new ApiError(409, 'WALLET_NOT_ACTIVATED');
     const age = ageAtBirthDate(user.birthDate, now);
     if (age === null || (age < 18 && user.parentalConsentVerified !== true)) throw new ApiError(403, 'PARENTAL_CONSENT_REQUIRED');
@@ -95,7 +105,7 @@ module.exports = async function createWithdrawalRequestHandler(req, res) {
       const daily = dailySnap.exists ? dailySnap.data() || {} : {};
       const dailyTotal = Math.max(0, Number(daily.amount) || 0);
       if ((Number(daily.requestCount) || 0) >= 1 || dailyTotal + amount > dailyLimit) throw new ApiError(429, 'DAILY_WITHDRAWAL_LIMIT_REACHED');
-      const balance = Math.max(0, Number(latestPlayer.manat ?? latestPlayer.coins) || 0);
+      const balance = storedManat(latestPlayer);
       if (balance < amount) throw new ApiError(409, 'INSUFFICIENT_BALANCE');
       const nextBalance = balance - amount;
       const manualReview = amount >= manualReviewThreshold;
@@ -135,7 +145,7 @@ module.exports = async function createWithdrawalRequestHandler(req, res) {
       'FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH', 'FIREBASE_AUTH_VERIFIER_UNAVAILABLE',
       'PLAY_INTEGRITY_REQUIRED', 'PLAY_INTEGRITY_NOT_CONFIGURED', 'PLAY_INTEGRITY_REJECTED',
       'PLAY_INTEGRITY_UNAVAILABLE', 'RATE_LIMITED', 'SECURITY_CONFIGURATION_MISSING',
-      'INVALID_REQUEST', 'VERIFIED_EMAIL_REQUIRED', 'PROFILE_NOT_FOUND', 'PROFILE_OWNER_MISMATCH',
+      'INVALID_REQUEST', 'VERIFIED_EMAIL_REQUIRED', 'PROFILE_NOT_FOUND', 'PROFILE_NOT_VERIFIED', 'PROFILE_OWNER_MISMATCH',
       'PROFILE_UNAVAILABLE', 'WALLET_NOT_ACTIVATED', 'PARENTAL_CONSENT_REQUIRED',
       'LEGAL_NAME_MISMATCH', 'MINIMUM_WITHDRAWAL_NOT_MET', 'DAILY_WITHDRAWAL_LIMIT_REACHED',
       'INSUFFICIENT_BALANCE',
