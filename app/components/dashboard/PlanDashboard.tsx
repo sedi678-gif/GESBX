@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useUser } from '@/context/UserContext';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import AppLink from '@/app/components/AppLink';
@@ -67,19 +67,28 @@ export default function PlanDashboard() {
   const [tab, setTab] = useState<StudioTab>('dashboard');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('creatorStatus');
+    if (status === 'activated') setNotice('Creator paneli aktivləşdi.');
+    if (status === 'already') setNotice('Sən artıq Creatorsan. Creator panelin aktivdir.');
+  }, []);
 
   const analyticsOpen = canViewAnalytics(plan);
   const creatorAccess = hasActiveCreatorAccess(plan);
   const showAds = shouldShowAds(plan);
 
-  const run = async (fn: () => Promise<unknown>) => {
+  const run = async (fn: () => Promise<unknown>, successMessage = '') => {
     if (!userId || busy) return;
     setBusy(true);
     setError(null);
     try {
       await fn();
+      if (successMessage) setNotice(successMessage);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.auth.errors.generic);
+      const message = err instanceof Error ? err.message : t.auth.errors.generic;
+      setError(/30 AZN|VIP Professional/i.test(message) ? 'Balansınızda kifayət qədər məbləğ yoxdur.' : message);
     } finally {
       setBusy(false);
     }
@@ -143,6 +152,7 @@ export default function PlanDashboard() {
             </AppLink>
           </header>
 
+          {notice ? <p role="status" className={styles.empty}>{notice}</p> : null}
           <div className={styles.tabs} role="tablist">
             {NAV_ICONS.map((item) => (
               <button
@@ -186,7 +196,7 @@ export default function PlanDashboard() {
                     type="button"
                     className={styles.buyBtn}
                     disabled={busy}
-                    onClick={() => void run(() => purchaseVipProPlan(userId))}
+                    onClick={() => void run(() => purchaseVipProPlan(userId), 'VIP Creator paneli aktivləşdirildi. 30 AZN balansınızdan çıxıldı.')}
                   >
                     {busy ? t.studio.wait : `${VIP_PRO_PRICE_AZN} ${t.studio.buyVip}`}
                   </button>
