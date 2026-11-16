@@ -54,7 +54,6 @@ exports.heartbeatReelRewardView = reels.heartbeatReelRewardView;
 exports.completeReelRewardView = reels.completeReelRewardView;
 exports.getMyReferralCode = referrals.getMyReferralCode;
 exports.getMyReferrals = referrals.getMyReferrals;
-exports.activateManatWallet = referrals.activateManatWallet;
 exports.applyReferral = referrals.applyReferral;
 exports.checkReferralActivation = referrals.checkReferralActivation;
 exports.reviewReferral = referrals.reviewReferral;
