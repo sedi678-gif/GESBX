@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { activateFreeCreatorPanel } from '@/app/lib/userPlan';
 import { useChannelStudio, formatStudioCount, formatStudioAge } from './useChannelStudio';
 import { useAppStrings } from '@/app/lib/useAppStrings';
 import styles from './studioDashboard.module.css';
@@ -10,25 +8,9 @@ export default function StudioSnapshot({ userId }: { userId?: string | null }) {
   const data = useChannelStudio(userId);
   const t = useAppStrings();
   const latest = data.latest;
-  const [activationError, setActivationError] = useState('');
-  const [activating, setActivating] = useState(false);
-
-  const openStudio = async () => {
-    if (!userId || activating) return;
-    setActivationError('');
-    setActivating(true);
-    try {
-      await activateFreeCreatorPanel(userId);
-      window.location.href = '/dashboard/?creatorStatus=activated';
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '';
-      if (/already|istifadə olunub/i.test(message)) {
-        window.location.href = '/dashboard/?creatorStatus=already';
-        return;
-      }
-      setActivationError(message || 'Creator panelini aktivləşdirmək mümkün olmadı.');
-      setActivating(false);
-    }
+  const openStudio = () => {
+    if (!userId) return;
+    window.location.href = '/dashboard/';
   };
 
   return (
@@ -83,9 +65,8 @@ export default function StudioSnapshot({ userId }: { userId?: string | null }) {
           {t.studio.snapshotEmpty}
         </p>
       )}
-      {activationError ? <p role="alert" className={styles.error}>{activationError}</p> : null}
-      <button type="button" className={styles.snapshotCta} onClick={() => void openStudio()} disabled={activating}>
-        {activating ? t.studio.wait : t.studio.open}
+      <button type="button" className={styles.snapshotCta} onClick={openStudio}>
+        {t.studio.open}
       </button>
     </section>
   );
