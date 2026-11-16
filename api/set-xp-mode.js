@@ -22,8 +22,16 @@ module.exports = async function setXpModeHandler(req, res) {
     const payload = req.body && typeof req.body === 'object' && !Array.isArray(req.body)
       ? req.body
       : {};
-    const identity = await verifySecureRequest(req, 'setProPanelActive', payload, { requireIdempotency: true });
-    if (typeof payload.active !== 'boolean' || Object.keys(payload).length !== 1) {
+    const creatorType = payload.creatorType;
+    const isCreatorActivation = creatorType === 'standard' || creatorType === 'vip';
+    const requestAction = isCreatorActivation
+      ? (creatorType === 'vip' ? 'purchaseVipProPlan' : 'activateFreeCreatorPanel')
+      : 'setProPanelActive';
+    const identity = await verifySecureRequest(req, requestAction, payload, { requireIdempotency: true });
+    if (isCreatorActivation) {
+      if (typeof payload.userId !== 'string' || !/^\\d{1,20}$/.test(payload.userId)
+        || Object.keys(payload).length !== 2) throw new ApiError(400, 'INVALID_REQUEST');
+    } else if (typeof payload.active !== 'boolean' || Object.keys(payload).length !== 1) {
       throw new ApiError(400, 'INVALID_REQUEST');
     }
 
@@ -126,6 +134,69 @@ module.exports = async function setXpModeHandler(req, res) {
         }, { merge: true });
       }
 
+      if (isCreatorActivation) {
+        if (!playerSnap.exists || !userSnap.exists || !player.identityVerifiedAt) {
+          throw new ApiError(409, 'PROFILE_NOT_VERIFIED');
+        }
+        if (creatorType === 'standard') {
+          const standard = {
+            userPlan: player.userPlan || 'FREE',
+            hasVipPass: player.hasVipPass === true,
+            isVipLifetime: player.isVipLifetime === true,
+            proPanelActive: player.proPanelActive === true,
+            creatorPanelExpiresAt: Number(player.creatorPanelExpiresAt) || 0,
+            adFreeUntil: Number(player.adFreeUntil) || 0,
+            freeCreatorPanelClaimedAt: Number(player.freeCreatorPanelClaimedAt) || now,
+          };
+          tx.set(playerRef, { ...standard, updatedAt: now }, { merge: true });
+          tx.set(userRef, { ...standard, updatedAt: now }, { merge: true });
+          tx.create(operationRef, {
+            authUid: identity.uid, playerId: userId, operationId: identity.operationId,
+            action: requestAction, type: 'free_creator_panel', amount: 0,
+            result: standard, createdAt: FieldValue.serverTimestamp(),
+          });
+          return standard;
+        }
+
+        const manat = Number.isFinite(Number(player.manat)) ? Math.max(0, Math.floor(Number(player.manat))) : null;
+        const coins = Number.isFinite(Number(player.coins)) ? Math.max(0, Math.floor(Number(player.coins))) : null;
+        const balance = manat !== null && coins !== null ? Math.min(manat, coins) : (manat ?? coins ?? 0);
+        if (balance < 30) throw new ApiError(409, 'INSUFFICIENT_BALANCE');
+        const nextBalance = balance - 30;
+        const oldCosmetics = player.cosmetics && typeof player.cosmetics === 'object' ? player.cosmetics : {};
+        const oldVip = oldCosmetics.vip && typeof oldCosmetics.vip === 'object' ? oldCosmetics.vip : {};
+        const cosmetics = {
+          owned: Array.isArray(oldCosmetics.owned) ? oldCosmetics.owned : [],
+          equipped: oldCosmetics.equipped && typeof oldCosmetics.equipped === 'object' ? oldCosmetics.equipped : {},
+          vip: {
+            tier: oldVip.tier === 'platinum' && Number(oldVip.expiresAt) > now ? 'platinum' : 'gold',
+            expiresAt: Math.max(Number(oldVip.expiresAt) || 0, now) + 180 * 24 * 60 * 60 * 1000,
+          },
+        };
+        const panelUntil = Math.max(Number(player.creatorPanelExpiresAt) || 0, now) + 30 * 24 * 60 * 60 * 1000;
+        const adFreeUntil = Math.max(Number(player.adFreeUntil) || 0, now) + 30 * 24 * 60 * 60 * 1000;
+        const vip = {
+          userPlan: 'VIP_PRO', hasVipPass: true,
+          isVipLifetime: player.isVipLifetime === true,
+          proPanelActive: player.proPanelActive === true,
+          creatorPanelExpiresAt: panelUntil, adFreeUntil, cosmetics,
+        };
+        const vipResult = { ...vip, balance: nextBalance };
+        tx.set(playerRef, { manat: nextBalance, coins: nextBalance, ...vip, updatedAt: now }, { merge: true });
+        tx.set(userRef, {
+          userPlan: 'VIP_PRO', hasVipPass: true, isVipLifetime: vip.isVipLifetime,
+          creatorPanelExpiresAt: panelUntil, adFreeUntil,
+          vipTier: cosmetics.vip.tier, vipExpiresAt: cosmetics.vip.expiresAt,
+          equippedCosmetics: cosmetics.equipped, updatedAt: now,
+        }, { merge: true });
+        tx.create(operationRef, {
+          authUid: identity.uid, playerId: userId, operationId: identity.operationId,
+          action: requestAction, type: 'vip_pro_purchase', amount: -30,
+          balanceAfter: nextBalance, result: vipResult, createdAt: FieldValue.serverTimestamp(),
+        });
+        return vipResult;
+      }
+
       const alreadyBound = Boolean(player.identityVerifiedAt);
       const operationResult = {
         userPlan: alreadyBound ? player.userPlan || 'FREE' : 'FREE',
@@ -168,7 +239,7 @@ module.exports = async function setXpModeHandler(req, res) {
         authUid: identity.uid,
         playerId: userId,
         operationId: identity.operationId,
-        action: 'setProPanelActive',
+        action: requestAction,
         result: operationResult,
         createdAt: FieldValue.serverTimestamp(),
       });
@@ -187,6 +258,7 @@ module.exports = async function setXpModeHandler(req, res) {
       'PLAY_INTEGRITY_UNAVAILABLE', 'RATE_LIMITED', 'SECURITY_CONFIGURATION_MISSING',
       'INVALID_REQUEST', 'PROFILE_NOT_FOUND', 'PROFILE_OWNER_MISMATCH',
       'PROFILE_NOT_UNIQUE', 'PROFILE_LINK_MISMATCH', 'PROFILE_UNAVAILABLE',
+      'PROFILE_NOT_VERIFIED', 'INSUFFICIENT_BALANCE',
     ]);
     const code = knownCodes.has(error.code) ? error.code : 'XP_MODE_UPDATE_FAILED';
     if (status >= 500) console.error('set-xp-mode failed:', error.message);
