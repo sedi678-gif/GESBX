@@ -29,7 +29,7 @@ module.exports = async function setXpModeHandler(req, res) {
       : 'setProPanelActive';
     const identity = await verifySecureRequest(req, requestAction, payload, { requireIdempotency: true });
     if (isCreatorActivation) {
-      if (typeof payload.userId !== 'string' || !/^\\d{1,20}$/.test(payload.userId)
+      if (typeof payload.userId !== 'string' || !USER_ID_PATTERN.test(payload.userId)
         || Object.keys(payload).length !== 2) throw new ApiError(400, 'INVALID_REQUEST');
     } else if (typeof payload.active !== 'boolean' || Object.keys(payload).length !== 1) {
       throw new ApiError(400, 'INVALID_REQUEST');
