@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "810938425668",
+    "project_id": "gesbx-c4312",
+    "storage_bucket": "gesbx-c4312.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:810938425668:android:c77397b67d2f0b44d6f711",
+        "android_client_info": {
+          "package_name": "az.gesbx.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAHgKqu0R40gvnIvEG-y2JncDdY6Buzuqo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
