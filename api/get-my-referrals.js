@@ -70,7 +70,12 @@ module.exports = async function getMyReferralsHandler(req, res) {
       else pendingCount += 1;
     }
 
-    return sendJson(res, 200, { activeCount, pendingCount });
+    return sendJson(res, 200, {
+      activeCount,
+      pendingCount,
+      walletActivated: Number(player.walletActivatedAt) > 0,
+      walletActivatedAt: Number(player.walletActivatedAt) || 0,
+    });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
     const knownCodes = new Set([
