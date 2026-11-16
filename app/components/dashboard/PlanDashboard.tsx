@@ -10,7 +10,6 @@ import {
   canViewAnalytics,
   hasActiveCreatorAccess,
   normalizeUserPlanState,
-  activateFreeCreatorPanel,
   purchaseVipProPlan,
   setProPanelActive,
   shouldShowAds,
@@ -71,8 +70,6 @@ export default function PlanDashboard() {
 
   const analyticsOpen = canViewAnalytics(plan);
   const creatorAccess = hasActiveCreatorAccess(plan);
-  const freeTrialClaimed = plan.freeCreatorPanelClaimedAt > 0;
-  const enoughXp = Number(playerProfile?.xp) >= 30000;
   const showAds = shouldShowAds(plan);
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -179,7 +176,9 @@ export default function PlanDashboard() {
                   <p className={styles.empty} style={{ marginTop: 12 }}>
                     {plan.isVipLifetime
                       ? `${t.studio.toolsOpen} ${manat.toLocaleString('az-AZ')} ₼`
-                      : `${t.studio.creatorActiveUntil} ${new Date(plan.creatorPanelExpiresAt).toLocaleString('az-AZ', { timeZone: 'Asia/Baku' })}`}
+                      : plan.userPlan === 'VIP_PRO'
+                        ? `${t.studio.creatorActiveUntil} ${new Date(plan.creatorPanelExpiresAt).toLocaleString('az-AZ', { timeZone: 'Asia/Baku' })}`
+                        : 'Adi Creator paneli pulsuz və aktivdir.'}
                   </p>
                 ) : null}
                 {!plan.isVipLifetime ? (
@@ -192,18 +191,6 @@ export default function PlanDashboard() {
                     {busy ? t.studio.wait : `${VIP_PRO_PRICE_AZN} ${t.studio.buyVip}`}
                   </button>
                 ) : null}
-                {!freeTrialClaimed && !creatorAccess ? (
-                  <button
-                    type="button"
-                    className={styles.ghostBtn}
-                    disabled={busy || !enoughXp}
-                    onClick={() => void run(() => activateFreeCreatorPanel(userId))}
-                  >
-                    {t.studio.creatorFreeAccess}
-                  </button>
-                ) : null}
-                {!freeTrialClaimed && !creatorAccess ? <p className={styles.empty}>{t.studio.creatorXpGate} ({Number(playerProfile?.xp || 0).toLocaleString()} / 30,000 XP)</p> : null}
-                {freeTrialClaimed && !creatorAccess ? <p className={styles.empty}>{t.studio.creatorTrialUsed}</p> : null}
                 <button
                   type="button"
                   className={styles.ghostBtn}
