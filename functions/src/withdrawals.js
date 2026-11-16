@@ -77,30 +77,10 @@ async function createWithdrawalRequest({ uid, authToken, payload, operationId, r
     if (ledger.data) return ledger.data.result;
     const rate = await ensureRateLimitTx(tx, uid, 'createWithdrawalRequest', rateLimit, now);
     const owned = await getOwnedPlayer(uid, payload.userId, tx);
-    const referralQuery = db.collection('referrals').where('inviterPlayerId', '==', owned.playerId);
-    const [dailySnap, existingRequest, referralSnap] = await Promise.all([
-      tx.get(dailyRef),
-      tx.get(requestRef),
-      tx.get(referralQuery),
-    ]);
+    const [dailySnap, existingRequest] = await Promise.all([tx.get(dailyRef), tx.get(requestRef)]);
     if (existingRequest.exists) return existingRequest.data();
-    const qualifiedReferralIds = [...new Set(
-      referralSnap.docs
-        .filter((doc) => String(doc.data().status || '') === 'active')
-        .map((doc) => String(doc.data().referredPlayerId || ''))
-        .filter(Boolean),
-    )].slice(0, 2);
-    const referredPlayers = await Promise.all(
-      qualifiedReferralIds.map((id) => tx.get(db.doc(`players/${id}`))),
-    );
-    const qualifiedReferralCount = referredPlayers.filter(
-      (snap) => snap.exists && Number(snap.data().xp) >= 6500,
-    ).length;
-    if (qualifiedReferralCount < 2) {
-      throw new HttpsError(
-        'failed-precondition',
-        `Pul çıxarışını aktivləşdirmək üçün 6.500 XP toplamış 2 etibarlı referal lazımdır (${qualifiedReferralCount}/2).`,
-      );
+    if (!(Number(owned.player.walletActivatedAt) > 0)) {
+      throw new HttpsError('failed-precondition', 'Pul çıxarmaq üçün əvvəlcə cüzdanı ayrıca aktivləşdir.');
     }
     const age = ageAtBirthDate(owned.user.birthDate, now);
     if (age == null || age < 18) {
