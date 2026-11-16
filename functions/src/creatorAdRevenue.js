@@ -182,6 +182,11 @@ async function aggregateEligibleReelView(event) {
       totalViews: Math.max(0, Number(prior.totalViews) || 0) + 1,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+    // Lifetime eligible social-video views are stored on the creator profile,
+    // separately for standard and VIP creators. Game/rewarded-ad views never enter here.
+    const lifetimeField = creatorIsVip ? 'creatorVipLifetimeViews' : 'creatorStandardLifetimeViews';
+    tx.set(creatorRef, { [lifetimeField]: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(creatorPlayerRef, { [lifetimeField]: FieldValue.increment(1), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.create(markerRef, { monthId, creatorId: String(view.ownerId), eventId: event.id, countedAt: FieldValue.serverTimestamp() });
   });
 }
