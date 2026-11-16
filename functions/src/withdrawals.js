@@ -84,16 +84,22 @@ async function createWithdrawalRequest({ uid, authToken, payload, operationId, r
       tx.get(referralQuery),
     ]);
     if (existingRequest.exists) return existingRequest.data();
-    const qualifiedReferralIds = new Set(
+    const qualifiedReferralIds = [...new Set(
       referralSnap.docs
-        .filter((doc) => ['pending', 'active'].includes(String(doc.data().status || '')))
-        .map((doc) => String(doc.data().referredUid || doc.data().referredPlayerId || ''))
+        .filter((doc) => String(doc.data().status || '') === 'active')
+        .map((doc) => String(doc.data().referredPlayerId || ''))
         .filter(Boolean),
+    )].slice(0, 2);
+    const referredPlayers = await Promise.all(
+      qualifiedReferralIds.map((id) => tx.get(db.doc(`players/${id}`))),
     );
-    if (qualifiedReferralIds.size < 2) {
+    const qualifiedReferralCount = referredPlayers.filter(
+      (snap) => snap.exists && Number(snap.data().xp) >= 6500,
+    ).length;
+    if (qualifiedReferralCount < 2) {
       throw new HttpsError(
         'failed-precondition',
-        `Pul çıxarışını aktivləşdirmək üçün dəvət kodunla qeydiyyatdan keçən 2 dost lazımdır (${qualifiedReferralIds.size}/2).`,
+        `Pul çıxarışını aktivləşdirmək üçün 6.500 XP toplamış 2 etibarlı referal lazımdır (${qualifiedReferralCount}/2).`,
       );
     }
     const age = ageAtBirthDate(owned.user.birthDate, now);
