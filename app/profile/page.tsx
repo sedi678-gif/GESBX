@@ -761,10 +761,10 @@ function ProfilePageContent() {
     setWalletActivationBusy(true);
     setReferralMessage('');
     try {
-      const result = await callSecureFunction<
+      const result = await callSecureApi<
         { userId: string },
         { walletActivated: boolean; activatedAt: number }
-      >('activateManatWallet', { userId: currentUser.id });
+      >('/api/activate-manat-wallet', 'activateManatWallet', { userId: currentUser.id });
       setWalletActivated(result.walletActivated === true);
       setReferralMessage('Cüzdan uğurla aktivləşdirildi. İndi uyğun pul çıxarışını edə bilərsən.');
       void loadWalletReferralProgress();
@@ -798,10 +798,10 @@ function ProfilePageContent() {
     setWithdrawMessage('');
     try {
       await refreshEmailVerification();
-      const result = await callSecureFunction<
+      const result = await callSecureApi<
         { userId: string; amount: number; paymentEmail: string; legalName: string },
         { requestId: string; amount: number; status: string; availableAt: number }
-      >('createWithdrawalRequest', {
+      >('/api/create-withdrawal-request', 'createWithdrawalRequest', {
         userId: currentUser.id,
         amount,
         paymentEmail: withdrawEmail.trim(),
