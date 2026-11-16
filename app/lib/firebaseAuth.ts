@@ -74,7 +74,7 @@ export function ensureFirebaseAuth(): Promise<User | null> {
       // hesab sessiyası anonim sessiya ilə əvəzlənib forma yenidən açıla bilər.
       // Kök səhifə də /register-ə yönləndirdiyi üçün burada anonim giriş olmaz.
       if (typeof window !== 'undefined') {
-        const path = window.location.pathname.replace(/\\/+$/, '') || '/';
+        const path = window.location.pathname.replace(/\/+$/, '') || '/';
         const authOnlyPaths = ['/','/register','/login','/forgot-password','/onboarding'];
         if (authOnlyPaths.includes(path)) {
           authFailure = null;
