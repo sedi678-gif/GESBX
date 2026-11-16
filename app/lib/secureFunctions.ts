@@ -173,6 +173,12 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
     if (code === 'XP_MODE_UPDATE_FAILED') {
       throw new Error('XP rejimini dəyişmək alınmadı. Yenidən cəhd et.');
     }
+    if (code === 'INSUFFICIENT_BALANCE') {
+      throw new Error('Balansınızda VIP Creator almaq üçün kifayət qədər məbləğ yoxdur. VIP Creator qiyməti 30 AZN-dir.');
+    }
+    if (code === 'PROFILE_NOT_VERIFIED') {
+      throw new Error('Profiliniz serverdə təsdiqlənməyib. Əvvəlcə profil təsdiqini tamamlayın.');
+    }
     if (code === 'PROFILE_NOT_BOUND') {
       throw new Error('Profil təhlükəsiz şəkildə bağlanmayıb. Hesabdan çıxıb yenidən daxil ol.');
     }
