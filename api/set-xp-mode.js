@@ -79,6 +79,7 @@ module.exports = async function setXpModeHandler(req, res) {
       throw new ApiError(409, 'PROFILE_LINK_MISMATCH');
     }
     if (!userId) throw new ApiError(404, 'PROFILE_NOT_FOUND');
+    if (isCreatorActivation && payload.userId !== userId) throw new ApiError(403, 'PROFILE_OWNER_MISMATCH');
     if (!USER_ID_PATTERN.test(userId)) throw new ApiError(409, 'PROFILE_NOT_UNIQUE');
     const playerRef = db.doc(`players/${userId}`);
     const userRef = db.doc(`users/${userId}`);
