@@ -194,8 +194,9 @@ async function reservePayout({ userId, playerId, amountCentsValue, recipientEmai
 
   return db.runTransaction(async (tx) => {
     const referralQuery = db.collection('referrals').where('inviterPlayerId', '==', playerId).where('status', '==', 'active');
-    const [requestSnap, walletSnap, playerSnap, userSnap, dailySnap, referralSnap] = await Promise.all([
-      tx.get(requestRef), tx.get(walletRef), tx.get(playerRef), tx.get(userRef), tx.get(dailyRef), tx.get(referralQuery),
+    const standardViewsQuery = db.collectionGroup('creators').where('creatorId', '==', playerId).limit(120);
+    const [requestSnap, walletSnap, playerSnap, userSnap, dailySnap, referralSnap, standardViewsSnap] = await Promise.all([
+      tx.get(requestRef), tx.get(walletRef), tx.get(playerRef), tx.get(userRef), tx.get(dailyRef), tx.get(referralQuery), tx.get(standardViewsQuery),
     ]);
     if (requestSnap.exists) {
       const existing = requestSnap.data();
@@ -242,9 +243,18 @@ async function reservePayout({ userId, playerId, amountCentsValue, recipientEmai
       throw error;
     }
     const creatorIsVip = isVipCreatorForPayout(playerSnap.data(), userSnap.data());
-    const lifetimeViews = creatorIsVip
-      ? Number(playerSnap.data().creatorVipLifetimeViews ?? userSnap.data().creatorVipLifetimeViews) || 0
-      : Math.max(Number(playerSnap.data().creatorStandardLifetimeViews) || 0, Number(userSnap.data().creatorStandardLifetimeViews) || 0);
+    const storedLifetimeViews = Math.max(
+      Number(playerSnap.data().creatorStandardLifetimeViews) || 0,
+      Number(userSnap.data().creatorStandardLifetimeViews) || 0,
+    );
+    const monthlyStandardViews = standardViewsSnap.docs.reduce(
+      (total, doc) => total + Math.max(0, Number(doc.data().standardViews) || 0),
+      0,
+    );
+    // Include the already-saved monthly eligible-view history as well as the
+    // lifetime profile counter, without counting the same views twice.
+    const lifetimeViews = creatorIsVip ? Number(playerSnap.data().creatorVipLifetimeViews ?? userSnap.data().creatorVipLifetimeViews) || 0
+      : Math.max(storedLifetimeViews, monthlyStandardViews);
     if (!creatorIsVip && lifetimeViews < 30000) {
       const error = new Error('CREATOR_VIEW_THRESHOLD_NOT_REACHED');
       error.httpStatus = 403;
