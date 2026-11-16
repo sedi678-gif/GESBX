@@ -171,6 +171,14 @@ function payoutRequestHash(amountCentsValue, recipientEmail) {
   return sha256(JSON.stringify({ amountCents: amountCentsValue, recipientEmail: recipientEmail.toLowerCase() }));
 }
 
+
+function isVipCreatorForPayout(player, user, atMillis = Date.now()) {
+  if (player.isVipLifetime === true) return true;
+  const playerVip = player.cosmetics?.vip;
+  if (playerVip && ['gold', 'platinum'].includes(playerVip.tier) && Number(playerVip.expiresAt) > atMillis) return true;
+  return ['gold', 'platinum'].includes(user.vipTier) && Number(user.vipExpiresAt) > atMillis;
+}
+
 async function reservePayout({ userId, playerId, amountCentsValue, recipientEmail, idempotencyKey }) {
   const requestId = sha256(`${userId}:${idempotencyKey}`).slice(0, 32);
   const requestRef = db.doc(`paypal_withdrawals/${requestId}`);
@@ -185,8 +193,9 @@ async function reservePayout({ userId, playerId, amountCentsValue, recipientEmai
   const senderBatchId = `gesbx_${requestId}`;
 
   return db.runTransaction(async (tx) => {
-    const [requestSnap, walletSnap, playerSnap, userSnap, dailySnap] = await Promise.all([
-      tx.get(requestRef), tx.get(walletRef), tx.get(playerRef), tx.get(userRef), tx.get(dailyRef),
+    const referralQuery = db.collection('referrals').where('inviterPlayerId', '==', playerId).where('status', '==', 'active');
+    const [requestSnap, walletSnap, playerSnap, userSnap, dailySnap, referralSnap] = await Promise.all([
+      tx.get(requestRef), tx.get(walletRef), tx.get(playerRef), tx.get(userRef), tx.get(dailyRef), tx.get(referralQuery),
     ]);
     if (requestSnap.exists) {
       const existing = requestSnap.data();
@@ -219,6 +228,25 @@ async function reservePayout({ userId, playerId, amountCentsValue, recipientEmai
       || (nowDate.getUTCMonth() === birthDate.getUTCMonth() && nowDate.getUTCDate() < birthDate.getUTCDate())) age -= 1;
     if (age < 18 && userSnap.data().parentalConsentVerified !== true) {
       const error = new Error('PARENTAL_CONSENT_REQUIRED');
+      error.httpStatus = 403;
+      throw error;
+    }
+    const uniqueReferralIds = [...new Set(referralSnap.docs
+      .map((doc) => String(doc.data().referredPlayerId || ''))
+      .filter(Boolean))].slice(0, 2);
+    const referralPlayers = await Promise.all(uniqueReferralIds.map((id) => tx.get(db.doc(`players/${id}`))));
+    const qualifiedReferralCount = referralPlayers.filter((snap) => snap.exists && Number(snap.data().xp) >= 6500).length;
+    if (qualifiedReferralCount < 2) {
+      const error = new Error('TWO_QUALIFIED_REFERRALS_REQUIRED');
+      error.httpStatus = 403;
+      throw error;
+    }
+    const creatorIsVip = isVipCreatorForPayout(playerSnap.data(), userSnap.data());
+    const lifetimeViews = creatorIsVip
+      ? Number(playerSnap.data().creatorVipLifetimeViews ?? userSnap.data().creatorVipLifetimeViews) || 0
+      : Math.max(Number(playerSnap.data().creatorStandardLifetimeViews) || 0, Number(userSnap.data().creatorStandardLifetimeViews) || 0);
+    if (!creatorIsVip && lifetimeViews < 30000) {
+      const error = new Error('CREATOR_VIEW_THRESHOLD_NOT_REACHED');
       error.httpStatus = 403;
       throw error;
     }
@@ -647,7 +675,7 @@ async function paypalPayoutRequest(req, res) {
       'PLAYER_PROFILE_NOT_OWNED', 'ACCOUNT_NOT_ELIGIBLE', 'IDENTITY_VERIFICATION_REQUIRED',
       'VALID_BIRTH_DATE_REQUIRED', 'PARENTAL_CONSENT_REQUIRED', 'INVALID_PAYOUT_REQUEST',
       'IDEMPOTENCY_KEY_REQUIRED', 'IDEMPOTENCY_KEY_REUSED', 'INSUFFICIENT_BALANCE',
-      'USD_WALLET_NOT_FOUND', 'USD_WALLET_REQUIRED', 'DAILY_PAYOUT_LIMIT_REACHED',
+      'USD_WALLET_NOT_FOUND', 'USD_WALLET_REQUIRED', 'DAILY_PAYOUT_LIMIT_REACHED', 'TWO_QUALIFIED_REFERRALS_REQUIRED', 'CREATOR_VIEW_THRESHOLD_NOT_REACHED',
     ]);
     const message = knownErrors.has(error.message) ? error.message : 'PAYOUT_REQUEST_FAILED';
     return sendJson(res, status, { error: message });
