@@ -6,6 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'out',
   loggingBehavior: 'production',
   server: {
+    // Android tətbiqi veb interfeysi birbaşa Vercel-dən yükləsin.
+    url: 'https://gesbx.vercel.app',
     androidScheme: 'https',
     iosScheme: 'https',
     allowNavigation: [
