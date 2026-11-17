@@ -1,0 +1,16 @@
+// Minimal Capacitor Cordova bridge module.
+// Capacitor sync can regenerate this module when Cordova plugins are installed.
+apply plugin: 'com.android.library'
+
+android {
+    namespace "capacitor.cordova.android.plugins"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'src/main/libs', include: ['*.jar', '*.aar'])
+}
