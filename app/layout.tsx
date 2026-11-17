@@ -20,6 +20,10 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'GESBX',
   },
+  icons: {
+    icon: '/gesbx-icon.png',
+    apple: '/gesbx-icon.png',
+  },
   formatDetection: {
     telephone: false,
   },
