@@ -8,6 +8,19 @@ import { browserLocalPersistence, createUserWithEmailAndPassword, sendEmailVerif
 import { useAppStrings } from '@/app/lib/useAppStrings';
 import LanguageSwitch from '@/app/components/LanguageSwitch';
 
+function withTimeout<T>(promise: Promise<T>, ms: number, stage: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(stage)), ms);
+    promise.then((value) => {
+      clearTimeout(timer);
+      resolve(value);
+    }).catch((error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
+}
+
 export default function RegisterPage() {
   const t = useAppStrings();
   const [email, setEmail] = useState('');
@@ -28,14 +41,14 @@ export default function RegisterPage() {
       const normalizedEmail = email.trim().toLowerCase();
 
       // Keep the new Firebase account signed in when the page changes.
-      await setPersistence(auth, browserLocalPersistence);
+      await withTimeout(setPersistence(auth, browserLocalPersistence), 15_000, 'Firebase yaddaş sessiyası 15 saniyəyə qurulmadı.');
 
       let user;
       try {
-        const userCredential = await createUserWithEmailAndPassword(
-          auth,
-          normalizedEmail,
-          password
+        const userCredential = await withTimeout(
+          createUserWithEmailAndPassword(auth, normalizedEmail, password),
+          25_000,
+          'Firebase hesab yaratma sorğusuna 25 saniyə ərzində cavab vermədi. Firebase Authentication, internet və App Check parametrlərini yoxlamaq lazımdır.'
         );
         user = userCredential.user;
       } catch (createError: any) {
@@ -43,24 +56,24 @@ export default function RegisterPage() {
         // verification/navigation step completed. Resume that account.
         if (createError?.code !== 'auth/email-already-in-use') throw createError;
 
-        const existingCredential = await signInWithEmailAndPassword(
-          auth,
-          normalizedEmail,
-          password
+        const existingCredential = await withTimeout(
+          signInWithEmailAndPassword(auth, normalizedEmail, password),
+          25_000,
+          'Mövcud Firebase hesabına giriş sorğusu 25 saniyəyə cavab vermədi.'
         );
         user = existingCredential.user;
       }
 
-      await user.reload();
+      await withTimeout(user.reload(), 15_000, 'Firebase hesab məlumatları 15 saniyəyə yenilənmədi.');
       if (!user.emailVerified) {
-        await sendEmailVerification(user);
+        await withTimeout(sendEmailVerification(user), 25_000, 'Təsdiq emaili göndərilmədi: Firebase 25 saniyəyə cavab vermədi.');
         setSuccessMsg('Hesab yaradıldı. E-poçtunuza təsdiq linki göndərildi. Linki açdıqdan sonra davam edin.');
       } else {
         setSuccessMsg('E-poçt artıq təsdiqlənib. Profilinizi tamamlaya bilərsiniz.');
       }
 
       // Wait until Firebase has restored the signed-in user before navigating.
-      await auth.authStateReady();
+      await withTimeout(auth.authStateReady(), 10_000, 'Firebase giriş sessiyası 10 saniyəyə bərpa olunmadı.');
       if (!auth.currentUser) {
         throw new Error('Firebase sessiyası saxlanmadı. Zəhmət olmasa yenidən cəhd edin.');
       }
