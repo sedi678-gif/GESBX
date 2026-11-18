@@ -296,7 +296,7 @@ function readStoredProfile(firebaseUid: string | null) {
     const savedUser = localStorage.getItem('app_current_user_v6');
     if (!savedUser) return null;
     const parsed = JSON.parse(savedUser);
-    // Never reuse another Firebase account's cached profile (for example ID 92).
+    // Never reuse another Firebase account's cached profile (for example ID 98).
     if (!firebaseUid || parsed?.firebaseUid !== firebaseUid) return null;
     const savedAlliance = localStorage.getItem('app_user_alliance_name') || '';
     return { ...parsed, allianceName: savedAlliance || parsed.allianceName || '' };
