@@ -41,14 +41,14 @@ export default function RegisterPage() {
       const normalizedEmail = email.trim().toLowerCase();
 
       // Keep the new Firebase account signed in when the page changes.
-      await withTimeout(setPersistence(auth, browserLocalPersistence), 15_000, 'Firebase yaddaş sessiyası 15 saniyəyə qurulmadı.');
+      await withTimeout(setPersistence(auth, browserLocalPersistence), 8_000, 'Firebase sessiyası qurulmadı. İnternet bağlantısını yoxlayıb yenidən cəhd edin.');
 
       let user;
       try {
         const userCredential = await withTimeout(
           createUserWithEmailAndPassword(auth, normalizedEmail, password),
-          25_000,
-          'Firebase hesab yaratma sorğusuna 25 saniyə ərzində cavab vermədi. Firebase Authentication, internet və App Check parametrlərini yoxlamaq lazımdır.'
+          15_000,
+          'Firebase hesab yaratma sorğusu 15 saniyədə cavab vermədi. Firebase Authentication və internet bağlantısını yoxlayın.'
         );
         user = userCredential.user;
       } catch (createError: any) {
@@ -58,24 +58,24 @@ export default function RegisterPage() {
 
         const existingCredential = await withTimeout(
           signInWithEmailAndPassword(auth, normalizedEmail, password),
-          25_000,
-          'Mövcud Firebase hesabına giriş sorğusu 25 saniyəyə cavab vermədi.'
+          15_000,
+          'Mövcud Firebase hesabına giriş sorğusu 15 saniyədə cavab vermədi.'
         );
         user = existingCredential.user;
       }
 
-      await withTimeout(user.reload(), 15_000, 'Firebase hesab məlumatları 15 saniyəyə yenilənmədi.');
-      if (!user.emailVerified) {
-        await withTimeout(sendEmailVerification(user), 25_000, 'Təsdiq emaili göndərilmədi: Firebase 25 saniyəyə cavab vermədi.');
-        setSuccessMsg('Hesab yaradıldı. E-poçtunuza təsdiq linki göndərildi. Linki açdıqdan sonra davam edin.');
-      } else {
-        setSuccessMsg('E-poçt artıq təsdiqlənib. Profilinizi tamamlaya bilərsiniz.');
+      if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
+        throw new Error('Firebase sessiyası saxlanmadı. Zəhmət olmasa yenidən cəhd edin.');
       }
 
-      // Wait until Firebase has restored the signed-in user before navigating.
-      await withTimeout(auth.authStateReady(), 10_000, 'Firebase giriş sessiyası 10 saniyəyə bərpa olunmadı.');
-      if (!auth.currentUser) {
-        throw new Error('Firebase sessiyası saxlanmadı. Zəhmət olmasa yenidən cəhd edin.');
+      // Email verification must not block account creation or page navigation.
+      if (!user.emailVerified) {
+        void sendEmailVerification(user).catch((verificationError) => {
+          console.error('Təsdiq emaili göndərilmədi:', verificationError);
+        });
+        setSuccessMsg('Hesab yaradıldı. Təsdiq linki e-poçtunuza göndərilir. Profil mərhələsinə keçilir…');
+      } else {
+        setSuccessMsg('E-poçt artıq təsdiqlənib. Profilinizi tamamlaya bilərsiniz.');
       }
       router.replace('/onboarding');
     } catch (err: any) {
