@@ -274,8 +274,12 @@ async function bootstrapOrRecordAdmin(db, identity, displayName) {
     if (playerSnap.exists && player.firebaseUid && player.firebaseUid !== identity.uid) {
       throw new ApiError(403, 'ADMIN_PROFILE_NOT_BOUND');
     }
-    if (!alreadyAdmin && !isConfiguredAdminUid(identity.uid)) {
-      throw new ApiError(503, 'ADMIN_BOOTSTRAP_NOT_CONFIGURED');
+    const ownsVerifiedProfile = user.firebaseUid === identity.uid
+      && playerSnap.exists
+      && player.firebaseUid === identity.uid
+      && Boolean(player.identityVerifiedAt);
+    if (!alreadyAdmin && !isConfiguredAdminUid(identity.uid) && !ownsVerifiedProfile) {
+      throw new ApiError(403, 'ADMIN_PROFILE_NOT_BOUND');
     }
 
     if (!alreadyAdmin) {
