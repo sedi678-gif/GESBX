@@ -2,7 +2,7 @@ import { httpsCallable } from 'firebase/functions';
 import { getToken } from 'firebase/app-check';
 import { getId, getInstallations } from 'firebase/installations';
 import { Capacitor } from '@capacitor/core';
-import { apiBaseUrl, app, appCheck, auth, functions, requestPlayIntegrityToken } from '@/firebase';
+import { apiBaseUrl, app, appCheck, auth, functions, requestPlayIntegrityToken, PLAY_INTEGRITY_ENABLED } from '@/firebase';
 import { requireFirebaseAuth } from './firebaseAuth';
 
 type SecureEnvelope<T> = {
@@ -65,7 +65,7 @@ export async function callSecureFunction<TPayload extends Record<string, unknown
   const installationId = await getFirebaseInstallationId();
   const request: SecureEnvelope<TPayload> = { operationId, payload, installationId };
 
-  if (Capacitor.isNativePlatform()) {
+  if (Capacitor.isNativePlatform() && PLAY_INTEGRITY_ENABLED) {
     const requestHash = await hashRequest({ uid, action, operationId, payload, installationId });
     const integrityToken = await requestPlayIntegrityToken(requestHash);
     if (!integrityToken) throw new Error('Play Integrity bu cihazda aktiv deyil.');
@@ -125,7 +125,7 @@ async function callSecureApiInternal<TPayload extends Record<string, unknown>, T
     'X-Firebase-Installation-Id': installationId,
     'Idempotency-Key': operationId,
   };
-  if (Capacitor.isNativePlatform()) {
+  if (Capacitor.isNativePlatform() && PLAY_INTEGRITY_ENABLED) {
     const requestHash = await hashRequest({ uid, action, operationId, payload, installationId });
     const integrityToken = await requestPlayIntegrityToken(requestHash);
     if (!integrityToken) throw new Error('Play Integrity bu cihazda aktiv deyil.');
