@@ -50,10 +50,10 @@ module.exports = async function setXpModeHandler(req, res) {
       throw new ApiError(409, 'PROFILE_LINK_MISMATCH');
     }
     const allocationRef = db.doc(`user_id_allocations/${sha256(identity.uid).slice(0, 48)}`);
-    // Profile 92 is reserved for the super admin and is intentionally excluded
+    // Profile 98 is reserved for the super admin and is intentionally excluded
     // from normal user ID allocations. Its server-written admin session is the
     // authoritative UID-to-profile link when the profile documents are legacy.
-    const adminSessionRef = db.doc('admin_sessions/92');
+    const adminSessionRef = db.doc('admin_sessions/98');
     const [allocationSnap, adminSessionSnap] = await Promise.all([
       allocationRef.get(),
       adminSessionRef.get(),
@@ -68,11 +68,11 @@ module.exports = async function setXpModeHandler(req, res) {
       throw new ApiError(409, 'PROFILE_NOT_UNIQUE');
     }
     const adminSession = adminSessionSnap.exists ? adminSessionSnap.data() || {} : {};
-    const adminProfileId = adminSession.adminUid === identity.uid || verifiedAdminRecovery ? '92' : '';
+    const adminProfileId = adminSession.adminUid === identity.uid || verifiedAdminRecovery ? '98' : '';
     const userId = adminProfileId || userProfileId || playerProfileId || allocatedProfileId;
-    if (adminProfileId && ((userProfileId && userProfileId !== '92')
-      || (playerProfileId && playerProfileId !== '92')
-      || (allocatedProfileId && allocatedProfileId !== '92'))) {
+    if (adminProfileId && ((userProfileId && userProfileId !== '98')
+      || (playerProfileId && playerProfileId !== '98')
+      || (allocatedProfileId && allocatedProfileId !== '98'))) {
       throw new ApiError(409, 'PROFILE_LINK_MISMATCH');
     }
     if (userId && allocatedProfileId && userId !== allocatedProfileId) {
@@ -96,7 +96,7 @@ module.exports = async function setXpModeHandler(req, res) {
         tx.get(allocationRef),
         tx.get(adminSessionRef),
       ]);
-      const isBoundAdmin = userId === '92'
+      const isBoundAdmin = userId === '98'
         && (verifiedAdminRecovery || (currentAdminSession.exists
           && currentAdminSession.data()?.adminUid === identity.uid));
       if (!playerSnap.exists && !userSnap.exists && !currentAllocation.exists && !isBoundAdmin) {
@@ -119,7 +119,7 @@ module.exports = async function setXpModeHandler(req, res) {
 
       if (isBoundAdmin) {
         tx.set(userRef, {
-          id: '92',
+          id: '98',
           name: user.name || 'Admin',
           surname: user.surname || '',
           handle: user.handle || '@admin',
