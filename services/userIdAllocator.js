@@ -4,7 +4,7 @@ const {
   sha256,
 } = require('./apiSecurity');
 
-const ADMIN_PROFILE_ID = 92;
+const ADMIN_PROFILE_ID = 98;
 const MAX_ALLOCATION_ATTEMPTS = 256;
 
 function numericId(value) {
