@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'firebase/auth';
+import { auth } from '@/firebase';
 import { signInFirebaseAccount, withTimeout } from '@/app/lib/firebaseAuth';
 import { getAccountStatus } from '@/app/lib/accountLifecycleService';
 import { getLocalProfileUserId } from '@/app/lib/userId';
