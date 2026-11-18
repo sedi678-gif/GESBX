@@ -10,14 +10,6 @@ import { getLocalProfileUserId } from '@/app/lib/userId';
 import { useAppStrings } from '@/app/lib/useAppStrings';
 import LanguageSwitch from '@/app/components/LanguageSwitch';
 
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
-    promise.then((value) => { clearTimeout(timer); resolve(value); })
-      .catch((error) => { clearTimeout(timer); reject(error); });
-  });
-}
-
 export default function LoginPage() {
   const t = useAppStrings();
   const [email, setEmail] = useState('');
@@ -33,10 +25,10 @@ export default function LoginPage() {
 
     try {
       // 1. Giriş cəhdi edirik
-      const userCredential = await withTimeout(
-        signInWithEmailAndPassword(auth, email.trim(), password),
-        15_000,
-        'Firebase giriş sorğusu 15 saniyədə cavab vermədi. İnternet və Firebase Authentication parametrlərini yoxlayın.'
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
       );
       const user = userCredential.user;
 
@@ -51,7 +43,7 @@ export default function LoginPage() {
       const localId = getLocalProfileUserId(user.uid);
       if (localId) {
         try {
-          const status = await withTimeout(getAccountStatus(localId), 3_000, 'Hesab statusu yoxlanılmadı');
+          const status = await getAccountStatus(localId);
           if (status.banned) {
             await signOut(auth);
             setError(t.auth.errors.banned);
@@ -75,8 +67,16 @@ export default function LoginPage() {
         setError(t.auth.errors.badCreds);
       } else if (err.code === 'auth/invalid-email') {
         setError(t.auth.errors.badEmail);
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('Firebase serverinə qoşulmaq mümkün olmadı. Firebase Authentication bağlantısını və domen icazələrini yoxlayın.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Firebase Console-da Email/Password giriş üsulu aktiv deyil.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Çox sayda giriş cəhdi edilib. Bir az sonra yenidən yoxlayın.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Bu sayt domeni Firebase Authentication → Settings → Authorized domains siyahısında yoxdur.');
       } else {
-        setError(`${t.auth.errors.generic} ${err.message || ''}`);
+        setError(`${t.auth.errors.generic} ${err.message || err.code || ''}`);
       }
     } finally {
       setLoading(false);
