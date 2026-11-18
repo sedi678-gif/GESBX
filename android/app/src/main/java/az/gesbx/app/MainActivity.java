@@ -42,7 +42,6 @@ public class MainActivity extends BridgeActivity {
         WindowInsetsControllerCompat insets = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         insets.setAppearanceLightStatusBars(false);
         insets.setAppearanceLightNavigationBars(false);
-        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
     }
 
     @Override
