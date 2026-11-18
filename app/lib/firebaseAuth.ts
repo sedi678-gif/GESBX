@@ -10,7 +10,7 @@ import {
 import { getToken as getAppCheckToken } from 'firebase/app-check';
 import { connectFirestoreEmulator } from 'firebase/firestore';
 import { connectStorageEmulator } from 'firebase/storage';
-import { appCheck, auth, db, storage } from '@/firebase';
+import { appCheck, auth, db, storage, initializeNativeAppCheck } from '@/firebase';
 
 let emulatorsConnected = false;
 
@@ -64,6 +64,7 @@ export function ensureFirebaseAuth(): Promise<User | null> {
       // Gmail session and cause Firestore owner checks to fail.
       await auth.authStateReady();
       if (auth.currentUser) {
+        initializeNativeAppCheck();
         authFailure = null;
         return auth.currentUser;
       }
@@ -105,6 +106,7 @@ export function ensureFirebaseAuth(): Promise<User | null> {
         ANONYMOUS_AUTH_TIMEOUT_MS,
         'Firebase anonim giriş sorğusuna cavab vermədi.'
       );
+      initializeNativeAppCheck();
       authFailure = null;
       return credential.user;
     })().catch((err) => {
@@ -137,21 +139,12 @@ export async function signInFirebaseAccount(email: string, password: string): Pr
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !password) throw new Error('Firebase email və şifrəsini daxil edin.');
 
-  // Obtain the App Check token before the Auth request. This avoids making
-  // the sign-in request wait on a cold reCAPTCHA Enterprise provider.
-  if (appCheck) {
-    try {
-      await withTimeout(
-        getAppCheckToken(appCheck),
-        4_000,
-        'Firebase App Check tokeni 4 saniyədə alınmadı.'
-      );
-    } catch (error) {
-      console.warn('[Firebase App Check] Girişdən əvvəl token alınmadı; Auth sorğusu davam edir:', error);
-    }
-  }
-
+  // Android App Check login-dən əvvəl başladılmır: Play Integrity
+  // provider-i token üçün Auth sessiyası tələb edir. Əvvəlcə normal login.
   const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+
+  // Login uğurla bitəndən sonra Android App Check aktivləşdirilir.
+  initializeNativeAppCheck();
   return credential.user;
 }
 
