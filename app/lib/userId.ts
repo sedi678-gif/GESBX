@@ -47,14 +47,14 @@ export function notifyUserIdChanged() {
 export function forceSuperAdminLocalProfile(displayName: string) {
   if (typeof window === 'undefined') return;
   const currentId = getLocalProfileUserId();
-  if (currentId !== '92') return;
+  if (currentId !== '98') return;
   try {
     const saved = localStorage.getItem('app_current_user_v6');
     const parsed = saved ? JSON.parse(saved) : {};
     const parts = displayName.split(' ');
     const updated = {
       ...parsed,
-      id: '92',
+      id: '98',
       name: parts[0] || parsed.name || 'Admin',
       surname: parts.slice(1).join(' ') || parsed.surname || '',
       handle: parsed.handle || '@admin',
