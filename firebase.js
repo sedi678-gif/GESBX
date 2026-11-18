@@ -123,71 +123,73 @@ export async function requestPlayIntegrityToken(requestHash) {
 export const auth = getAuth(app);
 
 export let appCheck = null;
+let nativeAppCheckInitialized = false;
 
-if (typeof window !== "undefined") {
-  const siteKey =
-    process.env.NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY || "";
+// Android-da App Check-i login-dən ƏVVƏL başlatmırıq.
+// Əks halda token provider anonim giriş yaratmağa çalışır, həmin Auth sorğusu
+// da App Check tokenini gözləyə bilər və login dövrü ilişib qala bilər.
+export function initializeNativeAppCheck() {
+  if (typeof window === "undefined" || !Capacitor.isNativePlatform()) {
+    return appCheck;
+  }
+  if (nativeAppCheckInitialized) return appCheck;
 
-  if (Capacitor.isNativePlatform()) {
-    appCheck = initializeAppCheck(app, {
-      provider: new CustomProvider({
-        getToken: async () => {
-          let current = auth.currentUser;
+  appCheck = initializeAppCheck(app, {
+    provider: new CustomProvider({
+      getToken: async () => {
+        const current = auth.currentUser;
+        if (!current) {
+          throw new Error("App Check tokeni üçün əvvəlcə istifadəçi girişi tamamlanmalıdır.");
+        }
 
-          if (!current) {
-            current = (await signInAnonymously(auth)).user;
+        const challenge = randomChallenge();
+        const installationId = await getId(getInstallations(app));
+        const requestHash = await sha256Base64Url(
+          `${current.uid}|app-check|${challenge}|${installationId}`
+        );
+        const integrityToken = await requestPlayIntegrityToken(requestHash);
+        const idToken = await current.getIdToken();
+        const endpoint = `${apiBaseUrl}/api/mint-mobile-app-check-token`;
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ challenge, integrityToken, installationId }),
+          signal: AbortSignal.timeout(15_000),
+        });
+
+        if (!response.ok) {
+          const failure = await response.json().catch(() => ({}));
+          const reason = typeof failure?.error === "string" ? failure.error : "unknown";
+          if (reason === "android_app_check_not_configured") {
+            throw new Error(
+              "Vercel-də ANDROID_FIREBASE_APP_ID və PLAY_INTEGRITY_PACKAGE_NAME dəyişənləri yoxdur."
+            );
           }
-
-          const challenge = randomChallenge();
-          const installationId = await getId(getInstallations(app));
-
-          const requestHash = await sha256Base64Url(
-            `${current.uid}|app-check|${challenge}|${installationId}`
-          );
-
-          const integrityToken =
-            await requestPlayIntegrityToken(requestHash);
-
-          const idToken = await current.getIdToken();
-
-          const endpoint = `${apiBaseUrl}/api/mint-mobile-app-check-token`;
-
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${idToken}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              challenge,
-              integrityToken,
-              installationId,
-            }),
-            signal: AbortSignal.timeout(15_000),
-          });
-
-          if (!response.ok) {
-            const failure = await response.json().catch(() => ({}));
-            const reason = typeof failure?.error === "string" ? failure.error : "unknown";
-            if (reason === "android_app_check_not_configured") {
-              throw new Error(
-                "Vercel-də ANDROID_FIREBASE_APP_ID və PLAY_INTEGRITY_PACKAGE_NAME dəyişənləri yoxdur. Firebase Android App ID və tətbiqin Play Store package name dəyərlərini əlavə edib redeploy etmək lazımdır."
-              );
-            }
-            if (reason === "integrity_rejected") {
-              throw new Error(
-                "Google Play Integrity bu tətbiqin imzasını və ya package name məlumatını təsdiqləmədi. Play Console-da eyni package name və SHA-256 imza sertifikatını yoxlamaq lazımdır."
-              );
-            }
-            throw new Error(`App Check tokeni alınmadı (${response.status}: ${reason}).`);
+          if (reason === "integrity_rejected") {
+            throw new Error(
+              "Google Play Integrity tətbiqin imzasını və ya package name məlumatını təsdiqləmədi."
+            );
           }
+          throw new Error(`App Check tokeni alınmadı (${response.status}: ${reason}).`);
+        }
 
-          return response.json();
-        },
-      }),
-      isTokenAutoRefreshEnabled: true,
-    });
-  } else if (siteKey) {
+        return response.json();
+      },
+    }),
+    isTokenAutoRefreshEnabled: true,
+  });
+
+  nativeAppCheckInitialized = true;
+  return appCheck;
+}
+
+if (typeof window !== "undefined" && !Capacitor.isNativePlatform()) {
+  const siteKey = process.env.NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY || "";
+  if (siteKey) {
     appCheck = initializeAppCheck(app, {
       provider: new ReCaptchaEnterpriseProvider(siteKey),
       isTokenAutoRefreshEnabled: true,
