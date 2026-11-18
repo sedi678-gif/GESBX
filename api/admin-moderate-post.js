@@ -203,6 +203,9 @@ async function recordAdminSession(db, identity, displayName, active) {
   const operationRef = db.doc(`operation_ledger/${operationId}`);
   const commandRef = db.doc(`admin_commands/${operationId}`);
   const sessionRef = db.doc(`admin_sessions/${ADMIN_PROFILE_ID}`);
+  const previousAdminRef = db.doc('users/92');
+  const previousSessionRef = db.doc('admin_sessions/92');
+  const adminConfigRef = db.doc('app_config/admin');
   const now = Date.now();
   const result = { active };
   await db.runTransaction(async (transaction) => {
@@ -258,11 +261,12 @@ async function bootstrapOrRecordAdmin(db, identity, displayName) {
   const result = { userId: ADMIN_PROFILE_ID, active: true };
 
   await db.runTransaction(async (transaction) => {
-    const [operationSnap, userSnap, playerSnap, sessionSnap] = await Promise.all([
+    const [operationSnap, userSnap, playerSnap, sessionSnap, previousAdminSnap] = await Promise.all([
       transaction.get(operationRef),
       transaction.get(userRef),
       transaction.get(playerRef),
       transaction.get(sessionRef),
+      transaction.get(previousAdminRef),
     ]);
     if (operationSnap.exists) return;
     if (!userSnap.exists || userSnap.data()?.firebaseUid !== identity.uid) {
@@ -303,6 +307,22 @@ async function bootstrapOrRecordAdmin(db, identity, displayName) {
       displayName,
       active: true,
       lastLoginAt: now,
+    }, { merge: true });
+    transaction.set(adminConfigRef, { superAdminId: ADMIN_PROFILE_ID, updatedAt: now }, { merge: true });
+    if (previousAdminSnap.exists) {
+      transaction.set(previousAdminRef, {
+        role: 'user',
+        isAdmin: false,
+        isModerator: false,
+        canViewReports: false,
+        canAccessAdminPanel: false,
+        updatedAt: now,
+      }, { merge: true });
+    }
+    transaction.set(previousSessionRef, {
+      active: false,
+      migratedToProfileId: ADMIN_PROFILE_ID,
+      lastLogoutAt: now,
     }, { merge: true });
     transaction.create(commandRef, {
       adminId: ADMIN_PROFILE_ID,
