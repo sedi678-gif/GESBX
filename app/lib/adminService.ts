@@ -120,7 +120,7 @@ export function listenSuperAdminAccess(
   const update = () => {
     if (stopped) return;
     const owned = Boolean(firebaseUid && latestData?.firebaseUid === firebaseUid);
-    // Let the Firebase-UID-bound ID 92 profile reach bootstrap; the callable
+    // Let the Firebase-UID-bound ID 98 profile reach bootstrap; the callable
     // independently verifies its player identity before granting admin role.
     callback(owned);
   };
