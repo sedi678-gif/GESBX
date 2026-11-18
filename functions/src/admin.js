@@ -12,7 +12,7 @@ const {
   ADMIN_UIDS,
 } = require('./security');
 
-const ADMIN_PROFILE_ID = '92';
+const ADMIN_PROFILE_ID = '98';
 const playerIdSchema = z.string().regex(/^\d{1,20}$/);
 const bootstrapSchema = z.object({ displayName: z.string().trim().min(2).max(100) }).strict();
 const sessionSchema = z.object({ displayName: z.string().trim().max(100).optional(), active: z.boolean() }).strict();
@@ -26,19 +26,19 @@ function splitName(displayName) {
 }
 
 async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authToken }) {
-  // Bootstrap must work when the profile-to-UID link is exactly what is
-  // missing. Authorize using the server-only allowlist, then retain the
-  // transaction checks below so an existing profile cannot be taken over.
-  if (!isConfiguredAdminUid(uid, ADMIN_UIDS.value())) {
-    throw new HttpsError('permission-denied', 'Admin icazəsi tələb olunur.');
-  }
+  // Allow bootstrap either for an explicitly configured admin UID or for
+  // the owner of an already verified profile 98. Ownership is rechecked
+  // inside the transaction before any admin privileges are written.
+  const configuredAdminUid = isConfiguredAdminUid(uid, ADMIN_UIDS.value());
   const userRef = db.doc(`users/${ADMIN_PROFILE_ID}`);
   const playerRef = db.doc(`players/${ADMIN_PROFILE_ID}`);
   const configRef = db.doc('app_config/admin');
   const counterRef = db.doc('counters/userIdCounter');
   const sessionRef = db.doc(`admin_sessions/${ADMIN_PROFILE_ID}`);
-  const previousAdminRef = db.doc('users/1');
-  const previousSessionRef = db.doc('admin_sessions/1');
+  const previousAdminRef = db.doc('users/92');
+  const previousSessionRef = db.doc('admin_sessions/92');
+  const legacyPreviousAdminRef = db.doc('users/1');
+  const legacyPreviousSessionRef = db.doc('admin_sessions/1');
   const opRef = db.doc(`operation_ledger/${operationDocId(uid, operationId)}`);
   const commandRef = db.doc(`admin_commands/${operationDocId(uid, operationId)}`);
   const now = Date.now();
@@ -48,8 +48,9 @@ async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authT
     const operation = await tx.get(opRef);
     if (operation.exists) return operation.data().result;
     const rate = await ensureRateLimitTx(tx, uid, 'bootstrapSuperAdmin', rateLimit, now);
-    const [userSnap, playerSnap, configSnap, counterSnap, previousAdminSnap] = await Promise.all([
-      tx.get(userRef), tx.get(playerRef), tx.get(configRef), tx.get(counterRef), tx.get(previousAdminRef),
+    const [userSnap, playerSnap, configSnap, counterSnap, previousAdminSnap, legacyPreviousAdminSnap] = await Promise.all([
+      tx.get(userRef), tx.get(playerRef), tx.get(configRef), tx.get(counterRef),
+      tx.get(previousAdminRef), tx.get(legacyPreviousAdminRef),
     ]);
     if (userSnap.exists && userSnap.data().firebaseUid && userSnap.data().firebaseUid !== uid) {
       throw new HttpsError('permission-denied', 'Admin profil ID-si başqa Firebase hesabına bağlıdır.');
@@ -59,6 +60,13 @@ async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authT
     }
     const oldUser = userSnap.exists ? userSnap.data() : {};
     const oldPlayer = playerSnap.exists ? playerSnap.data() : {};
+    const ownsVerifiedProfile = userSnap.exists && playerSnap.exists
+      && oldUser.firebaseUid === uid
+      && oldPlayer.firebaseUid === uid
+      && Boolean(oldPlayer.identityVerifiedAt);
+    if (!configuredAdminUid && !ownsVerifiedProfile) {
+      throw new HttpsError('permission-denied', 'ID 98 profilinin təsdiqlənmiş sahibi olmalısınız.');
+    }
     const trustedPlayer = oldPlayer.identityVerifiedAt && oldPlayer.firebaseUid === uid;
     const result = { userId: ADMIN_PROFILE_ID, active: true };
     tx.set(userRef, {
@@ -113,7 +121,18 @@ async function bootstrapSuperAdmin({ uid, payload, operationId, rateLimit, authT
         updatedAt: now,
       }, { merge: true });
     }
+    if (legacyPreviousAdminSnap.exists) {
+      tx.set(legacyPreviousAdminRef, {
+        role: 'user',
+        isAdmin: false,
+        isModerator: false,
+        canViewReports: false,
+        canAccessAdminPanel: false,
+        updatedAt: now,
+      }, { merge: true });
+    }
     tx.set(previousSessionRef, { active: false, migratedToProfileId: ADMIN_PROFILE_ID, lastLogoutAt: now }, { merge: true });
+    tx.set(legacyPreviousSessionRef, { active: false, migratedToProfileId: ADMIN_PROFILE_ID, lastLogoutAt: now }, { merge: true });
     tx.create(commandRef, { adminId: ADMIN_PROFILE_ID, adminUid: uid, action: 'bootstrap_super_admin', details: {}, createdAt: now });
     tx.create(opRef, { authUid: uid, operationId, action: 'bootstrapSuperAdmin', result, createdAt: FieldValue.serverTimestamp() });
     tx.set(rate.ref, rate.next);
