@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '../../firebase';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
+import { signInFirebaseAccount } from '@/app/lib/firebaseAuth';
 import { getAccountStatus } from '@/app/lib/accountLifecycleService';
 import { getLocalProfileUserId } from '@/app/lib/userId';
 import { useAppStrings } from '@/app/lib/useAppStrings';
@@ -25,12 +25,7 @@ export default function LoginPage() {
 
     try {
       // 1. Giriş cəhdi edirik
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim().toLowerCase(),
-        password
-      );
-      const user = userCredential.user;
+      const user = await signInFirebaseAccount(email, password);
 
       // 2. Emailin təsdiqlənib-təsdiqlənmədiyini yoxlayırıq
       if (!user.emailVerified) {
