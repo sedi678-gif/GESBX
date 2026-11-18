@@ -136,11 +136,22 @@ export async function requireFirebaseAuth(): Promise<User> {
 export async function signInFirebaseAccount(email: string, password: string): Promise<User> {
   const normalizedEmail = email.trim().toLowerCase();
   if (!normalizedEmail || !password) throw new Error('Firebase email və şifrəsini daxil edin.');
-  const credential = await withTimeout(
-    signInWithEmailAndPassword(auth, normalizedEmail, password),
-    20_000,
-    'Firebase hesabına giriş vaxtı bitdi.'
-  );
+
+  // Obtain the App Check token before the Auth request. This avoids making
+  // the sign-in request wait on a cold reCAPTCHA Enterprise provider.
+  if (appCheck) {
+    try {
+      await withTimeout(
+        getAppCheckToken(appCheck),
+        4_000,
+        'Firebase App Check tokeni 4 saniyədə alınmadı.'
+      );
+    } catch (error) {
+      console.warn('[Firebase App Check] Girişdən əvvəl token alınmadı; Auth sorğusu davam edir:', error);
+    }
+  }
+
+  const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
   return credential.user;
 }
 
