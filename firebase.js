@@ -58,6 +58,9 @@ const firebaseConfig = {
   ...pinnedFirebaseConfig,
 };
 
+// Temporary testing switch: Play Integrity is OFF; Firebase Auth and App Check stay ON.
+export const PLAY_INTEGRITY_ENABLED = false;
+
 export const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "https://gesbx.vercel.app"
 ).replace(/\/+$/, "");
@@ -147,7 +150,9 @@ export function initializeNativeAppCheck() {
         const requestHash = await sha256Base64Url(
           `${current.uid}|app-check|${challenge}|${installationId}`
         );
-        const integrityToken = await requestPlayIntegrityToken(requestHash);
+        const integrityToken = PLAY_INTEGRITY_ENABLED
+          ? await requestPlayIntegrityToken(requestHash)
+          : null;
         const idToken = await current.getIdToken();
         const endpoint = `${apiBaseUrl}/api/mint-mobile-app-check-token`;
 
@@ -157,7 +162,7 @@ export function initializeNativeAppCheck() {
             Authorization: `Bearer ${idToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ challenge, integrityToken, installationId }),
+          body: JSON.stringify({ challenge, ...(integrityToken ? { integrityToken } : {}), installationId }),
           signal: AbortSignal.timeout(15_000),
         });
 
