@@ -11,6 +11,8 @@ const REFERRAL_CODE_SECRET = defineSecret('REFERRAL_CODE_SECRET');
 const db = getFirestore();
 const REGION = 'us-central1';
 const OPERATION_ID = /^[A-Za-z0-9_-]{16,80}$/;
+// Temporary testing switch; callable Firebase App Check remains enforced.
+const PLAY_INTEGRITY_ENABLED = false;
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -99,7 +101,7 @@ function assertIntegrityVerdict(verdict, expectedHash) {
 
 async function verifyActionIntegrity(request, uid, action, operationId, payload) {
   const appId = String(request.app?.appId || '');
-  if (!appId.includes(':android:')) return;
+  if (!PLAY_INTEGRITY_ENABLED || !appId.includes(':android:')) return;
   const integrityToken = request.data?.integrityToken;
   if (typeof integrityToken !== 'string' || integrityToken.length < 20 || integrityToken.length > 20_000) {
     throw new HttpsError('permission-denied', 'Play Integrity tokeni tələb olunur.');
