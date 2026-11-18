@@ -10,6 +10,8 @@ const {
 
 const REGION = 'us-central1';
 const PLAY_INTEGRITY_SCOPE = 'https://www.googleapis.com/auth/playintegrity';
+// Temporary site-testing switch. Auth, App Check, and rate limits remain enforced.
+const PLAY_INTEGRITY_ENABLED = false;
 let cachedRiskHashKeyId = '';
 let cachedRiskHashKey = null;
 
@@ -269,7 +271,7 @@ async function verifySecureRequest(req, action, payload, {
   }
   if (!decoded.uid || !appCheck?.appId) throw new ApiError(403, 'AUTH_OR_APP_CHECK_REQUIRED');
   const integrityToken = header(req, 'x-play-integrity').trim();
-  if (String(appCheck.appId).includes(':android:')) {
+  if (PLAY_INTEGRITY_ENABLED && String(appCheck.appId).includes(':android:')) {
     const packageName = String(process.env.PLAY_INTEGRITY_PACKAGE_NAME || 'az.gesbx.app').trim();
     const requestHash = actionRequestHash(decoded.uid, action, operationId, payload, installationId);
     await verifyPlayIntegrity(integrityToken, packageName, requestHash);
