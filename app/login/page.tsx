@@ -33,7 +33,11 @@ export default function LoginPage() {
 
     try {
       // 1. Giriş cəhdi edirik
-      const userCredential = await withTimeout(\n        signInWithEmailAndPassword(auth, email.trim(), password),\n        15_000,\n        'Firebase giriş sorğusu 15 saniyədə cavab vermədi. İnternet və Firebase Authentication parametrlərini yoxlayın.'\n      );
+      const userCredential = await withTimeout(
+        signInWithEmailAndPassword(auth, email.trim(), password),
+        15_000,
+        'Firebase giriş sorğusu 15 saniyədə cavab vermədi. İnternet və Firebase Authentication parametrlərini yoxlayın.'
+      );
       const user = userCredential.user;
 
       // 2. Emailin təsdiqlənib-təsdiqlənmədiyini yoxlayırıq
