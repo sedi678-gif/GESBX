@@ -310,7 +310,7 @@ function storedXp(player) {
 
 async function ownsSuperAdminProfile(uid) {
   if (!uid) return false;
-  const profileId = '92';
+  const profileId = '98';
   const [userSnap, playerSnap] = await Promise.all([
     db.doc(`users/${profileId}`).get(),
     db.doc(`players/${profileId}`).get(),
@@ -323,9 +323,9 @@ async function ownsSuperAdminProfile(uid) {
 }
 
 async function adminUid(uid) {
-  // Admin access follows the verified super-admin profile, now ID 92.
+  // Admin access follows the verified super-admin profile, now ID 98.
   if (!await ownsSuperAdminProfile(uid)) return false;
-  const user = await db.doc('users/92').get();
+  const user = await db.doc('users/98').get();
   const data = user.data() || {};
   return data.role === 'super_admin' && data.isAdmin === true;
 }
