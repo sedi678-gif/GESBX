@@ -207,7 +207,7 @@ async function callSecureApiInternal<TPayload extends Record<string, unknown>, T
       throw new Error('Admin rolu hələ qurulmayıb. Vercel-də yalnız admin Firebase UID-si üçün ADMIN_FIREBASE_UIDS dəyişənini əlavə edib redeploy edin.');
     }
     if (code === 'ADMIN_PROFILE_NOT_BOUND' || code === 'ADMIN_REVIEW_FORBIDDEN') {
-      throw new Error('Bu Firebase hesabının admin profilinə icazəsi yoxdur. Admin hesabı və ID 92 bağlantısını yoxlayın.');
+      throw new Error('Bu Firebase hesabının admin profilinə icazəsi yoxdur. Admin hesabı və ID 98 bağlantısını yoxlayın.');
     }
     if (code === 'POST_NOT_PENDING') {
       throw new Error('Bu paylaşım artıq yoxlama növbəsində deyil. Növbəni yeniləyin.');
