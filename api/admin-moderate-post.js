@@ -7,7 +7,7 @@ const {
   verifySecureRequest,
 } = require('../services/apiSecurity');
 
-const ADMIN_PROFILE_ID = '92';
+const ADMIN_PROFILE_ID = '98';
 const POST_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_CHUNKS = 64;
 const MAX_CHUNK_BASE64_CHARS = 980_000;
