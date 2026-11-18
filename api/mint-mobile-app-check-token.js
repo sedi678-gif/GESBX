@@ -39,8 +39,15 @@ module.exports = async function mintMobileAppCheckTokenHandler(req, res) {
       return sendJson(res, 400, { error: 'invalid_request' });
     }
 
-    const androidAppId = String(process.env.ANDROID_FIREBASE_APP_ID || '').trim();
-    const packageName = String(process.env.PLAY_INTEGRITY_PACKAGE_NAME || '').trim();
+    // These are public Firebase/Android application identifiers, not secrets.
+    // Keep safe project-specific defaults so Vercel env omissions do not disable
+    // Android App Check token minting for this registered app.
+    const androidAppId = String(
+      process.env.ANDROID_FIREBASE_APP_ID || '1:810938425668:android:c77397b67d2f0b44d6f711'
+    ).trim();
+    const packageName = String(
+      process.env.PLAY_INTEGRITY_PACKAGE_NAME || 'az.gesbx.app'
+    ).trim();
     if (!androidAppId.includes(':android:') || !packageName) {
       return sendJson(res, 503, { error: 'android_app_check_not_configured' });
     }
