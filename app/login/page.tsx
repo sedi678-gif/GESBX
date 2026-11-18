@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'firebase/auth';
-import { signInFirebaseAccount } from '@/app/lib/firebaseAuth';
+import { signInFirebaseAccount, withTimeout } from '@/app/lib/firebaseAuth';
 import { getAccountStatus } from '@/app/lib/accountLifecycleService';
 import { getLocalProfileUserId } from '@/app/lib/userId';
 import { useAppStrings } from '@/app/lib/useAppStrings';
@@ -38,7 +38,7 @@ export default function LoginPage() {
       const localId = getLocalProfileUserId(user.uid);
       if (localId) {
         try {
-          const status = await getAccountStatus(localId);
+          const status = await withTimeout(getAccountStatus(localId), 3_000, 'Hesab statusu yoxlanılmadı');
           if (status.banned) {
             await signOut(auth);
             setError(t.auth.errors.banned);
