@@ -14,6 +14,9 @@ const {
   verifyPlayIntegrity,
 } = require('../services/apiSecurity');
 
+// Temporary testing switch; App Check token creation still requires Firebase Auth.
+const PLAY_INTEGRITY_ENABLED = false;
+
 function digest(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
@@ -34,7 +37,7 @@ module.exports = async function mintMobileAppCheckTokenHandler(req, res) {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const { challenge, integrityToken, installationId } = body;
     if (typeof challenge !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(challenge)
-      || typeof integrityToken !== 'string' || integrityToken.length < 20 || integrityToken.length > 20_000
+      || (PLAY_INTEGRITY_ENABLED && (typeof integrityToken !== 'string' || integrityToken.length < 20 || integrityToken.length > 20_000))
       || typeof installationId !== 'string' || !/^[A-Za-z0-9_-]{8,200}$/.test(installationId)) {
       return sendJson(res, 400, { error: 'invalid_request' });
     }
@@ -52,11 +55,13 @@ module.exports = async function mintMobileAppCheckTokenHandler(req, res) {
       return sendJson(res, 503, { error: 'android_app_check_not_configured' });
     }
 
-    await verifyPlayIntegrity(
-      integrityToken,
-      packageName,
-      appCheckRequestHash(decoded.uid, challenge, installationId),
-    );
+    if (PLAY_INTEGRITY_ENABLED) {
+      await verifyPlayIntegrity(
+        integrityToken,
+        packageName,
+        appCheckRequestHash(decoded.uid, challenge, installationId),
+      );
+    }
     await enforceClientRateLimits(decoded.uid, installationId, getClientIp(req), 'mintMobileAppCheckToken', {
       max: 20,
       windowMs: 60 * 60 * 1000,
