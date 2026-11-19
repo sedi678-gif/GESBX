@@ -561,8 +561,14 @@ function ProfilePageContent() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !currentUser.id) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Yalnız şəkil faylı seçin.');
+    const imageLike = file.type.startsWith('image/')
+      || /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i.test(file.name);
+    if (!imageLike) {
+      alert('Şəkil faylı seçin (JPG, PNG və ya WebP).');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Şəkil 25 MB-dan böyükdür. Daha kiçik şəkil seçin.');
       return;
     }
     openPhotoEditor('avatar', file);
@@ -572,8 +578,14 @@ function ProfilePageContent() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !currentUser.id) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Yalnız şəkil faylı seçin.');
+    const imageLike = file.type.startsWith('image/')
+      || /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i.test(file.name);
+    if (!imageLike) {
+      alert('Şəkil faylı seçin (JPG, PNG və ya WebP).');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Şəkil 25 MB-dan böyükdür. Daha kiçik şəkil seçin.');
       return;
     }
     openPhotoEditor('banner', file);
