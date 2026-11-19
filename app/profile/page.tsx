@@ -342,6 +342,7 @@ function ProfilePageContent() {
   const [currentUser, setCurrentUser] = useState(DEFAULT_PROFILE_USER);
   const [isRegistered, setIsRegistered] = useState(false);
   const [profileBooting, setProfileBooting] = useState(true);
+  const [resolvedProfileRoute, setResolvedProfileRoute] = useState('');
   const [inputName, setInputName] = useState('');
   const [inputSurname, setInputSurname] = useState('');
   const [inputHandle, setInputHandle] = useState('');
@@ -410,6 +411,7 @@ function ProfilePageContent() {
   useEffect(() => {
     if (viewUserId) {
       setProfileBooting(false);
+      setResolvedProfileRoute(`user:${viewUserId}`);
       return;
     }
     if (!authReady) {
@@ -433,7 +435,10 @@ function ProfilePageContent() {
         setIsRegistered(false);
         await restoreExistingProfile(firebaseUser?.uid);
       }
-      if (!cancelled) setProfileBooting(false);
+      if (!cancelled) {
+        setProfileBooting(false);
+        setResolvedProfileRoute('self');
+      }
     };
 
     void loadAccountProfile();
@@ -1231,7 +1236,8 @@ function ProfilePageContent() {
     }
   };
 
-  if (profileBooting) {
+  const activeProfileRoute = viewUserId && viewUserId !== currentUser.id ? `user:${viewUserId}` : 'self';
+  if (profileBooting || resolvedProfileRoute !== activeProfileRoute) {
     return <ProfileBootSkeleton />;
   }
 
