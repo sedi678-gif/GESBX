@@ -56,7 +56,7 @@ interface VipShopPanelProps {
 
 export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, displayName, onNotify, onSpend, onRefund }: VipShopPanelProps) {
 
-  const [filter, setFilter] = useState<CosmeticCategory | 'all'>('all');
+  const [filter, setFilter] = useState<CosmeticCategory>('vip');
 
   const [loading, setLoading] = useState<string | null>(null);
   const [previewProductId, setPreviewProductId] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
 
   const products = COSMETIC_PRODUCTS.filter(
 
-    (p) => filter === 'all' || p.category === filter
+    (p) => p.category === filter
 
   );
 
