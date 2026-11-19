@@ -82,9 +82,14 @@ function scheduleStorageUpgrade(
       kind === 'avatar'
         ? { avatar: remote, avatarUpdatedAt: now, updatedAt: now }
         : { bannerImage: remote, bannerUpdatedAt: now, updatedAt: now };
-    void setDoc(doc(db, 'users', userId), userPatch, { merge: true });
+    void setDoc(doc(db, 'users', userId), userPatch, { merge: true }).catch((error) => {
+      console.warn('[ProfileMedia] Remote image URL sync failed:', error);
+    });
     if (patchPlayer && kind === 'avatar') {
-      void setDoc(doc(db, 'players', userId), { avatar: remote, updatedAt: now }, { merge: true });
+      // The public user profile is the source of truth for profile media.
+      // A private player-document permission mismatch must not undo a saved avatar.
+      void setDoc(doc(db, 'players', userId), { avatar: remote, updatedAt: now }, { merge: true })
+        .catch((error) => console.warn('[ProfileMedia] Player avatar mirror skipped:', error));
     }
   });
 }
@@ -104,14 +109,16 @@ export async function updateProfileAvatar(userId: string, file: File): Promise<s
   const url = await buildInlineUrl(prepared, 'avatar');
   const now = Date.now();
 
-  await Promise.all([
-    setDoc(
-      doc(db, 'users', userId),
-      { id: userId, avatar: url, avatarUpdatedAt: now, updatedAt: now },
-      { merge: true }
-    ),
-    setDoc(doc(db, 'players', userId), { avatar: url, updatedAt: now }, { merge: true }),
-  ]);
+  await setDoc(
+    doc(db, 'users', userId),
+    { id: userId, avatar: url, avatarUpdatedAt: now, updatedAt: now },
+    { merge: true }
+  );
+
+  // Keep the profile avatar save successful even if the private player mirror
+  // is protected by stricter ownership rules.
+  void setDoc(doc(db, 'players', userId), { avatar: url, updatedAt: now }, { merge: true })
+    .catch((error) => console.warn('[ProfileMedia] Player avatar mirror skipped:', error));
 
   scheduleStorageUpgrade(prepared, userId, 'avatar', true);
   return url;
