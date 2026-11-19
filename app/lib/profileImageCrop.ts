@@ -15,15 +15,32 @@ function loadImageFromFile(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
+    let settled = false;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      if (error) reject(error);
+      else resolve(img);
+    };
     img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
+      if (!img.naturalWidth || !img.naturalHeight) {
+        finish(new Error('Şəklin ölçüləri oxunmadı. JPG, PNG və ya WebP formatında şəkil seçin.'));
+        return;
+      }
+      finish();
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Şəkil oxunmadı.'));
-    };
+    img.onerror = () => finish(new Error(
+      'Bu şəkil formatı telefonda oxunmadı. Şəkli JPG və ya PNG formatında saxlayıb yenidən seçin.'
+    ));
     img.src = url;
+    if (typeof img.decode === 'function') {
+      img.decode().then(() => {
+        if (img.naturalWidth && img.naturalHeight) finish();
+      }).catch(() => {
+        // Older Android WebView versions may reject decode() but still fire onload.
+      });
+    }
   });
 }
 
