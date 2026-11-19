@@ -789,6 +789,26 @@ function mapCommentDoc(id: string, raw: Record<string, unknown>): PostComment | 
   };
 }
 
+export function listenPostCommentCount(
+  postId: string,
+  callback: (count: number) => void
+): Unsubscribe {
+  if (!postId) {
+    callback(0);
+    return () => {};
+  }
+
+  const q = query(collection(db, 'post_comments'), where('postId', '==', postId));
+  return onSnapshot(
+    q,
+    (snap) => callback(snap.size),
+    (err) => {
+      console.error('Post şərh sayı xətası:', err);
+      callback(0);
+    }
+  );
+}
+
 export function listenPostComments(
   postId: string,
   callback: (comments: PostComment[]) => void,
