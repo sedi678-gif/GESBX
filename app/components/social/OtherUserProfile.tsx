@@ -57,6 +57,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   const [likesReceived, setLikesReceived] = useState(0);
   const [viewsReceived, setViewsReceived] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [loading, setLoading] = useState(true);
@@ -173,10 +174,19 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   }, [myId, targetUserId]);
 
   const handleFollow = async () => {
-    if (isFollowing) {
-      await unfollowUser(myId, targetUserId);
-    } else {
-      await followUser(myId, targetUserId);
+    if (!myId || myId === 'anonim_user_id' || myId === 'guest' || followBusy) {
+      alert('Takib etmək üçün hesabınıza daxil olun.');
+      return;
+    }
+    setFollowBusy(true);
+    try {
+      if (isFollowing) await unfollowUser(myId, targetUserId);
+      else await followUser(myId, targetUserId);
+    } catch (error) {
+      console.error('[OtherUserProfile] follow action failed:', error);
+      alert('Takib əməliyyatı alınmadı. Bir daha cəhd edin.');
+    } finally {
+      setFollowBusy(false);
     }
   };
 
@@ -257,8 +267,8 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
           <Link href={`/messages?user=${targetUserId}`} className={styles.profileActionBtn}>
             💬 Mesaj yaz
           </Link>
-          <button type="button" className={styles.profileActionBtn} onClick={handleFollow}>
-            {isFollowing ? '✓ Takib edilir' : '➕ Takip et'}
+          <button type="button" className={styles.profileActionBtn} onClick={handleFollow} disabled={followBusy || !myId || myId === "anonim_user_id" || myId === "guest"}>
+            {followBusy ? 'Gözləyin…' : isFollowing ? '✓ Takib edilir' : '➕ Takip et'}
           </button>
           <button type="button" className={`${styles.profileActionBtn} ${styles.profileActionDanger}`} onClick={() => setShowReport(true)}>
             ⚠️ Şikayət
