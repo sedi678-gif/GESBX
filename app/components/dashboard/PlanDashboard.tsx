@@ -92,7 +92,7 @@ export default function PlanDashboard() {
     } catch (err) {
       const message = err instanceof Error ? err.message : t.auth.errors.generic;
       setError(/30 AZN|VIP Professional|kifayət qədər manat/i.test(message)
-        ? 'Balansınızda VIP Creator almaq üçün kifayət qədər məbləğ yoxdur. VIP Creator qiyməti 30 AZN-dir.'
+        ? 'Balansınızda pul kifayət etmir. VIP Creator almaq üçün 30 AZN lazımdır.'
         : message);
       return false;
     } finally {
@@ -199,9 +199,17 @@ export default function PlanDashboard() {
                 }}
               >
                 <h2 id="creator-choice-title" style={{ margin: '0 0 8px', fontSize: 22 }}>Hansı Creator olmaq istəyirsiniz?</h2>
-                <p style={{ margin: '0 0 18px', color: '#cbd5e1', lineHeight: 1.5 }}>
-                  Adi Creator pulsuzdur. VIP Creator üçün balansınızdan 30 AZN çıxılır.
+                <p style={{ margin: '0 0 10px', color: '#cbd5e1', lineHeight: 1.5 }}>
+                  Adi Creator tam pulsuzdur. VIP Creator alındıqda balansınızdan 30 AZN çıxılır.
                 </p>
+                <p style={{ margin: '0 0 14px', color: '#e2e8f0', fontWeight: 700 }}>
+                  Cari balansınız: {Math.max(0, Number(manat) || 0).toLocaleString('az-AZ')} AZN
+                </p>
+                {Number(manat) < VIP_PRO_PRICE_AZN ? (
+                  <p style={{ margin: '0 0 14px', color: '#fbbf24', fontSize: 13 }}>
+                    VIP Creator almaq üçün balansınızda ən azı 30 AZN olmalıdır.
+                  </p>
+                ) : null}
                 {error ? <p role="alert" className={styles.error}>{error}</p> : null}
                 <div style={{ display: 'grid', gap: 12 }}>
                   <button
