@@ -3194,7 +3194,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'userId', 'userName', 'userHandle', 'userAvatar', 'userGender', 'userRegion',
           'userAge',
-          'title', 'mediaUrl', 'mediaPath', 'mediaType', 'moderationStatus', 'durationSeconds', 'likes', 'views',
+          'title', 'mediaUrl', 'mediaPath', 'mediaType', 'mediaGroupId', 'moderationStatus', 'durationSeconds', 'likes', 'views',
           'commentsCount', 'giftCount', 'createdAt', 'expiresAt'
         ])
         && (!('userAge' in request.resource.data)
