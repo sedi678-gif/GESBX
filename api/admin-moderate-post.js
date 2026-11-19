@@ -9,7 +9,7 @@ const {
 
 const ADMIN_PROFILE_ID = '98';
 const POST_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
-const USER_ID_PATTERN = /^\\d{1,20}$/;
+const USER_ID_PATTERN = /^\d{1,20}$/;
 const MAX_CHUNKS = 64;
 const MAX_CHUNK_BASE64_CHARS = 980_000;
 const MAX_REVIEW_CHUNKS_PER_REQUEST = 4;
