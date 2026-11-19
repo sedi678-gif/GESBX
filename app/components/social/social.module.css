@@ -2810,3 +2810,96 @@
 @media (prefers-reduced-motion: reduce) {
   .heartBurst, .heartBurstMain, .heartBurstSmall, .heartBurstSpark { animation-duration: .01ms; }
 }
+
+
+/* Clean floating actions: no circular button plates behind the icons. */
+.sideActionsPremium { gap: 16px; }
+.actionBtnPremium,
+.actionBtnPremium:hover,
+.actionBtnPremium:focus-visible {
+  width: 48px;
+  height: auto;
+  min-width: 48px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+  padding: 0;
+  color: #fff;
+}
+.actionBtnPremium:hover { transform: scale(1.1); }
+.actionBtnPremium:active { transform: scale(.88); }
+.actionBtnPremiumWithCount { gap: 3px; }
+.actionCountPremium {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  text-shadow: 0 1px 5px rgba(0,0,0,.95), 0 0 8px rgba(0,0,0,.65);
+}
+.postActionSvg { width: 32px; height: 32px; }
+.postActionLikeActive { color: #ff3978; }
+
+/* Large centered like reaction: hold, scatter, then fade after about 3 seconds. */
+.heartBurst {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  top: 48%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  animation: heartBurstOverall 3.15s ease-out both;
+}
+.heartBurstMain {
+  position: absolute;
+  left: -62px;
+  top: -68px;
+  color: #ff286f;
+  font-size: 124px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(.12);
+  transform-origin: center;
+  text-shadow: 0 0 14px rgba(255,35,110,.95), 0 0 34px rgba(255,35,110,.85), 0 0 68px rgba(255,35,110,.55);
+  animation: heartCenterHold 3.05s cubic-bezier(.18,.8,.25,1) both;
+}
+.heartParticle {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  color: #ff6b9b;
+  font-size: 34px;
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 0 12px rgba(255,40,115,.9), 0 0 24px rgba(255,40,115,.55);
+  animation: heartScatter 2.7s cubic-bezier(.16,.72,.24,1) both;
+}
+.heartParticle:nth-child(2) { --hx: -112px; --hy: -92px; --hr: -24deg; animation-delay: .15s; }
+.heartParticle:nth-child(3) { --hx: 112px; --hy: -112px; --hr: 28deg; animation-delay: .2s; font-size: 28px; }
+.heartParticle:nth-child(4) { --hx: -142px; --hy: 8px; --hr: -35deg; animation-delay: .25s; font-size: 25px; }
+.heartParticle:nth-child(5) { --hx: 144px; --hy: 12px; --hr: 35deg; animation-delay: .3s; }
+.heartParticle:nth-child(6) { --hx: -86px; --hy: 112px; --hr: -18deg; animation-delay: .35s; font-size: 30px; }
+.heartParticle:nth-child(7) { --hx: 94px; --hy: 118px; --hr: 22deg; animation-delay: .4s; font-size: 26px; }
+.heartParticle:nth-child(8) { --hx: 0px; --hy: -148px; --hr: 5deg; animation-delay: .45s; font-size: 25px; }
+.heartParticle:nth-child(9) { --hx: 8px; --hy: 148px; --hr: -8deg; animation-delay: .5s; }
+.heartParticle:nth-child(10) { --hx: 166px; --hy: -62px; --hr: 42deg; animation-delay: .55s; font-size: 24px; }
+.heartParticle:nth-child(11) { --hx: -164px; --hy: -68px; --hr: -42deg; animation-delay: .6s; font-size: 24px; }
+@keyframes heartCenterHold {
+  0% { opacity: 0; transform: scale(.12) rotate(-18deg); }
+  12% { opacity: 1; transform: scale(1.18) rotate(5deg); }
+  22% { opacity: 1; transform: scale(1) rotate(0); }
+  78% { opacity: 1; transform: scale(1) rotate(0); }
+  100% { opacity: 0; transform: scale(.82) rotate(4deg); }
+}
+@keyframes heartScatter {
+  0%, 8% { opacity: 0; transform: translate(0,0) scale(.2) rotate(0); }
+  22% { opacity: 1; }
+  72% { opacity: .95; transform: translate(var(--hx),var(--hy)) scale(1.12) rotate(var(--hr)); }
+  100% { opacity: 0; transform: translate(calc(var(--hx) * 1.16),calc(var(--hy) * 1.16)) scale(.65) rotate(var(--hr)); }
+}
+@keyframes heartBurstOverall { 0%, 88% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .heartBurst, .heartBurstMain, .heartParticle { animation-duration: .01ms; }
+}
