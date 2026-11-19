@@ -460,7 +460,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
               />
             </div>
             <p className={styles.shopPreviewNote}>
-              Bu görünüş {previewProduct.name} profilə tətbiq ediləndə belə olacaq.
+              {previewProduct.category === 'banner' ? 'Bu fon mesajlaşmada tətbiq ediləndə belə görünəcək.' : 'Bu görünüş profilə tətbiq ediləndə belə olacaq.'}
             </p>
           </section>
         </div>
