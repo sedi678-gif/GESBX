@@ -72,8 +72,15 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 12px',
   borderRadius: '10px',
-  border: '1px solid #cbd5e1',
-  fontSize: '12px',
+  border: '1px solid #64748b',
+  backgroundColor: '#f8fafc',
+  color: '#0f172a',
+  WebkitTextFillColor: '#0f172a',
+  caretColor: '#0f172a',
+  colorScheme: 'light',
+  fontSize: '14px',
+  fontWeight: 700,
+  outline: 'none',
   boxSizing: 'border-box',
 };
 
@@ -97,6 +104,7 @@ function AllianceProfileCardInner({ title = 'İTTİFAQ (ALLIANCE)' }: AlliancePr
   const [regionFilter, setRegionFilter] = useState('Bakı');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [createBusy, setCreateBusy] = useState(false);
 
   const showStatus = (msg: string) => {
     setStatusMsg(msg);
@@ -105,13 +113,23 @@ function AllianceProfileCardInner({ title = 'İTTİFAQ (ALLIANCE)' }: AlliancePr
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (createBusy) return;
+    const cleanName = allianceName.trim().replace(/\\s+/g, ' ');
+    if (cleanName.length < 2 || cleanName.length > 32) {
+      alert('İttifaq adı 2–32 simvol arasında olmalıdır.');
+      return;
+    }
+    setCreateBusy(true);
     try {
-      await handleCreateAlliance(allianceName, regionFilter);
+      await handleCreateAlliance(cleanName, regionFilter);
       setAllianceName('');
       setMode('none');
-      showStatus(`"${allianceName}" ittifaqı yaradıldı!`);
+      showStatus(`"${cleanName}" ittifaqı yaradıldı!`);
     } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : 'Xəta baş verdi');
+      console.error('İttifaq yaradılmadı:', error);
+      alert(error instanceof Error ? error.message : 'İttifaq yaradılarkən xəta baş verdi.');
+    } finally {
+      setCreateBusy(false);
     }
   };
 
@@ -201,7 +219,7 @@ function AllianceProfileCardInner({ title = 'İTTİFAQ (ALLIANCE)' }: AlliancePr
               onChange={(e) => setAllianceName(e.target.value)}
               required
             />
-            <select style={inputStyle} value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+            <select aria-label="İttifaqın bölgəsi" style={{ ...inputStyle, minHeight: 44, appearance: 'auto' }} value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
               {AZ_ALL_REGIONS.map((reg) => (
                 <option key={reg} value={reg}>
                   {reg}
@@ -209,8 +227,8 @@ function AllianceProfileCardInner({ title = 'İTTİFAQ (ALLIANCE)' }: AlliancePr
               ))}
             </select>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="submit" style={primaryBtn}>Yarat</button>
-              <button type="button" style={secondaryBtn} onClick={() => setMode('none')}>Ləğv</button>
+              <button type="submit" style={{ ...primaryBtn, opacity: createBusy ? 0.65 : 1 }} disabled={createBusy}>{createBusy ? 'Yaradılır…' : 'Yarat'}</button>
+              <button type="button" style={secondaryBtn} disabled={createBusy} onClick={() => setMode('none')}>Ləğv</button>
             </div>
           </form>
         ) : (
