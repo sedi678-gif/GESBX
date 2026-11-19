@@ -19,6 +19,7 @@ import { apiBaseUrl, db } from '@/firebase';
 import { ensureFirebaseAuth, compressImageSafe, withTimeout } from './firebaseAuth';
 import { SocialPost, UserFeedItem, AppUserProfile, PostComment } from './socialTypes';
 import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discoverBoost';
+import { callSecureApi } from './secureFunctions';
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -259,7 +260,7 @@ async function createPostInternal(
     mediaUrl,
     mediaPath,
     mediaType,
-    moderationStatus: 'approved',
+    moderationStatus: 'pending',
     ...(durationSeconds ? { durationSeconds } : {}),
     likes: 0,
     views: 0,
@@ -286,6 +287,16 @@ async function createPostInternal(
     });
     onProgress?.('Şəkil birbaşa paylaşılır...');
     await batch.commit();
+    try {
+      await callSecureApi('/api/publish-post', 'publishPost', {
+        postId: postRef.id,
+        userId: user.id,
+      });
+    } catch (error) {
+      await clearPostMedia(postRef.id).catch(() => {});
+      await deleteDoc(postRef).catch(() => {});
+      throw error;
+    }
     return postRef.id;
   }
 
@@ -294,6 +305,11 @@ async function createPostInternal(
     onProgress?.('Media yüklənir...');
     const uploadedMedia = await uploadMedia(uploadFile, user.id, postRef.id, onProgress);
     if (uploadedMedia.url !== mediaUrl) await updateDoc(postRef, { mediaUrl: uploadedMedia.url });
+    onProgress?.('Paylaşım yayımlanır...');
+    await callSecureApi('/api/publish-post', 'publishPost', {
+      postId: postRef.id,
+      userId: user.id,
+    });
   } catch (error) {
     await clearPostMedia(postRef.id).catch((cleanupError) => console.warn('Yarımçıq paylaşım mediası silinmədi:', cleanupError));
     await deleteDoc(postRef).catch((cleanupError) => console.warn('Yarımçıq paylaşım qeydi silinmədi:', cleanupError));
@@ -815,10 +831,7 @@ export async function addPostComment(
   await ensureFirebaseAuth();
 
   const now = Date.now();
-  const postRef = doc(db, 'posts', postId);
-  const commentRef = doc(collection(db, 'post_comments'));
-  const batch = writeBatch(db);
-  batch.set(commentRef, {
+  await addDoc(collection(db, 'post_comments'), {
     postId,
     userId: user.id,
     userName: user.name.trim() || 'İstifadəçi',
@@ -826,9 +839,4 @@ export async function addPostComment(
     text: trimmed,
     createdAt: now,
   });
-  batch.update(postRef, {
-    commentsCount: increment(1),
-    lastCommentId: commentRef.id,
-  });
-  await batch.commit();
 }
