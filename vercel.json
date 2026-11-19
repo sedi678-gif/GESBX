@@ -1,8 +1,22 @@
 {
   "framework": "nextjs",
   "rewrites": [
-    { "source": "/model/:path*", "destination": "/models/:path*" },
-    { "source": "/models/Mutant/:path*", "destination": "/models/mutant/:path*" }
+    {
+      "source": "/api/payout/request",
+      "destination": "/api/paypal?handler=request"
+    },
+    {
+      "source": "/api/webhooks/paypal",
+      "destination": "/api/paypal?handler=webhook"
+    },
+    {
+      "source": "/model/:path*",
+      "destination": "/models/:path*"
+    },
+    {
+      "source": "/models/Mutant/:path*",
+      "destination": "/models/mutant/:path*"
+    }
   ],
   "functions": {
     "api/**/*.js": {
@@ -13,22 +27,40 @@
     {
       "source": "/models/(.*)\\.glb",
       "headers": [
-        { "key": "Content-Type", "value": "model/gltf-binary" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Content-Type",
+          "value": "model/gltf-binary"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/models/(.*)\\.gltf",
       "headers": [
-        { "key": "Content-Type", "value": "model/gltf+json" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Content-Type",
+          "value": "model/gltf+json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/models/(.*)\\.fbx",
       "headers": [
-        { "key": "Content-Type", "value": "application/octet-stream" },
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Content-Type",
+          "value": "application/octet-stream"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     }
   ]

@@ -35,7 +35,7 @@ export async function reconcilePlayerIdentity(
 ): Promise<void> {
   void _legacyUserId;
   void _displayName;
-  await callSecureApi('/api/bind-player-identity', 'bindPlayerIdentity', { userId: canonicalUserId });
+  await callSecureApi('/api/alliance?operation=bind', 'bindPlayerIdentity', { userId: canonicalUserId });
 }
 
 export async function ensurePlayerProfile(
@@ -156,7 +156,7 @@ export const createAlliance = async (
     return await callSecureApi<
       { userId: string; name: string; region: string; lat: number; lng: number },
       AllianceData
-    >('/api/create-alliance', 'createAlliance', {
+    >('/api/alliance?operation=create', 'createAlliance', {
       userId: currentUserId,
       name: newAllData.name,
       region: newAllData.region,
