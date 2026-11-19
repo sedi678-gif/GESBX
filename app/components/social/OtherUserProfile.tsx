@@ -67,10 +67,10 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   useEffect(() => {
     void (async () => {
       setLoading(true);
-      const u = await getUserProfile(targetUserId);
-      const playerCosmetics = await getPlayerCosmetics(targetUserId);
-      setCosmetics(playerCosmetics);
-      if (u) {
+      setProfile(null);
+      try {
+        const u = await getUserProfile(targetUserId);
+        if (!u) return;
         setProfile({
           name: u.name,
           surname: u.surname || '',
@@ -83,14 +83,21 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
           frozen: u.frozen,
           banned: u.banned,
         });
-        const initialLikes = Math.max(
-          Number(u.likesReceived) || 0,
-          readCachedLikesReceived(targetUserId)
-        );
+        const initialLikes = Math.max(Number(u.likesReceived) || 0, readCachedLikesReceived(targetUserId));
         setLikesReceived(initialLikes);
         setViewsReceived(Math.max(Number(u.viewsReceived) || 0, readCachedViewsReceived(targetUserId)));
+        try {
+          setCosmetics(await getPlayerCosmetics(targetUserId));
+        } catch (cosmeticsError) {
+          console.warn('[OtherUserProfile] cosmetics unavailable:', cosmeticsError);
+          setCosmetics(null);
+        }
+      } catch (error) {
+        console.error('[OtherUserProfile] profile load failed:', error);
+        setProfile(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, [targetUserId]);
 
