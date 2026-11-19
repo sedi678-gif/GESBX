@@ -903,7 +903,8 @@ function ProfilePageContent() {
   const [filePreviewUrl, setFilePreviewUrl] = useState('');
 
   const postGalleryInputRef = useRef<HTMLInputElement>(null);
-  const postCameraInputRef = useRef<HTMLInputElement>(null);
+  const postPhotoCameraInputRef = useRef<HTMLInputElement>(null);
+  const postVideoCameraInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingPost, setIsUploadingPost] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [postAuthRecovery, setPostAuthRecovery] = useState(false);
@@ -1129,8 +1130,8 @@ function ProfilePageContent() {
     e.target.value = '';
     if (!file) return;
 
-    if (file.type.startsWith('video/') && file.size > 25 * 1024 * 1024) {
-      alert('Video çox böyükdür (maks. 25 MB).');
+    if (file.type.startsWith('video/') && file.size > 40 * 1024 * 1024) {
+      alert('Video faylı 40 MB-dan böyükdür. Daha kiçik video seçin.');
       return;
     }
     if (file.type.startsWith('image/') && file.size > 8 * 1024 * 1024) {
@@ -1216,7 +1217,7 @@ function ProfilePageContent() {
       setPostAuthRecovery(false);
       setPostAuthPassword('');
       setIsUploadModalOpen(false);
-      alert('Paylaşım profilinizə əlavə olundu. Admin təsdiqləyənədək yalnız sizə görünəcək.');
+      alert('Paylaşım uğurla profilinizdə yayımlandı.');
     } finally {
       setIsUploadingPost(false);
       setUploadProgress('');
@@ -1957,8 +1958,11 @@ function ProfilePageContent() {
                 <button type="button" className={profileStyles.postPickBtn} onClick={() => postGalleryInputRef.current?.click()}>
                   🖼️ Qalereya
                 </button>
-                <button type="button" className={profileStyles.postPickBtn} onClick={() => postCameraInputRef.current?.click()}>
-                  📷 Kamera
+                <button type="button" className={profileStyles.postPickBtn} onClick={() => postPhotoCameraInputRef.current?.click()}>
+                  📷 Şəkil çək
+                </button>
+                <button type="button" className={profileStyles.postPickBtn} onClick={() => postVideoCameraInputRef.current?.click()}>
+                  🎥 Video çək
                 </button>
               </div>
               <input
@@ -1969,9 +1973,17 @@ function ProfilePageContent() {
                 onChange={handlePostFileChange}
               />
               <input
-                ref={postCameraInputRef}
+                ref={postPhotoCameraInputRef}
                 type="file"
-                accept="image/*,video/*"
+                accept="image/*"
+                capture="environment"
+                className={profileStyles.hiddenFileInput}
+                onChange={handlePostFileChange}
+              />
+              <input
+                ref={postVideoCameraInputRef}
+                type="file"
+                accept="video/*"
                 capture="environment"
                 className={profileStyles.hiddenFileInput}
                 onChange={handlePostFileChange}
