@@ -288,7 +288,8 @@ async function createPostInternal(
     onProgress?.('Şəkil birbaşa paylaşılır...');
     await batch.commit();
     try {
-      await callSecureApi('/api/publish-post', 'publishPost', {
+      await callSecureApi('/api/admin-moderate-post', 'adminModeratePost', {
+        action: 'publish',
         postId: postRef.id,
         userId: user.id,
       });
@@ -306,7 +307,8 @@ async function createPostInternal(
     const uploadedMedia = await uploadMedia(uploadFile, user.id, postRef.id, onProgress);
     if (uploadedMedia.url !== mediaUrl) await updateDoc(postRef, { mediaUrl: uploadedMedia.url });
     onProgress?.('Paylaşım yayımlanır...');
-    await callSecureApi('/api/publish-post', 'publishPost', {
+    await callSecureApi('/api/admin-moderate-post', 'adminModeratePost', {
+      action: 'publish',
       postId: postRef.id,
       userId: user.id,
     });
