@@ -64,7 +64,7 @@ test('profile owner can create a post with a numeric userAge field', async () =>
     mediaUrl: '',
     mediaPath: `posts/owner-1/${id}/${id}.jpg`,
     mediaType: 'image',
-    moderationStatus: 'approved',
+    moderationStatus: 'pending',
     likes: 0,
     views: 0,
     commentsCount: 0,
