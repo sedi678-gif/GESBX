@@ -11,6 +11,7 @@ export interface PostComment {
 export interface SocialPost {
   id: string;
   userId: string;
+  mediaGroupId?: string;
   moderationStatus: 'approved' | 'pending' | 'rejected';
   userName: string;
   userHandle: string;
