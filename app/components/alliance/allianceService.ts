@@ -131,8 +131,18 @@ export const createAlliance = async (
 
   // Profile hydration previously ran in a detached context effect. Create can
   // be clicked before it finishes, leaving the server without an owned player.
-  await ensurePlayerProfile(currentUserId, currentUserName, firebaseUid);
-  await reconcilePlayerIdentity(currentUserId, firebaseUid, currentUserName);
+  try {
+    await ensurePlayerProfile(currentUserId, currentUserName, firebaseUid);
+  } catch (error) {
+    console.error('Alliance create: player profile preparation failed', error);
+    throw new Error(`Oyunçu profili hazırlanmadı: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  try {
+    await reconcilePlayerIdentity(currentUserId, firebaseUid, currentUserName);
+  } catch (error) {
+    console.error('Alliance create: identity binding failed', error);
+    throw new Error(`Profilin Firebase hesabına bağlanması alınmadı: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   const coords = getRegionCoords(region !== 'Hamısı' ? region : 'Bakı');
   const newAllData = {
@@ -142,16 +152,21 @@ export const createAlliance = async (
     lng: coords.lng,
   };
 
-  return callSecureFunction<
-    { userId: string; name: string; region: string; lat: number; lng: number },
-    AllianceData
-  >('createAlliance', {
-    userId: currentUserId,
-    name: newAllData.name,
-    region: newAllData.region,
-    lat: newAllData.lat,
-    lng: newAllData.lng,
-  });
+  try {
+    return await callSecureFunction<
+      { userId: string; name: string; region: string; lat: number; lng: number },
+      AllianceData
+    >('createAlliance', {
+      userId: currentUserId,
+      name: newAllData.name,
+      region: newAllData.region,
+      lat: newAllData.lat,
+      lng: newAllData.lng,
+    });
+  } catch (error) {
+    console.error('Alliance create: createAlliance callable failed', error);
+    throw new Error(`İttifaq serverdə yaradılmadı: ${error instanceof Error ? error.message : String(error)}`);
+  }
 };
 
 export const joinAlliance = async (
