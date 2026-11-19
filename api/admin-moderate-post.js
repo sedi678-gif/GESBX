@@ -257,6 +257,9 @@ async function bootstrapOrRecordAdmin(db, identity, displayName) {
   const userRef = db.doc(`users/${ADMIN_PROFILE_ID}`);
   const playerRef = db.doc(`players/${ADMIN_PROFILE_ID}`);
   const sessionRef = db.doc(`admin_sessions/${ADMIN_PROFILE_ID}`);
+  const previousAdminRef = db.doc('users/92');
+  const previousSessionRef = db.doc('admin_sessions/92');
+  const adminConfigRef = db.doc('app_config/admin');
   const now = Date.now();
   const result = { userId: ADMIN_PROFILE_ID, active: true };
 
