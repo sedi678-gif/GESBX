@@ -213,7 +213,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
 
             className={`${styles.cosmeticFilterBtn} ${filter === cat.id ? styles.cosmeticFilterActive : ''}`}
 
-            onClick={() => setFilter(cat.id)}
+            onClick={() => setFilter(cat.id as CosmeticCategory)}
 
           >
 
