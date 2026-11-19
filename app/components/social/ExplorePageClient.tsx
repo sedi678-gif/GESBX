@@ -350,8 +350,9 @@ export default function ExplorePageClient() {
             {heartBurst > 0 && (
               <div key={heartBurst} className={styles.heartBurst} aria-hidden="true">
                 <span className={styles.heartBurstMain}>♥</span>
-                <span className={styles.heartBurstSmall}>♥</span>
-                <span className={styles.heartBurstSpark}>♥</span>
+                {Array.from({ length: 10 }, (_, index) => (
+                  <span key={index} className={styles.heartParticle}>♥</span>
+                ))}
               </div>
             )}
             <div className={styles.userChipPremium}>
