@@ -81,6 +81,7 @@ import {
 import { CallType } from '@/app/lib/callService';
 import { AppUserProfile } from '@/app/lib/socialTypes';
 import { useUser } from '@/context/UserContext';
+import { resolveBannerImage } from '@/app/components/shop/cosmeticsConfig';
 import { useAppBrain } from '@/app/components/alliance/AllianceBrainContext';
 import { getAppUserId } from '@/app/lib/userId';
 import { useAppStrings } from '@/app/lib/useAppStrings';
@@ -266,10 +267,11 @@ function MessageBubble({
 
 export default function MessagesPageClient() {
   const searchParams = useSearchParams();
-  const { userId } = useUser();
+  const { userId, playerProfile } = useUser();
   const { startCall } = useCall();
   const t = useAppStrings();
   const myId = getAppUserId(userId) || 'guest';
+  const chatWallpaper = resolveBannerImage(playerProfile?.cosmetics);
   const { relayPrivateMessage, subscribePrivateMessages, realtimeHub, ensureAppSocket } = useAppBrain();
 
   const [chats, setChats] = useState<ChatItem[]>([]);
@@ -1387,7 +1389,16 @@ export default function MessagesPageClient() {
         </div>
       ) : (
         <div className={styles.messageArea}>
-          <div className={styles.messageScroll} ref={scrollRef}>
+          <div
+            className={styles.messageScroll}
+            ref={scrollRef}
+            style={chatWallpaper ? {
+              backgroundImage: `linear-gradient(rgba(7, 15, 25, 0.58), rgba(7, 15, 25, 0.68)), url("${chatWallpaper}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'local',
+            } : undefined}
+          >
             <ChatSystemPill>Təhlükəsiz söhbət · Blokla və ya şikayət et</ChatSystemPill>
             {messages.map((m) => (
               <ChatMessageRow
