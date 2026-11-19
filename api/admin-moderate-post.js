@@ -14,7 +14,7 @@ const MAX_CHUNKS = 64;
 const MAX_CHUNK_BASE64_CHARS = 980_000;
 const MAX_REVIEW_CHUNKS_PER_REQUEST = 4;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/webp',
   'video/mp4', 'video/webm', 'video/quicktime',
