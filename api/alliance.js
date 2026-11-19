@@ -8,7 +8,7 @@ const {
   verifySecureRequest,
 } = require('../services/apiSecurity');
 
-const PLAYER_ID = /^\\d{1,20}$/;
+const PLAYER_ID = /^\d{1,20}$/;
 
 async function bindPlayerIdentity(req, res) {
   const payload = req.body && typeof req.body === 'object' ? req.body : {};
