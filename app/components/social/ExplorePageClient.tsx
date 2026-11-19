@@ -342,7 +342,7 @@ export default function ExplorePageClient() {
                   aria-label="Növbəti şəkil"
                   onClick={() => setMediaIndex((i) => Math.min(current.mediaList.length - 1, i + 1))}
                   disabled={mediaIndex === current.mediaList.length - 1}
-                  style={{ position: 'absolute', zIndex: 4, right: 12, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, border: 0, borderRadius: 999, color: '#fff', background: 'rgba(0,0,0,.45)', fontSize: 24, opacity: mediaIndex === current.mediaList.length - 1 ? .3 : 1 }}
+                  style={{ position: 'absolute', zIndex: 4, right: 12, top: '40%', transform: 'translateY(-50%)', width: 38, height: 38, border: 0, borderRadius: 999, color: '#fff', background: 'rgba(0,0,0,.45)', fontSize: 24, opacity: mediaIndex === current.mediaList.length - 1 ? .3 : 1 }}
                 >›</button>
               </>
             )}
