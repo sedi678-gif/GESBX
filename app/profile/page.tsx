@@ -1235,6 +1235,10 @@ function ProfilePageContent() {
     return <ProfileBootSkeleton />;
   }
 
+  if (viewUserId && viewUserId !== currentUser.id) {
+    return <OtherUserProfile targetUserId={viewUserId} myId={userId} />;
+  }
+
   if (!isRegistered) {
     return (
       <div className={profileStyles.registerWorld}>
@@ -1289,10 +1293,6 @@ function ProfilePageContent() {
         </div>
       </div>
     );
-  }
-
-  if (viewUserId && viewUserId !== currentUser.id) {
-    return <OtherUserProfile targetUserId={viewUserId} myId={userId} />;
   }
 
   return (
