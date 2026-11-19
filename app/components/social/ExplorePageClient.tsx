@@ -5,6 +5,7 @@ import AppLink from '@/app/components/AppLink';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import {
   listenExploreFeed,
+  listenPostCommentCount,
   toggleLikePost,
   listenUserLikedPostIds,
   recordPostView,
@@ -107,6 +108,7 @@ export default function ExplorePageClient() {
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [userIndex, setUserIndex] = useState(0);
   const [mediaIndex, setMediaIndex] = useState(0);
+  const [liveCommentCount, setLiveCommentCount] = useState(0);
 
   const [showSearch, setShowSearch] = useState(false);
   const [showReport, setShowReport] = useState(false);
@@ -153,6 +155,12 @@ export default function ExplorePageClient() {
   const media = current?.mediaList[mediaIndex];
   const currentUserId = current?.userId;
   const mediaId = media?.id;
+
+  useEffect(() => {
+    setLiveCommentCount(0);
+    if (!mediaId) return;
+    return listenPostCommentCount(mediaId, setLiveCommentCount);
+  }, [mediaId]);
 
   useEffect(() => {
     if (
@@ -309,11 +317,32 @@ export default function ExplorePageClient() {
               {current.mediaList.map((_, i) => (
                 <div key={i} className={`${styles.storyDotPremium} ${i === mediaIndex ? styles.storyDotPremiumActive : ''}`} />
               ))}
+              <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, textShadow: '0 1px 4px #000' }}>
+                {mediaIndex + 1}/{current.mediaList.length}
+              </span>
             </div>
             {media.mediaType === 'video' ? (
               <video src={media.mediaUrl} className={styles.mediaFullPremium} autoPlay loop muted playsInline />
             ) : (
               <img src={media.mediaUrl} alt={media.title} className={styles.mediaFullPremium} />
+            )}
+            {current.mediaList.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Əvvəlki şəkil"
+                  onClick={() => setMediaIndex((i) => Math.max(0, i - 1))}
+                  disabled={mediaIndex === 0}
+                  style={{ position: 'absolute', zIndex: 4, left: 12, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, border: 0, borderRadius: 999, color: '#fff', background: 'rgba(0,0,0,.45)', fontSize: 24, opacity: mediaIndex === 0 ? .3 : 1 }}
+                >‹</button>
+                <button
+                  type="button"
+                  aria-label="Növbəti şəkil"
+                  onClick={() => setMediaIndex((i) => Math.min(current.mediaList.length - 1, i + 1))}
+                  disabled={mediaIndex === current.mediaList.length - 1}
+                  style={{ position: 'absolute', zIndex: 4, right: 12, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, border: 0, borderRadius: 999, color: '#fff', background: 'rgba(0,0,0,.45)', fontSize: 24, opacity: mediaIndex === current.mediaList.length - 1 ? .3 : 1 }}
+                >›</button>
+              </>
             )}
             <div className={styles.mediaOverlayPremium} />
             <div className={styles.userChipPremium}>
@@ -347,7 +376,7 @@ export default function ExplorePageClient() {
                 aria-label="Şərh"
               >
                 <PostActionIcon kind="comment" alt="Şərh" />
-                <span className={styles.actionCountPremium}>{media.commentsCount ?? 0}</span>
+                <span className={styles.actionCountPremium}>{liveCommentCount}</span>
               </button>
               <button
                 type="button"
