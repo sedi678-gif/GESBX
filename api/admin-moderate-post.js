@@ -9,6 +9,7 @@ const {
 
 const ADMIN_PROFILE_ID = '98';
 const POST_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+const USER_ID_PATTERN = /^\\d{1,20}$/;
 const MAX_CHUNKS = 64;
 const MAX_CHUNK_BASE64_CHARS = 980_000;
 const MAX_REVIEW_CHUNKS_PER_REQUEST = 4;
@@ -198,6 +199,37 @@ async function decidePost(db, postId, decision) {
   });
 }
 
+async function publishOwnedPost(db, identity, postId, userId) {
+  const userSnap = await db.doc(`users/${userId}`).get();
+  if (!userSnap.exists || userSnap.data()?.firebaseUid !== identity.uid) {
+    throw new ApiError(403, 'POST_OWNER_FORBIDDEN');
+  }
+
+  const postRef = db.doc(`posts/${postId}`);
+  const mediaQuery = db.collection(`posts/${postId}/media`).orderBy('index', 'asc');
+  return db.runTransaction(async (transaction) => {
+    const [postSnap, chunksSnap] = await Promise.all([
+      transaction.get(postRef),
+      transaction.get(mediaQuery),
+    ]);
+    if (!postSnap.exists) throw new ApiError(404, 'POST_NOT_FOUND');
+    const post = postSnap.data() || {};
+    if (post.userId !== userId) throw new ApiError(403, 'POST_OWNER_FORBIDDEN');
+    if (post.moderationStatus === 'approved') return { id: postId, status: 'approved' };
+    if (post.moderationStatus !== 'pending') throw new ApiError(409, 'POST_NOT_PENDING');
+
+    const media = validateCompleteMedia(post, chunksSnap.docs);
+    transaction.update(postRef, {
+      moderationStatus: 'approved',
+      moderationProvider: 'verified-owner-publish',
+      moderatedAt: Date.now(),
+      mediaUrl: `/api/post-media?postId=${encodeURIComponent(postId)}`,
+      mediaType: media.contentType.startsWith('video/') ? 'video' : 'image',
+    });
+    return { id: postId, status: 'approved' };
+  });
+}
+
 async function recordAdminSession(db, identity, displayName, active) {
   const operationId = sha256(`${identity.uid}:adminModeratePost:${identity.operationId}`).slice(0, 40);
   const operationRef = db.doc(`operation_ledger/${operationId}`);
@@ -366,6 +398,16 @@ module.exports = async function adminModeratePostHandler(req, res) {
       if (!displayName || displayName.length > 100) throw new ApiError(400, 'INVALID_REQUEST');
       return sendJson(res, 200, await bootstrapOrRecordAdmin(db, identity, displayName));
     }
+    if (payload.action === 'publish') {
+      assertExactKeys(payload, ['action', 'postId', 'userId']);
+      const postId = String(payload.postId || '');
+      const userId = String(payload.userId || '');
+      if (!POST_ID_PATTERN.test(postId) || !USER_ID_PATTERN.test(userId)) {
+        throw new ApiError(400, 'INVALID_REQUEST');
+      }
+      return sendJson(res, 200, await publishOwnedPost(db, identity, postId, userId));
+    }
+
     await assertSuperAdmin(db, identity.uid);
 
     if (payload.action === 'session') {
@@ -410,7 +452,7 @@ module.exports = async function adminModeratePostHandler(req, res) {
       'ADMIN_PROFILE_NOT_BOUND', 'ADMIN_BOOTSTRAP_NOT_CONFIGURED',
       'PLAY_INTEGRITY_REQUIRED', 'PLAY_INTEGRITY_NOT_CONFIGURED', 'PLAY_INTEGRITY_REJECTED',
       'PLAY_INTEGRITY_UNAVAILABLE', 'RATE_LIMITED', 'SECURITY_CONFIGURATION_MISSING',
-      'INVALID_REQUEST', 'ADMIN_REVIEW_FORBIDDEN', 'POST_NOT_FOUND', 'POST_NOT_PENDING',
+      'INVALID_REQUEST', 'ADMIN_REVIEW_FORBIDDEN', 'POST_OWNER_FORBIDDEN', 'POST_NOT_FOUND', 'POST_NOT_PENDING',
       'MEDIA_INCOMPLETE', 'MEDIA_INVALID', 'MEDIA_TOO_LARGE',
     ]);
     const code = knownCodes.has(error.code) ? error.code : 'POST_MODERATION_UNAVAILABLE';
