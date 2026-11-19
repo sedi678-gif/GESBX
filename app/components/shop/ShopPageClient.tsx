@@ -25,22 +25,13 @@ export default function ShopPageClient() {
       <main className={styles.main}>
         <header className={styles.hero}>
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>GESBX · MAĞAZA</p>
-            <h1 className={styles.title}>Öz üslubunu yarat</h1>
-            <p className={styles.intro}>
-              Profil çərçivələri, bannerlər, nişanlar və VIP görünüşləri seç. Alışlar hesabındakı manat balansından çıxılır.
-            </p>
+            <h1 className={styles.title}>GESBX MAĞAZA</h1>
           </div>
-
           <aside className={styles.wallet} aria-label="Manat balansı">
-            <span className={styles.walletIcon} aria-hidden="true">₼</span>
-            <div className={styles.walletCopy}>
-              <span className={styles.walletLabel}>Balansın</span>
-              <strong className={styles.walletAmount}>
-                {manatReady ? `₼ ${manat.toLocaleString('az-AZ')}` : 'Yüklənir…'}
-              </strong>
-              <span className={styles.walletHint}>Qiymətlər manatladır</span>
-            </div>
+            <span className={styles.walletLabel}>Balans</span>
+            <strong className={styles.walletAmount}>
+              {manatReady ? `₼ ${manat.toLocaleString('az-AZ')}` : '…'}
+            </strong>
           </aside>
         </header>
 
@@ -59,19 +50,7 @@ export default function ShopPageClient() {
         )}
 
         <section className={styles.store} aria-labelledby="shop-cosmetics-title">
-          <div className={styles.sectionHeading}>
-            <div>
-              <p className={styles.sectionEyebrow}>MAĞAZA KATALOQU</p>
-              <h2 id="shop-cosmetics-title" className={styles.sectionTitle}>
-                {shopTab === 'fortress' ? 'İttifaq qalaları' : 'VIP və profil kosmetikası'}
-              </h2>
-            </div>
-            <p className={styles.sectionDescription}>
-              {shopTab === 'fortress'
-                ? 'Beş fərqli qala görünüşündən növbəti səviyyəni seç. Yüksəliş bütün ittifaq üçün açılır.'
-                : 'Məhsulları kateqoriyaya görə seç, manatla al və sahib olduqlarını profilində geyin.'}
-            </p>
-          </div>
+          
 
           <div className={styles.shopTabs} role="tablist" aria-label="Mağaza bölmələri">
             <button
@@ -81,7 +60,7 @@ export default function ShopPageClient() {
               className={`${styles.shopTab} ${shopTab === 'cosmetics' ? styles.shopTabActive : ''}`}
               onClick={() => setShopTab('cosmetics')}
             >
-              ✨ VIP və kosmetika
+              👑 VIP
             </button>
             <button
               type="button"
