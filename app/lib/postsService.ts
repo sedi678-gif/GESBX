@@ -81,6 +81,7 @@ function mapPostDoc(
   return {
     id,
     userId: String(raw.userId),
+    mediaGroupId: typeof raw.mediaGroupId === 'string' && raw.mediaGroupId ? raw.mediaGroupId : undefined,
     moderationStatus: moderationStatus as SocialPost['moderationStatus'],
     userName: String(raw.userName || 'İstifadəçi'),
     userHandle: String(raw.userHandle || ''),
@@ -226,7 +227,8 @@ async function createPostInternal(
   title: string,
   file: File,
   mediaType: 'video' | 'image',
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  mediaGroupId?: string,
 ): Promise<string> {
   if (!user.id?.trim()) {
     throw new Error('Profil tapılmadı. Əvvəlcə qeydiyyatdan keçin.');
@@ -260,6 +262,7 @@ async function createPostInternal(
     mediaUrl,
     mediaPath,
     mediaType,
+    ...(mediaGroupId ? { mediaGroupId } : {}),
     moderationStatus: 'pending',
     ...(durationSeconds ? { durationSeconds } : {}),
     likes: 0,
@@ -335,11 +338,36 @@ export async function createPost(
   );
 }
 
+export async function createPostAlbum(
+  user: AppUserProfile,
+  title: string,
+  files: File[],
+  onProgress?: (message: string) => void,
+): Promise<string[]> {
+  if (!files.length || files.length > 10) throw new Error('Bir paylaşımda 1–10 şəkil seçə bilərsiniz.');
+  if (files.some((file) => !file.type.startsWith('image/'))) throw new Error('Bir albomda yalnız şəkillər paylaşmaq olar.');
+  const mediaGroupId = doc(collection(db, 'posts')).id;
+  const createdIds: string[] = [];
+  try {
+    for (let index = 0; index < files.length; index += 1) {
+      onProgress?.(`${index + 1}/${files.length} şəkil yüklənir...`);
+      const id = await createPostInternal(user, title, files[index], 'image', onProgress, mediaGroupId);
+      createdIds.push(id);
+    }
+    return createdIds;
+  } catch (error) {
+    console.error('Albomu tamamlamaq mümkün olmadı. Uğurlu yüklənən şəkillər saxlanılır:', createdIds);
+    throw error;
+  }
+}
+
 export function postsToFeed(posts: SocialPost[]): UserFeedItem[] {
-  const byUser = new Map<string, UserFeedItem>();
+  const byPostGroup = new Map<string, UserFeedItem>();
 
   for (const post of posts) {
-    const existing = byUser.get(post.userId);
+    // Legacy posts have no group ID, so each remains its own one-photo post.
+    const groupKey = post.mediaGroupId || post.id;
+    const existing = byPostGroup.get(groupKey);
     const media = {
       id: post.id,
       mediaUrl: post.mediaUrl,
@@ -356,7 +384,7 @@ export function postsToFeed(posts: SocialPost[]): UserFeedItem[] {
       existing.commentsCount += post.commentsCount;
       existing.giftCount += post.giftCount;
     } else {
-      byUser.set(post.userId, {
+      byPostGroup.set(groupKey, {
         userId: post.userId,
         userName: post.userName,
         userHandle: post.userHandle,
@@ -372,10 +400,10 @@ export function postsToFeed(posts: SocialPost[]): UserFeedItem[] {
     }
   }
 
-  return Array.from(byUser.values())
+  return Array.from(byPostGroup.values())
     .map((item) => ({
       ...item,
-      mediaList: item.mediaList.sort((a, b) => b.createdAt - a.createdAt),
+      mediaList: item.mediaList.sort((a, b) => a.createdAt - b.createdAt),
     }))
     .sort((a, b) => (b.mediaList[0]?.createdAt ?? 0) - (a.mediaList[0]?.createdAt ?? 0));
 }
