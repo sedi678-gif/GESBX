@@ -2831,7 +2831,8 @@ service cloud.firestore {
           'punishReason', 'punishedBy', 'region', 'manat', 'coins'
         ]);
       allow update: if isSignedIn()
-        && request.resource.data.id == userId
+        // Document path is the profile ID; legacy profiles may store id as a number.
+        // Ownership is enforced by the immutable Firebase UID, not the id field type.
         && resource.data.firebaseUid == request.auth.uid
         && request.resource.data.firebaseUid == resource.data.firebaseUid
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
