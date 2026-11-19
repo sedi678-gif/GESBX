@@ -374,45 +374,49 @@ export default function ExplorePageClient() {
         <div className={styles.modalOverlay} onClick={() => setShowSearch(false)}>
           <div className={styles.modalSheet} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>🔍 {t.explore.searchTitle}</h2>
-            <input
-              className={styles.input}
-              placeholder="Ad, nickname..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <button type="button" className={styles.secondaryBtn} onClick={runUserSearch}>
-              Saytda axtar
-            </button>
-            {searchResults.map((u) => (
-              <div key={u.id} className={styles.userResult}>
-                <img src={u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'} alt="" className={styles.avatar} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 800 }}>{u.name} {u.surname}</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>{u.handle}</div>
+            <div className={styles.searchControls}>
+              <input
+                className={styles.input}
+                placeholder="Ad, nickname..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button type="button" className={styles.secondaryBtn} onClick={runUserSearch}>
+                Saytda axtar
+              </button>
+              <select className={styles.input} value={region} onChange={(e) => setRegion(e.target.value)}>
+                <option value="all">Bütün regionlar</option>
+                <optgroup label="Azərbaycan bölgələri">
+                  {AZ_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </optgroup>
+                <option value="Beynəlxalq">Beynəlxalq</option>
+              </select>
+              <select className={styles.input} value={gender} onChange={(e) => setGender(e.target.value)}>
+                <option value="all">Hamısı</option>
+                <option value="Kişi">Kişi</option>
+                <option value="Qadın">Qadın</option>
+              </select>
+              <button type="button" className={styles.primaryBtn} onClick={applyFilters}>{t.explore.filter}</button>
+            </div>
+            <div className={styles.searchResultsList}>
+              {searchResults.map((u) => (
+                <div key={u.id} className={styles.userResult}>
+                  <img src={u.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100"} alt="" className={styles.avatar} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 800 }}>{u.name} {u.surname}</div>
+                    <div style={{ fontSize: 12, color: "#94a3b8" }}>{u.handle}</div>
+                  </div>
+                  <AppLink
+                    href={`/profile?user=${u.id}`}
+                    className={styles.secondaryBtn}
+                    style={{ textDecoration: "none", padding: "8px 12px", fontSize: 12, width: "auto", flexShrink: 0 }}
+                    onClick={() => setShowSearch(false)}
+                  >
+                    {t.explore.viewProfile}
+                  </AppLink>
                 </div>
-                <AppLink
-                  href={`/profile?user=${u.id}`}
-                  className={styles.secondaryBtn}
-                  style={{ textDecoration: 'none', padding: '8px 12px', fontSize: 12, width: 'auto' }}
-                  onClick={() => setShowSearch(false)}
-                >
-                  {t.explore.viewProfile}
-                </AppLink>
-              </div>
-            ))}
-            <select className={styles.input} value={region} onChange={(e) => setRegion(e.target.value)}>
-              <option value="all">Bütün regionlar</option>
-              <optgroup label="Azərbaycan bölgələri">
-                {AZ_REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-              </optgroup>
-              <option value="Beynəlxalq">Beynəlxalq</option>
-            </select>
-            <select className={styles.input} value={gender} onChange={(e) => setGender(e.target.value)}>
-              <option value="all">Hamısı</option>
-              <option value="Kişi">Kişi</option>
-              <option value="Qadın">Qadın</option>
-            </select>
-            <button type="button" className={styles.primaryBtn} onClick={applyFilters}>{t.explore.filter}</button>
+              ))}
+            </div>
           </div>
         </div>
       )}
