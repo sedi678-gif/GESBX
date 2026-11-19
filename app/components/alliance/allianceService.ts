@@ -25,7 +25,7 @@ import { isAllianceLeader, type LeaderCheckOptions } from './allianceLeader';
 import { DEFAULT_MANAT, resolvePlayerManat, readStoredManat, manatWritePatch } from '@/app/lib/manat';
 import { DEFAULT_USER_PLAN_STATE, normalizeUserPlanState } from '@/app/lib/userPlan';
 import { requireFirebaseAuth, withTimeout } from '@/app/lib/firebaseAuth';
-import { callSecureApi } from '@/app/lib/secureFunctions';
+import { callSecureApi, callSecureFunction } from '@/app/lib/secureFunctions';
 
 /** Firebase UID ilə yaradılmış köhnə profili lokal profil ID ilə birləşdirir */
 export async function reconcilePlayerIdentity(
