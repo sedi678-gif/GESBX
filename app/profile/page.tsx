@@ -1236,7 +1236,7 @@ function ProfilePageContent() {
     }
   };
 
-  const activeProfileRoute = viewUserId && viewUserId !== currentUser.id ? `user:${viewUserId}` : 'self';
+  const activeProfileRoute = viewUserId ? `user:${viewUserId}` : 'self';
   if (profileBooting || resolvedProfileRoute !== activeProfileRoute) {
     return <ProfileBootSkeleton />;
   }
