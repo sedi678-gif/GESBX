@@ -23,14 +23,14 @@ import { callSecureApi } from './secureFunctions';
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 const POST_IMAGE_MAX_WIDTH = 960;
 const POST_IMAGE_QUALITY = 0.66;
 const MAX_INLINE_MEDIA_BYTES = 700 * 1024;
 const MEDIA_CHUNK_BYTES = 700 * 1024;
 const MAX_MEDIA_CHUNKS = 64;
 const IMAGE_POST_TIMEOUT_MS = 30_000;
-const VIDEO_POST_TIMEOUT_MS = 90_000;
+const VIDEO_POST_TIMEOUT_MS = 300_000;
 
 function calcAge(birthDate?: string): number | undefined {
   if (!birthDate) return undefined;
@@ -188,7 +188,7 @@ async function uploadMedia(
   onProgress?: (message: string) => void
 ): Promise<{ url: string; path: string }> {
   if (file.type.startsWith('video/') && file.size > MAX_VIDEO_BYTES) {
-    throw new Error('Video çox böyükdür (maks. 25 MB).');
+    throw new Error('Video faylı 40 MB-dan böyükdür.');
   }
   if (file.type.startsWith('image/') && file.size > MAX_IMAGE_BYTES) {
     throw new Error('Şəkil çox böyükdür (maks. 8 MB).');
@@ -285,7 +285,7 @@ async function createPostInternal(
       contentType: uploadFile.type || 'image/jpeg',
       data: encodeBase64(bytes),
     });
-    onProgress?.('Şəkil birbaşa paylaşılır...');
+    
     await batch.commit();
     try {
       await callSecureApi('/api/admin-moderate-post', 'adminModeratePost', {
