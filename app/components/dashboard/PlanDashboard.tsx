@@ -70,6 +70,7 @@ export default function PlanDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [creatorChoiceOpen, setCreatorChoiceOpen] = useState(false);
+  const [activatedCreatorType, setActivatedCreatorType] = useState<'standard' | 'vip' | null>(null);
 
   useEffect(() => {
     const status = new URLSearchParams(window.location.search).get('creatorStatus');
@@ -105,7 +106,10 @@ export default function PlanDashboard() {
       () => activateFreeCreatorPanel(userId),
       'Siz Adi Creator panelini aktivləşdirdiniz.',
     );
-    if (ok) setCreatorChoiceOpen(false);
+    if (ok) {
+      setActivatedCreatorType('standard');
+      setCreatorChoiceOpen(false);
+    }
   };
 
   const chooseVipCreator = async () => {
@@ -113,7 +117,29 @@ export default function PlanDashboard() {
       () => purchaseVipProPlan(userId),
       'VIP Creator paneli aktivləşdirildi. 30 AZN balansınızdan çıxıldı.',
     );
-    if (ok) setCreatorChoiceOpen(false);
+    if (ok) {
+      setActivatedCreatorType('vip');
+      setCreatorChoiceOpen(false);
+    }
+  };
+
+  const handleCreateClick = () => {
+    setError(null);
+    const vipActive = activatedCreatorType === 'vip'
+      || plan.isVipLifetime
+      || (plan.userPlan === 'VIP_PRO' && plan.creatorPanelExpiresAt > Date.now());
+    const standardActive = activatedCreatorType === 'standard' || plan.freeCreatorPanelClaimedAt > 0;
+    if (vipActive) {
+      setNotice('Siz artıq VIP Creatorsunuz. VIP Creator paneliniz aktivdir.');
+      setCreatorChoiceOpen(false);
+      return;
+    }
+    if (standardActive) {
+      setNotice('Siz artıq Adi Creatorsunuz. Adi Creator paneliniz aktivdir.');
+      setCreatorChoiceOpen(false);
+      return;
+    }
+    setCreatorChoiceOpen(true);
   };
 
   const tabLabel: Record<StudioTab, string> = {
@@ -172,7 +198,7 @@ export default function PlanDashboard() {
             <button
               type="button"
               className={styles.createBtn}
-              onClick={() => { setError(null); setCreatorChoiceOpen(true); }}
+              onClick={handleCreateClick}
               disabled={busy}
             >
               {t.studio.create}
