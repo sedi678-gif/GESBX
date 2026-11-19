@@ -1,12 +1,15 @@
 export const AZ_ALL_REGIONS = [
-  'Bakı', 'Abşeron', 'Ağcabədi', 'Ağdam', 'Ağdaş', 'Ağstafa', 'Ağsu', 'Astara',
-  'Babək', 'Balakən', 'Bərdə', 'Beyləqan', 'Biləsuvar', 'Cəbrayıl', 'Cəlilabad', 'Culfa',
-  'Daşkəsən', 'Füzuli', 'Gədəbəy', 'Gəncə', 'Goranboy', 'Göyçay', 'Göygöl', 'Hacıqabul',
-  'İmişli', 'İsmayıllı', 'Kəlbəcər', 'Kəngərli', 'Kürdəmir', 'Laçın', 'Lənkəran', 'Lerik',
-  'Masallı', 'Mingəçevir', 'Naftalan', 'Naxçıvan', 'Neftçala', 'Oğuz', 'Ordubad', 'Qax',
-  'Qazax', 'Qəbələ', 'Qobustan', 'Quba', 'Qubadlı', 'Qusar', 'Saatlı', 'Sabirabad',
-  'Şabran', 'Şahbuz', 'Şəki', 'Şamaxı', 'Şəmkir', 'Şərur', 'Şirvan', 'Siyəzən',
-  'Sumqayıt', 'Şuşa', 'Tərtər', 'Tovuz', 'Ucar', 'Yardımlı', 'Yevlax', 'Zaqatala', 'Zəngilan', 'Zərdab',
+  'Abşeron', 'Ağcabədi', 'Ağdam', 'Ağdaş', 'Ağdərə', 'Ağstafa', 'Ağsu', 'Astara',
+  'Babək', 'Bakı', 'Balakən', 'Bərdə', 'Beyləqan', 'Biləsuvar',
+  'Cəbrayıl', 'Cəlilabad', 'Culfa', 'Daşkəsən', 'Füzuli', 'Gədəbəy', 'Gəncə',
+  'Goranboy', 'Göyçay', 'Göygöl', 'Hacıqabul', 'Xaçmaz', 'Xankəndi', 'Xızı',
+  'Xocalı', 'Xocavənd', 'İmişli', 'İsmayıllı', 'Kəlbəcər', 'Kəngərli',
+  'Kürdəmir', 'Laçın', 'Lənkəran', 'Lerik', 'Masallı', 'Mingəçevir',
+  'Naftalan', 'Naxçıvan', 'Neftçala', 'Oğuz', 'Ordubad', 'Qax', 'Qazax',
+  'Qəbələ', 'Qobustan', 'Quba', 'Qubadlı', 'Qusar', 'Saatlı', 'Sabirabad',
+  'Sədərək', 'Salyan', 'Samux', 'Şabran', 'Şahbuz', 'Şəki', 'Şamaxı',
+  'Şəmkir', 'Şərur', 'Şirvan', 'Siyəzən', 'Sumqayıt', 'Şuşa', 'Tərtər',
+  'Tovuz', 'Ucar', 'Yardımlı', 'Yevlax', 'Zaqatala', 'Zəngilan', 'Zərdab',
 ];
 
 /** Rayon mərkəzlərinin təxmini koordinatları */
