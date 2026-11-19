@@ -9,6 +9,8 @@ import { useUser } from '@/context/UserContext';
 import { getSettingsStrings } from '@/app/lib/settingsI18n';
 import { submitFeedback, submitSupportRequest } from '@/app/lib/settingsService';
 import { AppLanguage } from '@/app/lib/settingsTypes';
+import { getUserProfile, listenBlockedUsers, unblockUser } from '@/app/lib/socialService';
+import type { AppUserProfile } from '@/app/lib/socialTypes';
 import { SUPER_ADMIN_ID } from '@/app/lib/adminConfig';
 import {
   deleteOwnAccount,
@@ -52,6 +54,9 @@ export default function SettingsPageClient() {
   const [confirmAction, setConfirmAction] = useState<'freeze' | 'delete' | null>(null);
   const [deleteWord, setDeleteWord] = useState('');
   const [accountBusy, setAccountBusy] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<AppUserProfile[]>([]);
+  const [blockedLoading, setBlockedLoading] = useState(true);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
   const canManageAccount = isRealAccountId(userId);
 
   const notify = (msg: string) => {
@@ -69,6 +74,41 @@ export default function SettingsPageClient() {
     });
   }, [canManageAccount, userId]);
 
+
+  useEffect(() => {
+    if (!userId) {
+      setBlockedUsers([]);
+      setBlockedLoading(false);
+      return;
+    }
+    setBlockedLoading(true);
+    return listenBlockedUsers(userId, (ids) => {
+      if (!ids.length) {
+        setBlockedUsers([]);
+        setBlockedLoading(false);
+        return;
+      }
+      void Promise.all(ids.map((id) => getUserProfile(id)))
+        .then((profiles) => {
+          setBlockedUsers(profiles.filter((profile): profile is AppUserProfile => Boolean(profile)));
+        })
+        .catch(() => notify('Bloklanmış profilləri yükləmək mümkün olmadı.'))
+        .finally(() => setBlockedLoading(false));
+    });
+  }, [userId]);
+
+  const handleUnblock = async (blockedId: string) => {
+    setUnblockingId(blockedId);
+    try {
+      await unblockUser(userId, blockedId);
+      setBlockedUsers((current) => current.filter((profile) => profile.id !== blockedId));
+      notify('İstifadəçi blokdan çıxarıldı.');
+    } catch {
+      notify('Blokdan çıxarmaq mümkün olmadı. Yenidən cəhd et.');
+    } finally {
+      setUnblockingId(null);
+    }
+  };
 
   const closeConfirm = () => {
     if (accountBusy) return;
@@ -346,9 +386,32 @@ export default function SettingsPageClient() {
         <section className={styles.settingsSection}>
           <h2>🚫 {t.blocked}</h2>
           <p className={styles.settingsHint}>{t.blockedHint}</p>
-          <AppLink href="/messages" className={styles.secondaryBtn} style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
-            💬 {t.notifMessages}
-          </AppLink>
+          {blockedLoading ? (
+            <p className={styles.settingsHint}>Yüklənir...</p>
+          ) : blockedUsers.length === 0 ? (
+            <p className={styles.settingsHint}>Bloklanmış profil yoxdur.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {blockedUsers.map((profile) => (
+                <div key={profile.id} className={styles.settingsRow} style={{ gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                    {profile.avatar ? (
+                      <img src={profile.avatar} alt="" style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#334155', display: 'grid', placeItems: 'center' }}>👤</div>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{[profile.name, profile.surname].filter(Boolean).join(' ') || ('İstifadəçi #' + profile.id)}</div>
+                      {profile.handle && <div className={styles.settingsHint}>@{profile.handle}</div>}
+                    </div>
+                  </div>
+                  <button type="button" className={styles.secondaryBtn} disabled={unblockingId === profile.id} onClick={() => void handleUnblock(profile.id)}>
+                    {unblockingId === profile.id ? 'Gözlə...' : 'Blokdan çıxar'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className={styles.settingsSection}>
