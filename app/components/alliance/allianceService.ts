@@ -25,7 +25,7 @@ import { isAllianceLeader, type LeaderCheckOptions } from './allianceLeader';
 import { DEFAULT_MANAT, resolvePlayerManat, readStoredManat, manatWritePatch } from '@/app/lib/manat';
 import { DEFAULT_USER_PLAN_STATE, normalizeUserPlanState } from '@/app/lib/userPlan';
 import { requireFirebaseAuth, withTimeout } from '@/app/lib/firebaseAuth';
-import { callSecureFunction } from '@/app/lib/secureFunctions';
+import { callSecureApi } from '@/app/lib/secureFunctions';
 
 /** Firebase UID ilə yaradılmış köhnə profili lokal profil ID ilə birləşdirir */
 export async function reconcilePlayerIdentity(
@@ -35,7 +35,7 @@ export async function reconcilePlayerIdentity(
 ): Promise<void> {
   void _legacyUserId;
   void _displayName;
-  await callSecureFunction('bindPlayerIdentity', { userId: canonicalUserId });
+  await callSecureApi('/api/bind-player-identity', 'bindPlayerIdentity', { userId: canonicalUserId });
 }
 
 export async function ensurePlayerProfile(
@@ -153,10 +153,10 @@ export const createAlliance = async (
   };
 
   try {
-    return await callSecureFunction<
+    return await callSecureApi<
       { userId: string; name: string; region: string; lat: number; lng: number },
       AllianceData
-    >('createAlliance', {
+    >('/api/create-alliance', 'createAlliance', {
       userId: currentUserId,
       name: newAllData.name,
       region: newAllData.region,
