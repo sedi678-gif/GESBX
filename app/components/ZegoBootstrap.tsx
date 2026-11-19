@@ -41,7 +41,12 @@ export default function ZegoBootstrap() {
       return true;
     };
 
-    let idleHandle: number | ReturnType<typeof setTimeout> | undefined;
+    let idleHandle: number | undefined;
+    let fallbackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
     const startCalls = async () => {
       const ready = await ensureZegoConfig();
       if (!ready || cancelled) return;
@@ -59,18 +64,18 @@ export default function ZegoBootstrap() {
       });
     };
 
-    if ('requestIdleCallback' in window) {
-      idleHandle = window.requestIdleCallback(runWhenIdle, { timeout: 5000 });
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+      idleHandle = idleWindow.requestIdleCallback(runWhenIdle, { timeout: 5000 });
     } else {
-      idleHandle = window.setTimeout(runWhenIdle, 1800);
+      fallbackTimer = globalThis.setTimeout(runWhenIdle, 1800);
     }
 
     return () => {
       cancelled = true;
-      if (typeof idleHandle === 'number') {
-        if ('cancelIdleCallback' in window) window.cancelIdleCallback(idleHandle);
-        else window.clearTimeout(idleHandle);
+      if (idleHandle !== undefined && typeof idleWindow.cancelIdleCallback === 'function') {
+        idleWindow.cancelIdleCallback(idleHandle);
       }
+      if (fallbackTimer !== undefined) globalThis.clearTimeout(fallbackTimer);
     };
   }, [myId]);
 
