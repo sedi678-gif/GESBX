@@ -109,6 +109,7 @@ export default function ExplorePageClient() {
   const [userIndex, setUserIndex] = useState(0);
   const [mediaIndex, setMediaIndex] = useState(0);
   const [liveCommentCount, setLiveCommentCount] = useState(0);
+  const [heartBurst, setHeartBurst] = useState(0);
 
   const [showSearch, setShowSearch] = useState(false);
   const [showReport, setShowReport] = useState(false);
@@ -226,6 +227,7 @@ export default function ExplorePageClient() {
         alert('Bu paylaşımı artıq bəyənmisiniz.');
       }
       setLikedPostIds((prev) => new Set(prev).add(media.id));
+      setHeartBurst((value) => value + 1);
     } catch (err) {
       console.error(err);
       alert('Bəyənmə qeydə alınmadı.');
@@ -345,6 +347,13 @@ export default function ExplorePageClient() {
               </>
             )}
             <div className={styles.mediaOverlayPremium} />
+            {heartBurst > 0 && (
+              <div key={heartBurst} className={styles.heartBurst} aria-hidden="true">
+                <span className={styles.heartBurstMain}>♥</span>
+                <span className={styles.heartBurstSmall}>♥</span>
+                <span className={styles.heartBurstSpark}>♥</span>
+              </div>
+            )}
             <div className={styles.userChipPremium}>
               <AppLink href={`/profile?user=${current.userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <p className={styles.userChipName}>
