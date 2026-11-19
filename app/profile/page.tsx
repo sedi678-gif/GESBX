@@ -11,6 +11,7 @@ import { ensurePlayerProfile } from '@/app/components/alliance/allianceService';
 import { notifyUserIdChanged } from '@/app/lib/userId';
 import {
   createPost,
+  createPostAlbum,
   listenUserPosts,
   toggleLikePost,
   listenUserLikedPostIds,
@@ -899,7 +900,9 @@ function ProfilePageContent() {
   const [newPostTitle, setNewPostTitle] = useState('');
   const [newPostType, setNewPostType] = useState<'video' | 'image'>('image');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadReadyFile, setUploadReadyFile] = useState<File | null>(null);
+  const [uploadReadyFiles, setUploadReadyFiles] = useState<File[]>([]);
   const [isPreparingFile, setIsPreparingFile] = useState(false);
   const [filePreviewUrl, setFilePreviewUrl] = useState('');
 
@@ -1121,7 +1124,9 @@ function ProfilePageContent() {
   const handleOpenUploadModal = () => {
     setNewPostTitle('');
     setSelectedFile(null);
+    setSelectedFiles([]);
     setUploadReadyFile(null);
+    setUploadReadyFiles([]);
     setIsPreparingFile(false);
     setPostAuthRecovery(false);
     setPostAuthError('');
@@ -1132,31 +1137,45 @@ function ProfilePageContent() {
   };
 
   const handlePostFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files || []);
     e.target.value = '';
-    if (!file) return;
+    if (!files.length) return;
 
-    if (file.type.startsWith('video/') && file.size > 40 * 1024 * 1024) {
+    const hasVideo = files.some((file) => file.type.startsWith('video/'));
+    const hasImage = files.some((file) => file.type.startsWith('image/'));
+    if (hasVideo && (hasImage || files.length > 1)) {
+      alert('Video ayrıca paylaşılmalıdır. Bir paylaşımda yalnız şəkilləri birlikdə seçə bilərsiniz.');
+      return;
+    }
+    if (hasImage && files.length > 10) {
+      alert('Bir paylaşımda maksimum 10 şəkil seçə bilərsiniz.');
+      return;
+    }
+    if (files.some((file) => file.type.startsWith('video/') && file.size > 40 * 1024 * 1024)) {
       alert('Video faylı 40 MB-dan böyükdür. Daha kiçik video seçin.');
       return;
     }
-    if (file.type.startsWith('image/') && file.size > 8 * 1024 * 1024) {
-      alert('Şəkil çox böyükdür (maks. 8 MB).');
+    if (files.some((file) => file.type.startsWith('image/') && file.size > 8 * 1024 * 1024)) {
+      alert('Şəkillərdən biri 8 MB-dan böyükdür. Daha kiçik şəkil seçin.');
       return;
     }
 
-    setSelectedFile(file);
-    setUploadReadyFile(file.type.startsWith('video/') ? file : null);
+    const first = files[0];
+    setSelectedFiles(files);
+    setSelectedFile(first);
+    setUploadReadyFiles(hasImage ? [] : files);
+    setUploadReadyFile(hasImage ? null : first);
     if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
-    const fileUrl = URL.createObjectURL(file);
-    setFilePreviewUrl(fileUrl);
-    setNewPostType(file.type.startsWith('video/') ? 'video' : 'image');
+    setFilePreviewUrl(URL.createObjectURL(first));
+    setNewPostType(hasVideo ? 'video' : 'image');
 
-    if (file.type.startsWith('image/')) {
+    if (hasImage) {
       setIsPreparingFile(true);
-      void preparePostMediaFile(file)
-        .then((prepared) => setUploadReadyFile(prepared))
-        .catch(() => setUploadReadyFile(file))
+      void Promise.all(files.map((file) => preparePostMediaFile(file).catch(() => file)))
+        .then((prepared) => {
+          setUploadReadyFiles(prepared);
+          setUploadReadyFile(prepared[0] || null);
+        })
         .finally(() => setIsPreparingFile(false));
     }
   };
@@ -1167,7 +1186,7 @@ function ProfilePageContent() {
       alert('Paylaşım üçün əvvəlcə profil qeydiyyatını tamamlayın.');
       return;
     }
-    if (!newPostTitle.trim() || !selectedFile) {
+    if (!newPostTitle.trim() || !selectedFiles.length) {
       alert("Zəhmət olmasa başlıq daxil edin və fayl seçin.");
       return;
     }
@@ -1193,32 +1212,41 @@ function ProfilePageContent() {
   };
 
   const uploadSelectedPost = async () => {
-    if (!currentUser.id || !selectedFile) return;
-    const fileToUpload = uploadReadyFile ?? selectedFile;
+    if (!currentUser.id || !selectedFiles.length) return;
+    const filesToUpload = uploadReadyFiles.length === selectedFiles.length
+      ? uploadReadyFiles
+      : selectedFiles;
     setIsUploadingPost(true);
     setUploadProgress('Paylaşım hazırlanır...');
     try {
-      await createPost(
-        {
-          id: currentUser.id,
-          name: currentUser.name,
-          surname: currentUser.surname,
-          handle: currentUser.handle,
-          gender: currentUser.gender,
-          birthDate: currentUser.birthDate,
-          avatar: currentUser.avatar,
-          region: (currentUser as { region?: string }).region,
-        },
-        newPostTitle.trim(),
-        fileToUpload,
-        newPostType,
-        setUploadProgress
-      );
+      const userProfile = {
+        id: currentUser.id,
+        name: currentUser.name,
+        surname: currentUser.surname,
+        handle: currentUser.handle,
+        gender: currentUser.gender,
+        birthDate: currentUser.birthDate,
+        avatar: currentUser.avatar,
+        region: (currentUser as { region?: string }).region,
+      };
+      if (newPostType === 'image' && filesToUpload.length > 1) {
+        await createPostAlbum(userProfile, newPostTitle.trim(), filesToUpload, setUploadProgress);
+      } else {
+        await createPost(
+          userProfile,
+          newPostTitle.trim(),
+          filesToUpload[0],
+          newPostType,
+          setUploadProgress
+        );
+      }
 
       if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
       setNewPostTitle('');
       setSelectedFile(null);
+      setSelectedFiles([]);
       setUploadReadyFile(null);
+      setUploadReadyFiles([]);
       setFilePreviewUrl('');
       setPostAuthRecovery(false);
       setPostAuthPassword('');
@@ -1979,6 +2007,7 @@ function ProfilePageContent() {
                 ref={postGalleryInputRef}
                 type="file"
                 accept="image/*,video/*"
+                multiple
                 className={profileStyles.hiddenFileInput}
                 onChange={handlePostFileChange}
               />
@@ -1998,9 +2027,11 @@ function ProfilePageContent() {
                 className={profileStyles.hiddenFileInput}
                 onChange={handlePostFileChange}
               />
-              {selectedFile && (
+              {selectedFiles.length > 0 && (
                 <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, textAlign: 'center' }}>
-                  Seçildi: {selectedFile.name}
+                  {selectedFiles.length > 1
+                    ? `${selectedFiles.length} şəkil seçildi (maksimum 10) — bir paylaşım kimi yayımlanacaq.`
+                    : `Seçildi: ${selectedFile?.name || ''}`}
                 </div>
               )}
               {filePreviewUrl && (
@@ -2012,7 +2043,7 @@ function ProfilePageContent() {
                   )}
                 </div>
               )}
-              <button type="submit" className={socialStyles.primaryBtn} disabled={isUploadingPost || isPreparingFile || postAuthRecovery || !selectedFile || !newPostTitle.trim()}>
+              <button type="submit" className={socialStyles.primaryBtn} disabled={isUploadingPost || isPreparingFile || postAuthRecovery || !selectedFiles.length || !newPostTitle.trim()}>
                 {isUploadingPost ? 'Yüklənir...' : isPreparingFile ? 'Hazırlanır...' : 'Paylaş (24 saat)'}
               </button>
               {postAuthRecovery ? (
