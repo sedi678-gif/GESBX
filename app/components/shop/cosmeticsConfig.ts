@@ -397,7 +397,6 @@ export const COSMETIC_PRODUCTS: CosmeticProduct[] = [
 ];
 
 export const COSMETIC_CATEGORIES: { id: CosmeticCategory | 'all'; label: string }[] = [
-  { id: 'all', label: 'Hamısı' },
   { id: 'vip', label: '👑 VIP' },
   { id: 'nameStyle', label: '🌈 Rəngli yazılar' },
   { id: 'frame', label: '🖼️ Profil çərçivələri' },
