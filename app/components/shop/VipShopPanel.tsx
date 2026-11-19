@@ -197,19 +197,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
 
 
 
-      <ul className={styles.vipPerks}>
 
-        <li>✍️ Rəngli və animasiyalı ad stilləri</li>
-
-        <li>🖼️ Parlaq profil çərçivələri</li>
-
-        <li>🎨 Premium arxa fon bannerləri</li>
-
-        <li>🏅 Profil nişanları (tac, ulduz, almaz)</li>
-
-        <li>💎 Platinum: ekskluziv kosmetika + parlaq effekt</li>
-
-      </ul>
 
 
 
@@ -289,7 +277,7 @@ export default function VipShopPanel({ userId, manat, cosmetics, avatarUrl, disp
                   )}
 
                   {product.category === 'banner' && (
-                    <span className={styles.wallpaperLabel}>PROFIL OBOYU</span>
+                    <span className={styles.wallpaperLabel}>MESAJ FONU</span>
                   )}
 
                   {product.category === 'vip' && (
