@@ -28,6 +28,7 @@ import { DEFAULT_BANNER } from '@/app/components/shop/cosmeticsConfig';
 import FollowListSheet from '@/app/components/social/FollowListSheet';
 import { SocialPost } from '@/app/lib/socialTypes';
 import styles from './social.module.css';
+import profileStyles from '@/app/components/profile/profile.module.css';
 
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80';
@@ -217,15 +218,17 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
 
   if (loading) {
     return (
-      <div className={styles.socialPage} style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: '#94a3b8' }}>Yüklənir...</span>
+      <div className={profileStyles.profileWorld} style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={profileStyles.profileGlow} aria-hidden />
+        <span style={{ position: 'relative', zIndex: 1, color: '#94a3b8' }}>Yüklənir...</span>
       </div>
     );
   }
 
   if (!profile || profile.frozen || profile.banned) {
     return (
-      <div className={styles.socialPage} style={{ minHeight: '100vh', padding: 40, textAlign: 'center' }}>
+      <div className={profileStyles.profileWorld} style={{ minHeight: '100vh', padding: 40, textAlign: 'center' }}>
+        <div className={profileStyles.profileGlow} aria-hidden />
         <p style={{ color: '#94a3b8' }}>
           {!profile
             ? 'Profil tapılmadı.'
@@ -242,11 +245,16 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   }
 
   return (
-    <div className={styles.socialPage}>
-      <header className={styles.glassHeader}>
-        <Link href="/explore" className={styles.iconBtn} style={{ textDecoration: 'none' }}>←</Link>
-        <h1 className={styles.glassTitle}>👤 Profil</h1>
-        <div style={{ width: 36 }} />
+    <div className={profileStyles.profileWorld}>
+      <div className={profileStyles.profileGlow} aria-hidden />
+      <header className={profileStyles.profileTopBar}>
+        <div className={profileStyles.profileTopLeft}>
+          <Link href="/explore" className={profileStyles.settingsBtn} aria-label="Kəşf et-ə qayıt" style={{ color: '#e2e8f0', display: 'grid', placeItems: 'center' }}>←</Link>
+          <div>
+            <p className={profileStyles.profileEyebrow}>GESBX İSTİFADƏÇİ PROFİLİ</p>
+            <h1 className={profileStyles.profileTopTitle}>👤 Profil</h1>
+          </div>
+        </div>
       </header>
 
       <ProfileHeroDisplay
@@ -259,18 +267,18 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
         bannerFallback={profile.bannerGradient}
         bannerImage={profile.bannerImage || undefined}
       >
-        <div className={styles.statRow}>
-          <button type="button" className={styles.statChipBtn} onClick={() => setFollowListMode('followers')}>
-            İzləyici: <strong>{followers}</strong>
+        <div className={profileStyles.statPills}>
+          <button type="button" className={`${profileStyles.statPill} ${profileStyles.statPillBtn}`} onClick={() => setFollowListMode('followers')}>
+            <span className={profileStyles.statPillValue}>{followers}</span><span className={profileStyles.statPillLabel}>İzləyici</span>
           </button>
-          <button type="button" className={styles.statChipBtn} onClick={() => setFollowListMode('following')}>
-            İzlənən: <strong>{following}</strong>
+          <button type="button" className={`${profileStyles.statPill} ${profileStyles.statPillBtn}`} onClick={() => setFollowListMode('following')}>
+            <span className={profileStyles.statPillValue}>{following}</span><span className={profileStyles.statPillLabel}>İzlənən</span>
           </button>
-          <span>Bəyənmə: <strong>{likesReceived}</strong></span>
-          <span>İzlənmə sayı: <strong>{viewsReceived}</strong></span>
+          <div className={profileStyles.statPill}><span className={profileStyles.statPillValue}>{likesReceived}</span><span className={profileStyles.statPillLabel}>Bəyənmə</span></div>
+          <div className={profileStyles.statPill}><span className={profileStyles.statPillValue}>{viewsReceived}</span><span className={profileStyles.statPillLabel}>İzlənmə</span></div>
         </div>
 
-        <div className={styles.profileActionRow}>
+        <div className={styles.profileActionRow} style={{ position: 'relative', zIndex: 1, margin: '14px 16px 18px' }}>
           <Link href={`/messages?user=${targetUserId}`} className={styles.profileActionBtn}>
             💬 Mesaj yaz
           </Link>
@@ -283,7 +291,8 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
         </div>
       </ProfileHeroDisplay>
 
-      <div style={{ padding: '0 20px 100px' }}>
+      <div style={{ position: 'relative', zIndex: 1, padding: '0 20px 100px' }}>
+        {profile.bio && <div style={{ margin: '0 0 18px', padding: '14px 16px', borderRadius: 18, background: 'rgba(8,12,28,.78)', border: '1px solid rgba(34,211,238,.18)', color: '#cbd5e1', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{profile.bio}</div>}
         <div style={{ fontSize: 13, fontWeight: 800, color: '#e2e8f0', marginBottom: 8 }}>
           Paylaşımlar · {posts.length}
         </div>
