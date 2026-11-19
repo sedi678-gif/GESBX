@@ -3189,7 +3189,7 @@ service cloud.firestore {
         && request.resource.data.title.size() <= 500
         && request.resource.data.mediaUrl is string
         && request.resource.data.mediaPath is string
-        && request.resource.data.moderationStatus == 'pending'
+        && request.resource.data.moderationStatus in ['approved', 'pending']
         && request.resource.data.mediaType in ['image', 'video']
         && request.resource.data.keys().hasOnly([
           'userId', 'userName', 'userHandle', 'userAvatar', 'userGender', 'userRegion',
@@ -3209,7 +3209,15 @@ service cloud.firestore {
         && request.resource.data.expiresAt is int;
       allow update: if isSignedIn()
         && request.resource.data.userId == resource.data.userId
-        && (ownsProfileId(resource.data.userId) || isTrustedModerator())
+        && (ownsProfileId(resource.data.userId) || isTrustedModerator()
+          || (isSignedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount', 'lastCommentId'])
+            && request.resource.data.commentsCount == resource.data.get('commentsCount', 0) + 1
+            && request.resource.data.lastCommentId is string
+            && existsAfter(/databases/$(database)/documents/post_comments/$(request.resource.data.lastCommentId))
+            && getAfter(/databases/$(database)/documents/post_comments/$(request.resource.data.lastCommentId)).data.postId == postId
+            && getAfter(/databases/$(database)/documents/post_comments/$(request.resource.data.lastCommentId)).data.userId is string
+            && ownsProfileId(getAfter(/databases/$(database)/documents/post_comments/$(request.resource.data.lastCommentId)).data.userId)))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mediaUrl'])
           || (ownsProfileId(resource.data.userId)
             && resource.data.moderationStatus == 'pending'
@@ -3225,7 +3233,7 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.ownerId == resource.data.userId
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.viewerAuthUid == request.auth.uid))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-           'views', 'lastViewMarker', 'likes', 'commentsCount', 'giftCount', 'mediaUrl'
+           'views', 'lastViewMarker', 'likes', 'commentsCount', 'lastCommentId', 'giftCount', 'mediaUrl'
         ])
         && (!request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['likes', 'commentsCount', 'giftCount'])
@@ -3245,7 +3253,7 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/posts/$(postId))
           && ownsProfileId(get(/databases/$(database)/documents/posts/$(postId)).data.userId);
         allow create: if isSignedIn()
-          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.moderationStatus == 'pending'
+          && getAfter(/databases/$(database)/documents/posts/$(postId)).data.moderationStatus in ['approved', 'pending']
           && getAfter(/databases/$(database)/documents/posts/$(postId)).data.userId is string
           && ownsProfileId(getAfter(/databases/$(database)/documents/posts/$(postId)).data.userId)
           && request.resource.data.ownerId == getAfter(/databases/$(database)/documents/posts/$(postId)).data.userId
