@@ -5,7 +5,7 @@ import { useUser } from '@/context/UserContext';
 import { getAppUserId, getLocalProfileDisplayName } from '@/app/lib/userId';
 import { normalizeUserId } from '@/app/lib/callService';
 import { ensureZegoConfig } from '@/app/lib/zegoConfig';
-import { initZegoCallKit } from '@/app/lib/zegoCallKit';
+
 import { getCallSettings } from '@/app/lib/callSettings';
 import { listenFollowingIds } from '@/app/lib/socialService';
 import type { CallType } from '@/app/lib/callService';
@@ -41,16 +41,36 @@ export default function ZegoBootstrap() {
       return true;
     };
 
-    void (async () => {
+    let idleHandle: number | ReturnType<typeof setTimeout> | undefined;
+    const startCalls = async () => {
       const ready = await ensureZegoConfig();
       if (!ready || cancelled) return;
 
+      // Load the comparatively heavy calling SDK after the first screen is interactive.
+      const { initZegoCallKit } = await import('@/app/lib/zegoCallKit');
+      if (cancelled) return;
       const name = getLocalProfileDisplayName();
       await initZegoCallKit(myId, name, { canReceiveFrom });
-    })();
+    };
+
+    const runWhenIdle = () => {
+      void startCalls().catch((error) => {
+        console.warn('[GESBX] Zəng xidməti gecikdirilmiş başladılmadı:', error);
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      idleHandle = window.requestIdleCallback(runWhenIdle, { timeout: 5000 });
+    } else {
+      idleHandle = window.setTimeout(runWhenIdle, 1800);
+    }
 
     return () => {
       cancelled = true;
+      if (typeof idleHandle === 'number') {
+        if ('cancelIdleCallback' in window) window.cancelIdleCallback(idleHandle);
+        else window.clearTimeout(idleHandle);
+      }
     };
   }, [myId]);
 
