@@ -2752,3 +2752,61 @@
 .searchResultsList .secondaryBtn {
   margin: 0;
 }
+
+
+/* Explore action icon polish and the like celebration. */
+.postActionSvg {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+  color: #fff;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,.45));
+  transition: transform .2s ease, color .2s ease, filter .2s ease;
+}
+.actionBtnPremium:active .postActionSvg { transform: scale(.82); }
+.postActionLikeActive { color: #ff477e; fill: rgba(255,71,126,.22); filter: drop-shadow(0 0 9px rgba(255,71,126,.9)); }
+.actionBtnPremium:hover { background: rgba(236,72,153,.28); border-color: rgba(255,255,255,.4); transform: translateY(-2px); }
+.actionBtnPremium { transition: transform .18s ease, background .18s ease, border-color .18s ease; }
+.heartBurst {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  top: 48%;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  animation: heartBurstFade 1.15s ease-out both;
+}
+.heartBurstMain {
+  position: absolute;
+  left: -48px;
+  top: -66px;
+  color: #ff3978;
+  font-size: 112px;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(255,50,120,.95), 0 0 42px rgba(255,50,120,.65);
+  animation: heartPop .85s cubic-bezier(.16,1.4,.35,1) both;
+}
+.heartBurstSmall, .heartBurstSpark {
+  position: absolute;
+  color: #ff78a5;
+  font-size: 34px;
+  text-shadow: 0 0 12px rgba(255,50,120,.9);
+  animation: heartFly .95s ease-out both;
+}
+.heartBurstSmall { left: 34px; top: -45px; }
+.heartBurstSpark { left: -68px; top: -25px; font-size: 25px; animation-delay: .04s; }
+@keyframes heartPop {
+  0% { transform: scale(.15) rotate(-18deg); opacity: 0; }
+  45% { transform: scale(1.18) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 0; }
+}
+@keyframes heartFly {
+  0% { transform: translate(0,12px) scale(.2); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translate(18px,-76px) scale(1.2) rotate(24deg); opacity: 0; }
+}
+@keyframes heartBurstFade { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .heartBurst, .heartBurstMain, .heartBurstSmall, .heartBurstSpark { animation-duration: .01ms; }
+}
