@@ -136,7 +136,8 @@ module.exports = async function setXpModeHandler(req, res) {
       }
 
       if (isCreatorActivation) {
-        if (!playerSnap.exists || !userSnap.exists || !player.identityVerifiedAt) {
+        if (!playerSnap.exists || !userSnap.exists
+          || (creatorType === 'vip' && !player.identityVerifiedAt)) {
           throw new ApiError(409, 'PROFILE_NOT_VERIFIED');
         }
         if (creatorType === 'standard') {
@@ -149,7 +150,7 @@ module.exports = async function setXpModeHandler(req, res) {
             adFreeUntil: Number(player.adFreeUntil) || 0,
             freeCreatorPanelClaimedAt: Number(player.freeCreatorPanelClaimedAt) || now,
           };
-          tx.set(playerRef, { ...standard, updatedAt: now }, { merge: true });
+          tx.set(playerRef, { firebaseUid: identity.uid, ...standard, updatedAt: now }, { merge: true });
           tx.set(userRef, { ...standard, updatedAt: now }, { merge: true });
           tx.create(operationRef, {
             authUid: identity.uid, playerId: userId, operationId: identity.operationId,
