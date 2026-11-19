@@ -259,7 +259,7 @@ async function createPostInternal(
     mediaUrl,
     mediaPath,
     mediaType,
-    moderationStatus: 'pending',
+    moderationStatus: 'approved',
     ...(durationSeconds ? { durationSeconds } : {}),
     likes: 0,
     views: 0,
@@ -815,7 +815,10 @@ export async function addPostComment(
   await ensureFirebaseAuth();
 
   const now = Date.now();
-  await addDoc(collection(db, 'post_comments'), {
+  const postRef = doc(db, 'posts', postId);
+  const commentRef = doc(collection(db, 'post_comments'));
+  const batch = writeBatch(db);
+  batch.set(commentRef, {
     postId,
     userId: user.id,
     userName: user.name.trim() || 'İstifadəçi',
@@ -823,10 +826,9 @@ export async function addPostComment(
     text: trimmed,
     createdAt: now,
   });
-
-  const postRef = doc(db, 'posts', postId);
-  const postSnap = await getDoc(postRef);
-  if (postSnap.exists()) {
-    await updateDoc(postRef, { commentsCount: increment(1) });
-  }
+  batch.update(postRef, {
+    commentsCount: increment(1),
+    lastCommentId: commentRef.id,
+  });
+  await batch.commit();
 }
