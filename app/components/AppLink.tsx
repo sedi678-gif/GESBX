@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 
 function normalizeHref(href: string): string {
   if (!href || href.startsWith('http') || href.startsWith('mailto:')) return href;
@@ -20,19 +21,20 @@ type AppLinkProps = React.AnchorHTMLAttributes<HTMLAnchorElement> & {
 export default function AppLink({ href, children, onClick, ...rest }: AppLinkProps) {
   const path = normalizeHref(href);
 
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    onClick?.(e);
-    if (e.defaultPrevented) return;
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('mailto:') || path.startsWith('tel:')) {
-      return;
-    }
-    e.preventDefault();
-    window.location.href = path;
-  };
+  const isExternal = path.startsWith('http://')
+    || path.startsWith('https://')
+    || path.startsWith('mailto:')
+    || path.startsWith('tel:');
 
+  if (isExternal) {
+    return <a href={path} onClick={onClick} {...rest}>{children}</a>;
+  }
+
+  // Use Next.js client-side navigation instead of reloading the whole app
+  // on every tab change. This keeps the Firebase session and shared state warm.
   return (
-    <a href={path} onClick={handleClick} {...rest}>
+    <Link href={path} onClick={onClick} {...rest}>
       {children}
-    </a>
+    </Link>
   );
 }
