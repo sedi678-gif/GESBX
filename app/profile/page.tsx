@@ -664,6 +664,7 @@ function ProfilePageContent() {
 
   const [isBalanceVisible, setIsBalanceVisible] = useState<boolean>(true);
   const [posts, setPosts] = useState<PostItem[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [showAllianceModal, setShowAllianceModal] = useState(false);
   const [showRankModal, setShowRankModal] = useState(false);
@@ -931,9 +932,11 @@ function ProfilePageContent() {
   useEffect(() => {
     if (!currentUser.id || !isRegistered) return;
     setPostsLoadError('');
+    setPostsLoading(true);
     return listenUserPosts(
       currentUser.id,
       (firebasePosts: SocialPost[]) => {
+        setPostsLoading(false);
         setPosts(firebasePosts.map((p) => ({
           id: p.id,
           userId: p.userId,
@@ -950,7 +953,10 @@ function ProfilePageContent() {
           createdAt: p.createdAt,
         })));
       },
-      setPostsLoadError,
+      (error) => {
+        setPostsLoading(false);
+        setPostsLoadError(error);
+      },
       { includePending: true },
     );
   }, [currentUser.id, isRegistered]);
@@ -1466,7 +1472,11 @@ function ProfilePageContent() {
           {postsLoadError ? (
             <div style={{ textAlign: 'center', padding: 16, color: '#f87171', fontSize: 13 }}>{postsLoadError}</div>
           ) : null}
-          {posts.length === 0 ? (
+          {postsLoading ? (
+            <div className={profileStyles.postsEmpty} role="status">
+              <p className={profileStyles.postsEmptyTitle}>Paylaşımlar yüklənir…</p>
+            </div>
+          ) : posts.length === 0 ? (
             <div className={profileStyles.postsEmpty}>
               <p className={profileStyles.postsEmptyTitle}>{t.noPosts}</p>
               <p className={profileStyles.postsEmptyHint}>{t.noPostsHint}</p>
