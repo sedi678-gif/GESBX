@@ -2841,8 +2841,9 @@ service cloud.firestore {
           'bannedBy', 'punishedBy', 'frozenBy', 'punishReason', 'vipTier', 'vipExpiresAt'
         ])
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'surname', 'handle', 'gender', 'avatar', 'bannerImage', 'bannerGradient',
-          'bio', 'allianceName', 'updatedAt', 'equippedCosmetics', 'region',
+          'name', 'surname', 'handle', 'gender', 'avatar', 'avatarUpdatedAt',
+          'bannerImage', 'bannerUpdatedAt', 'bannerGradient', 'bio', 'allianceName',
+          'updatedAt', 'equippedCosmetics', 'region',
           'likesReceived', 'viewsReceived'
         ])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['likesReceived'])
