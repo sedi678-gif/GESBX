@@ -10,10 +10,9 @@ export default function HomePage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      // Daxil olunmuş istifadəçiyi saytın giriş səhifəsinə (/explore),
-      // daxil olmamışanı isə qeydiyyat səhifəsinə (/register) yönləndiririk.
+      // Daxil olmuş istifadəçini birbaşa profilinə yönləndiririk.
       if (user) {
-        router.replace('/explore');
+        router.replace('/profile');
       } else {
         router.replace('/register/');
       }
