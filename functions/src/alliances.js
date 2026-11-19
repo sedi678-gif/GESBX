@@ -33,36 +33,47 @@ const updateFlagSchema = allianceSchema.extend({ flag: flagSchema }).strict();
 async function createAlliance({ uid, payload }) {
   const allianceRef = db.collection('alliances').doc();
   const now = Date.now();
-  return db.runTransaction(async (tx) => {
-    const owned = await getOwnedPlayer(uid, payload.userId, tx);
-    if (owned.player.allianceId) throw new HttpsError('failed-precondition', 'Əvvəl mövcud ittifaqdan çıxın.');
-    const leader = String(owned.player.displayName || `${owned.user.name || ''} ${owned.user.surname || ''}`).trim().slice(0, 100);
-    const alliance = {
-      name: payload.name,
-      region: payload.region,
-      lat: payload.lat,
-      lng: payload.lng,
-      leaderId: owned.playerId,
-      leader,
-      score: 50,
-      members: [owned.playerId],
-      createdAt: now,
-      flag: {
-        backgroundColor: '#7f1d1d', accentColor: '#fbbf24', thirdColor: '#f8fafc',
-        emblem: '🦁', pattern: 'canton', shape: 'rect',
-      },
-      fortressLevel: 1,
-      fortressQualifyingMs: 0,
-    };
-    tx.create(allianceRef, alliance);
-    tx.create(db.doc(`alliance_members/${allianceRef.id}/members/${uid}`), {
-      playerId: owned.playerId, createdAt: now,
+  try {
+    return await db.runTransaction(async (tx) => {
+      const owned = await getOwnedPlayer(uid, payload.userId, tx);
+      if (owned.player.allianceId) throw new HttpsError('failed-precondition', 'Əvvəl mövcud ittifaqdan çıxın.');
+      const leader = String(owned.player.displayName || `${owned.user.name || ''} ${owned.user.surname || ''}`).trim().slice(0, 100);
+      const alliance = {
+        name: payload.name,
+        region: payload.region,
+        lat: payload.lat,
+        lng: payload.lng,
+        leaderId: owned.playerId,
+        leader,
+        score: 50,
+        members: [owned.playerId],
+        createdAt: now,
+        flag: {
+          backgroundColor: '#7f1d1d', accentColor: '#fbbf24', thirdColor: '#f8fafc',
+          emblem: '🦁', pattern: 'canton', shape: 'rect',
+        },
+        fortressLevel: 1,
+        fortressQualifyingMs: 0,
+      };
+      tx.create(allianceRef, alliance);
+      tx.create(db.doc(`alliance_members/${allianceRef.id}/members/${uid}`), {
+        playerId: owned.playerId, createdAt: now,
+      });
+      tx.update(owned.playerRef, {
+        allianceId: allianceRef.id, allianceName: payload.name, isLeader: true, score: 50, updatedAt: now,
+      });
+      return { id: allianceRef.id, ...alliance };
     });
-    tx.update(owned.playerRef, {
-      allianceId: allianceRef.id, allianceName: payload.name, isLeader: true, score: 50, updatedAt: now,
+  } catch (error) {
+    console.error('createAlliance transaction failed', {
+      uid,
+      userId: payload.userId,
+      code: error?.code || null,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
     });
-    return { id: allianceRef.id, ...alliance };
-  });
+    throw error;
+  }
 }
 
 async function joinAlliance({ uid, payload }) {
