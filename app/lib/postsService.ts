@@ -763,7 +763,7 @@ export async function toggleLikePost(
 
     const authorId = String(postSnap.data()?.userId || '');
     tx.set(likeRef, { postId, userId, ownerId: authorId, createdAt: Date.now() });
-    tx.update(postRef, { likes: increment(1) });
+    tx.update(postRef, { likes: increment(1), lastLikedBy: userId });
 
     return { liked: true, likes: likes + 1, alreadyLiked: false };
   });
