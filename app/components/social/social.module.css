@@ -2903,3 +2903,71 @@
 @media (prefers-reduced-motion: reduce) {
   .heartBurst, .heartBurstMain, .heartParticle { animation-duration: .01ms; }
 }
+
+
+/* Şərh reaksiyaları — telefonda rahat basılan, aydın düymələr */
+.commentActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+}
+.commentLikeButton,
+.commentReplyButton {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid rgba(148, 163, 184, .24);
+  border-radius: 999px;
+  background: rgba(30, 41, 59, .72);
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.commentLikeButton span:first-child { font-size: 17px; line-height: 1; }
+.commentLikeButton.commentLiked {
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, .38);
+  background: rgba(251, 113, 133, .1);
+}
+.commentLikeCount {
+  min-width: 19px;
+  height: 19px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, .18);
+  font-size: 11px;
+}
+.commentReplyButton {
+  color: #c4b5fd;
+  border-color: rgba(167, 139, 250, .35);
+  background: rgba(99, 102, 241, .13);
+}
+.replyingToBar {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #ddd6fe;
+  background: rgba(99, 102, 241, .14);
+  font-size: 13px;
+}
+.replyingToBar button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #fda4af;
+  font-size: 12px;
+  font-weight: 700;
+}
