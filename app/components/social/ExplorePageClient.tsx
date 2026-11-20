@@ -294,17 +294,24 @@ export default function ExplorePageClient() {
     const title = media.title?.trim() || `${current.userName} — GESBX`;
     const shareData = { title: 'GESBX', text: `${title} · ${current.userName}`, url };
     try {
+      // Web Share API works in supported Android WebViews and browsers.
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: shareData.title, text: shareData.text, url: shareData.url });
+        return;
+      }
+    } catch (webShareError) {
+      if (webShareError instanceof DOMException && webShareError.name === 'AbortError') return;
+      console.warn('[Explore] Web Share API unavailable; trying native chooser:', webShareError);
+    }
+    try {
       if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
         await NativeShare.share(shareData);
-      } else if (typeof navigator.share === 'function') {
-        await navigator.share(shareData);
-      } else {
-        window.prompt('Paylaşım bağlantısını kopyalayın:', url);
+        return;
       }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      console.error('[Explore] system share failed:', error);
-      alert('Paylaşım pəncərəsi açıla bilmədi. Tətbiqi yeniləyib yenidən yoxlayın. Bağlantını ayrıca kopyalaya bilərsiniz.');
+      alert('Bu cihazda paylaşım pəncərəsi dəstəklənmir. Bağlantını ayrıca kopyalaya bilərsiniz.');
+    } catch (nativeShareError) {
+      console.error('[Explore] native share failed:', nativeShareError);
+      alert('Android paylaşım pəncərəsi açıla bilmədi. GESBX tətbiqinin yeni APK versiyası quraşdırılmalıdır.');
     }
   };
 
