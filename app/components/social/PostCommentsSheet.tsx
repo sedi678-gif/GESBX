@@ -107,7 +107,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
               {!isReply && (
-                <button type="button" className={styles.commentReplyButton} onClick={() => { setReplyTo(comment); setText(`@${comment.userName}, `); setError(''); }}>
+                <button type="button" className={styles.commentReplyButton} onClick={() => { setReplyTo(comment); setText(''); setError(''); }}>
                   ↩ Cavab yaz
                 </button>
               )}
@@ -134,7 +134,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
         <form className={styles.commentForm} onSubmit={handleSubmit}>
           {replyTo && (
             <div className={styles.replyingToBar}>
-              <span><strong>Cavab:</strong> @{replyTo.userName},</span>
+              <span className={styles.replyingToName}>{replyTo.userName}</span>
               <button type="button" onClick={() => setReplyTo(null)}>Ləğv et ✕</button>
             </div>
           )}
