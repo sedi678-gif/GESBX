@@ -297,8 +297,8 @@ export default function ExplorePageClient() {
   const shareOutsideGesbx = async () => {
     if (!current || !media) return;
     const url = getCurrentShareUrl();
-    const title = media.title?.trim() || `${current.userName} — GEPS X`;
-    const shareData = { title: 'GEPS X', text: `${title} · ${current.userName}`, url };
+    const title = media.title?.trim() || `${current.userName} — GESBX`;
+    const shareData = { title: 'GESBX', text: `${title} · ${current.userName}`, url };
     try {
       if (Capacitor.getPlatform() === 'android') {
         await NativeShare.share(shareData);
@@ -584,7 +584,7 @@ export default function ExplorePageClient() {
                 <span style={{ fontSize: 21 }}>🔗</span><span>Bağlantını kopyala</span>
               </button>
             </div>
-            <p style={{ color: '#94a3b8', fontSize: 12 }}>GEPS X daxilində istifadəçiyə göndər:</p>
+            <p style={{ color: '#94a3b8', fontSize: 12 }}>GESBX daxilində istifadəçiyə göndər:</p>
             <div className={styles.searchControls}>
               <input className={styles.input} placeholder="Ad və ya nickname..." value={shareSearch} onChange={(e) => setShareSearch(e.target.value)} />
               <button type="button" className={styles.secondaryBtn} onClick={() => void searchShareUsers()}>Axtar</button>
