@@ -75,18 +75,31 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
           <div className={styles.commentBody}>
             <div className={styles.commentAuthor}>{comment.userName}</div>
             <div className={styles.commentText}>{comment.text}</div>
-            <div style={{ display: 'flex', gap: 14, marginTop: 7 }}>
-              <button type="button" disabled={likeBusy === comment.id} onClick={async () => {
-                if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') { alert('Bəyənmək üçün qeydiyyatdan keçin.'); return; }
-                if (likeBusy) return;
-                setLikeBusy(comment.id);
-                try { await togglePostCommentLike(comment, currentUserId); }
-                catch (err) { console.error(err); setError('Şərhi bəyənmək alınmadı.'); }
-                finally { setLikeBusy(null); }
-              }} style={{ border: 0, background: 'none', color: stats.liked ? '#fb7185' : '#94a3b8', padding: 0, fontSize: 12, fontWeight: 700 }}>
-                {stats.liked ? '♥ Bəyənildi' : '♡ Bəyən'} {stats.count ? '· ' + stats.count : ''}
+            <div className={styles.commentActions}>
+              <button
+                type="button"
+                className={styles.commentLikeButton + (stats.liked ? ' ' + styles.commentLiked : '')}
+                disabled={likeBusy === comment.id}
+                onClick={async () => {
+                  if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') { alert('Bəyənmək üçün qeydiyyatdan keçin.'); return; }
+                  if (likeBusy) return;
+                  setLikeBusy(comment.id);
+                  try { await togglePostCommentLike(comment, currentUserId); }
+                  catch (err) {
+                    console.error('Şərh bəyənmə xətası:', err);
+                    setError(err instanceof Error ? err.message : 'Şərhi bəyənmək alınmadı. Hesab icazəsini yoxlayın.');
+                  } finally { setLikeBusy(null); }
+                }}
+              >
+                <span aria-hidden="true">{stats.liked ? '♥' : '♡'}</span>
+                {stats.liked ? 'Bəyənildi' : 'Bəyən'}
+                {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
-              {!isReply && <button type="button" onClick={() => setReplyTo(comment)} style={{ border: 0, background: 'none', color: '#a5b4fc', padding: 0, fontSize: 12, fontWeight: 700 }}>Cavab yaz</button>}
+              {!isReply && (
+                <button type="button" className={styles.commentReplyButton} onClick={() => { setReplyTo(comment); setError(''); }}>
+                  ↩ Cavab yaz
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -108,9 +121,14 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
           {roots.length === 0 ? <div className={styles.commentsEmpty}>İlk şərhi sən yaz!</div> : roots.map((comment) => renderComment(comment))}
         </div>
         <form className={styles.commentForm} onSubmit={handleSubmit}>
-          {replyTo && <div style={{ flexBasis: '100%', color: '#a5b4fc', fontSize: 11 }}>Cavab: {replyTo.userName} <button type="button" onClick={() => setReplyTo(null)} style={{ border: 0, background: 'none', color: '#fda4af' }}>Ləğv et</button></div>}
+          {replyTo && (
+            <div className={styles.replyingToBar}>
+              <span><strong>{replyTo.userName}</strong> şərhinə cavab yazırsan</span>
+              <button type="button" onClick={() => setReplyTo(null)}>Ləğv et ✕</button>
+            </div>
+          )}
           <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={replyTo ? 'Cavabını yaz...' : 'Şərh yaz...'} className={styles.commentInput} maxLength={500} disabled={loading} />
-          <button type="submit" className={styles.commentSubmit} disabled={loading || !text.trim()}>{loading ? '...' : 'Göndər'}</button>
+          <button type="submit" className={styles.commentSubmit} disabled={loading || !text.trim()}>{loading ? 'Göndərilir…' : replyTo ? 'Cavabla' : 'Göndər'}</button>
         </form>
       </div>
     </div>
