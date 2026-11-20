@@ -2110,6 +2110,13 @@ function ProfilePageContent() {
                 </div>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setIsGiftModalOpen(false)}
+              style={{ width: '100%', minHeight: 44, border: '1px solid #cbd5e1', borderRadius: 10, background: '#e2e8f0', color: '#0f172a', fontWeight: 800, cursor: 'pointer' }}
+            >
+              ← Geri qayıt
+            </button>
           </div>
         </div>
       )}
