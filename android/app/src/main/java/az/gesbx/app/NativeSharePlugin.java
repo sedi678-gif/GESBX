@@ -11,7 +11,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public final class NativeSharePlugin extends Plugin {
     @PluginMethod
     public void share(PluginCall call) {
-        String title = call.getString("title", "GEPS X");
+        String title = call.getString("title", "GESBX");
         String text = call.getString("text", "");
         String url = call.getString("url", "");
         String payload = (text == null ? "" : text.trim());
@@ -27,7 +27,7 @@ public final class NativeSharePlugin extends Plugin {
             sendIntent.setType("text/plain");
             sendIntent.putExtra(Intent.EXTRA_TITLE, title == null ? "GEPS X" : title);
             sendIntent.putExtra(Intent.EXTRA_TEXT, payload);
-            Intent chooser = Intent.createChooser(sendIntent, "GEPS X ilə paylaş");
+            Intent chooser = Intent.createChooser(sendIntent, "GESBX ilə paylaş");
             getActivity().startActivity(chooser);
             call.resolve();
         } catch (Exception error) {
