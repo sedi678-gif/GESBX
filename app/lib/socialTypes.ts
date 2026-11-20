@@ -6,6 +6,7 @@ export interface PostComment {
   userAvatar?: string;
   text: string;
   createdAt: number;
+  parentCommentId?: string;
 }
 
 export interface SocialPost {
