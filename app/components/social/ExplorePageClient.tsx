@@ -12,7 +12,6 @@ import {
   recordPostView,
 } from '@/app/lib/postsService';
 import { reportContent, searchUsers, listenBlockedUsers } from '@/app/lib/socialService';
-import { sendPrivateMessage } from '@/app/lib/messageService';
 import { UserFeedItem, AppUserProfile } from '@/app/lib/socialTypes';
 import { useUser } from '@/context/UserContext';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
@@ -129,9 +128,6 @@ export default function ExplorePageClient() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostTitle, setCommentPostTitle] = useState('');
   const [showShareSheet, setShowShareSheet] = useState(false);
-  const [shareSearch, setShareSearch] = useState('');
-  const [shareUsers, setShareUsers] = useState<AppUserProfile[]>([]);
-  const [shareBusyId, setShareBusyId] = useState<string | null>(null);
   const [videoMuted, setVideoMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -284,8 +280,6 @@ export default function ExplorePageClient() {
 
   const handleShare = () => {
     if (!current || !media) return;
-    setShareSearch('');
-    setShareUsers([]);
     setShowShareSheet(true);
   };
 
@@ -300,25 +294,17 @@ export default function ExplorePageClient() {
     const title = media.title?.trim() || `${current.userName} — GESBX`;
     const shareData = { title: 'GESBX', text: `${title} · ${current.userName}`, url };
     try {
-      if (Capacitor.getPlatform() === 'android') {
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
         await NativeShare.share(shareData);
       } else if (typeof navigator.share === 'function') {
         await navigator.share(shareData);
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-        alert('Paylaşım bağlantısı kopyalandı. İstədiyiniz tətbiqə yapışdırın.');
       } else {
         window.prompt('Paylaşım bağlantısını kopyalayın:', url);
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('[Explore] system share failed:', error);
-      try {
-        await navigator.clipboard.writeText(url);
-        alert('Paylaşım pəncərəsi açılmadı. Bağlantı kopyalandı.');
-      } catch {
-        window.prompt('Bağlantını kopyalayın:', url);
-      }
+      alert('Paylaşım pəncərəsi açıla bilmədi. Tətbiqi yeniləyib yenidən yoxlayın. Bağlantını ayrıca kopyalaya bilərsiniz.');
     }
   };
 
@@ -343,30 +329,6 @@ export default function ExplorePageClient() {
         try { await video.play(); } catch (error) { console.warn('[Explore] video playback after unmute failed:', error); }
       }
     }
-  };
-
-  const searchShareUsers = async () => {
-    if (!shareSearch.trim()) { setShareUsers([]); return; }
-    try { setShareUsers(await searchUsers(shareSearch, myId)); }
-    catch (error) { console.error(error); alert('İstifadəçilər yüklənmədi.'); }
-  };
-
-  const sendPostToUser = async (recipient: AppUserProfile) => {
-    if (!current || !media || !myId || myId === 'anonim_user_id' || myId === 'guest') {
-      alert('Paylaşmaq üçün hesaba daxil olun.'); return;
-    }
-    setShareBusyId(recipient.id);
-    try {
-      const url = window.location.origin + '/profile?user=' + current.userId;
-      await sendPrivateMessage({
-        senderId: myId,
-        recipientId: recipient.id,
-        text: 'Səninlə bir paylaşım bölüşdü: ' + current.userName + ' — ' + media.title + '\n' + url,
-      });
-      alert(recipient.name + ' istifadəçisinə göndərildi.');
-      setShowShareSheet(false);
-    } catch (error) { console.error(error); alert('Mesaj göndərilmədi.'); }
-    finally { setShareBusyId(null); }
   };
 
   const isMediaLiked = media ? likedPostIds.has(media.id) : false;
@@ -575,29 +537,14 @@ export default function ExplorePageClient() {
               <h2 className={styles.modalTitle}>Paylaşımı göndər</h2>
               <button type="button" className={styles.commentsCloseBtn} onClick={() => setShowShareSheet(false)} aria-label="Bağla">✕</button>
             </div>
-            <p style={{ color: '#94a3b8', fontSize: 12 }}>Videonu və ya paylaşımı istədiyiniz tətbiqə göndərin.</p>
+            <p style={{ color: '#94a3b8', fontSize: 12 }}>WhatsApp, Telegram, Gmail, Facebook, Quick Share və telefonda olan digər tətbiqlərə göndərin.</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '12px 0 16px' }}>
               <button type="button" className={styles.secondaryBtn} onClick={() => void shareOutsideGesbx()} style={{ minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <span style={{ fontSize: 21 }}>↗</span><span>Digər tətbiqlərdə paylaş<br /><small style={{ opacity: .75 }}>Quick Share və tətbiqlər</small></span>
+                <span style={{ fontSize: 21 }}>↗</span><span>Digər tətbiqlərdə paylaş</span>
               </button>
               <button type="button" className={styles.secondaryBtn} onClick={() => void copyShareLink()} style={{ minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <span style={{ fontSize: 21 }}>🔗</span><span>Bağlantını kopyala</span>
               </button>
-            </div>
-            <p style={{ color: '#94a3b8', fontSize: 12 }}>GESBX daxilində istifadəçiyə göndər:</p>
-            <div className={styles.searchControls}>
-              <input className={styles.input} placeholder="Ad və ya nickname..." value={shareSearch} onChange={(e) => setShareSearch(e.target.value)} />
-              <button type="button" className={styles.secondaryBtn} onClick={() => void searchShareUsers()}>Axtar</button>
-            </div>
-            <div style={{ display: 'grid', gap: 8, maxHeight: '42vh', overflowY: 'auto' }}>
-              {shareUsers.map((person) => (
-                <button key={person.id} type="button" disabled={shareBusyId !== null} onClick={() => void sendPostToUser(person)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, border: '1px solid rgba(148,163,184,.22)', background: 'rgba(15,23,42,.8)', color: '#f8fafc', textAlign: 'left' }}>
-                  {person.avatar ? <img src={person.avatar} alt="" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} /> : <span style={{ width: 38, height: 38, borderRadius: '50%', display: 'grid', placeItems: 'center', background: '#334155' }}>{person.name.charAt(0)}</span>}
-                  <span style={{ flex: 1 }}>{person.name} <small style={{ display: 'block', color: '#94a3b8' }}>{person.handle}</small></span>
-                  <span>{shareBusyId === person.id ? 'Göndərilir…' : 'Göndər'}</span>
-                </button>
-              ))}
-              {shareSearch.trim() && shareUsers.length === 0 ? <p style={{ color: '#94a3b8', fontSize: 12 }}>Nəticə yoxdur. Axtarış et.</p> : null}
             </div>
             <button type="button" className={styles.postViewerCloseBtn} onClick={() => setShowShareSheet(false)} style={{ marginTop: 14 }}>Bağla</button>
           </div>
