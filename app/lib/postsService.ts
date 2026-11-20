@@ -745,7 +745,7 @@ export async function toggleLikePost(
     throw new Error('Bəyənmək üçün profil tələb olunur.');
   }
 
-  await ensureFirebaseAuth();
+  await verifyCommentProfileOwner(userId);
 
   return runTransaction(db, async (tx) => {
     const likeRef = doc(db, 'post_likes', `${postId}_${userId}`);
