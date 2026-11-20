@@ -747,7 +747,7 @@ async function sendSocialLikeRequest(
     throw new Error('Bəyənmək üçün qeydiyyatdan keçmiş hesaba daxil olun.');
   }
   const token = await firebaseUser.getIdToken();
-  const response = await fetch(`${apiBaseUrl}/api/social-likes`, {
+  const response = await fetch(`${apiBaseUrl}/api/paypal?handler=social-likes`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
