@@ -737,36 +737,48 @@ export async function recordPostView(
   });
 }
 
+async function sendSocialLikeRequest(
+  kind: 'post' | 'comment',
+  targetId: string,
+  userId: string,
+): Promise<{ liked: boolean; likes?: number; alreadyLiked?: boolean }> {
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser || firebaseUser.isAnonymous) {
+    throw new Error('Bəyənmək üçün qeydiyyatdan keçmiş hesaba daxil olun.');
+  }
+  const token = await firebaseUser.getIdToken();
+  const response = await fetch(`${apiBaseUrl}/api/social-likes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ kind, targetId, userId }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const messages: Record<string, string> = {
+      PROFILE_ACCOUNT_MISMATCH: 'Profil bu hesaba bağlı deyil. Hesabdan çıxıb yenidən daxil olun.',
+      POST_NOT_FOUND: 'Paylaşım tapılmadı.',
+      COMMENT_NOT_FOUND: 'Şərh tapılmadı.',
+      REGISTERED_ACCOUNT_REQUIRED: 'Bəyənmək üçün qeydiyyatdan keçmiş hesaba daxil olun.',
+    };
+    throw new Error(messages[payload.error] || 'Bəyənmə qeydə alınmadı. Bir az sonra yenidən yoxlayın.');
+  }
+  return payload;
+}
+
 export async function toggleLikePost(
   postId: string,
   userId: string
 ): Promise<{ liked: boolean; likes: number; alreadyLiked: boolean }> {
-  if (!postId || !userId) {
-    throw new Error('Bəyənmək üçün profil tələb olunur.');
-  }
-
-  await verifyCommentProfileOwner(userId);
-
-  return runTransaction(db, async (tx) => {
-    const likeRef = doc(db, 'post_likes', `${postId}_${userId}`);
-    const postRef = doc(db, 'posts', postId);
-    const likeSnap = await tx.get(likeRef);
-    const postSnap = await tx.get(postRef);
-    const likes = Number(postSnap.data()?.likes) || 0;
-
-    if (likeSnap.exists()) {
-      return { liked: true, likes, alreadyLiked: true };
-    }
-    if (!postSnap.exists()) {
-      throw new Error('Paylaşım tapılmadı.');
-    }
-
-    const authorId = String(postSnap.data()?.userId || '');
-    tx.set(likeRef, { postId, userId, ownerId: authorId, createdAt: Date.now() });
-    tx.update(postRef, { likes: increment(1), lastLikedBy: userId });
-
-    return { liked: true, likes: likes + 1, alreadyLiked: false };
-  });
+  if (!postId || !userId) throw new Error('Bəyənmək üçün profil tələb olunur.');
+  const result = await sendSocialLikeRequest('post', postId, userId);
+  return {
+    liked: Boolean(result.liked),
+    likes: Number(result.likes) || 0,
+    alreadyLiked: Boolean(result.alreadyLiked),
+  };
 }
 
 export function listenUserLikedPostIds(
@@ -920,13 +932,11 @@ export async function addPostComment(
 }
 
 export async function togglePostCommentLike(comment: PostComment, userId: string): Promise<boolean> {
-  if (!comment.id || !comment.postId || !userId) throw new Error('Şərhi bəyənmək üçün hesaba daxil olun.');
-  await verifyCommentProfileOwner(userId);
-  const likeRef = doc(db, 'post_comment_likes', comment.id + '_' + userId);
-  const existing = await getDoc(likeRef);
-  if (existing.exists()) { await deleteDoc(likeRef); return false; }
-  await setDoc(likeRef, { commentId: comment.id, postId: comment.postId, userId, createdAt: Date.now() });
-  return true;
+  if (!comment.id || !comment.postId || !userId) {
+    throw new Error('Şərhi bəyənmək üçün hesaba daxil olun.');
+  }
+  const result = await sendSocialLikeRequest('comment', comment.id, userId);
+  return Boolean(result.liked);
 }
 
 export function listenPostCommentLikes(postId: string, userId: string, callback: (likes: Record<string, { count: number; liked: boolean }>) => void): Unsubscribe {
