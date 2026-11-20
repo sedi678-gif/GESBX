@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import AppLink from '@/app/components/AppLink';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import {
@@ -19,6 +20,9 @@ import { useAppStrings } from '@/app/lib/useAppStrings';
 import PostCommentsSheet from './PostCommentsSheet';
 import PostActionIcon from './PostActionIcon';
 import styles from './social.module.css';
+
+type NativeSharePlugin = { share(options: { title: string; text: string; url: string }): Promise<void> };
+const NativeShare = registerPlugin<NativeSharePlugin>('NativeShare');
 
 const AZ_REGIONS = [
   'Bakı',
@@ -296,7 +300,9 @@ export default function ExplorePageClient() {
     const title = media.title?.trim() || `${current.userName} — GEPS X`;
     const shareData = { title: 'GEPS X', text: `${title} · ${current.userName}`, url };
     try {
-      if (typeof navigator.share === 'function') {
+      if (Capacitor.isNativePlatform()) {
+        await NativeShare.share(shareData);
+      } else if (typeof navigator.share === 'function') {
         await navigator.share(shareData);
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(url);
