@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { addPostComment, listenPostComments } from '@/app/lib/postsService';
+import React, { useEffect, useMemo, useState } from 'react';
+import { addPostComment, listenPostComments, listenPostCommentLikes, togglePostCommentLike } from '@/app/lib/postsService';
 import type { PostComment } from '@/app/lib/socialTypes';
 import styles from './social.module.css';
 
@@ -15,30 +15,36 @@ interface PostCommentsSheetProps {
   currentUserAvatar?: string;
 }
 
-export default function PostCommentsSheet({
-  open,
-  postId,
-  postTitle,
-  onClose,
-  currentUserId,
-  currentUserName,
-  currentUserAvatar,
-}: PostCommentsSheetProps) {
+export default function PostCommentsSheet(props: PostCommentsSheetProps) {
+  const { open, postId, postTitle, onClose, currentUserId, currentUserName, currentUserAvatar } = props;
   const [comments, setComments] = useState<PostComment[]>([]);
   const [text, setText] = useState('');
+  const [replyTo, setReplyTo] = useState<PostComment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [likes, setLikes] = useState<Record<string, { count: number; liked: boolean }>>({});
+  const [likeBusy, setLikeBusy] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !postId) {
-      setComments([]);
-      setText('');
-      setError('');
-      return;
-    }
-
+    if (!open || !postId) { setComments([]); setText(''); setReplyTo(null); setError(''); setLikes({}); return; }
     return listenPostComments(postId, setComments, setError);
   }, [open, postId]);
+
+  useEffect(() => {
+    if (!open || !postId) return;
+    return listenPostCommentLikes(postId, currentUserId, setLikes);
+  }, [open, postId, currentUserId]);
+
+  const roots = useMemo(() => comments.filter((comment) => !comment.parentCommentId), [comments]);
+  const repliesByParent = useMemo(() => {
+    const grouped: Record<string, PostComment[]> = {};
+    comments.filter((comment) => comment.parentCommentId).forEach((comment) => {
+      const parentId = comment.parentCommentId!;
+      if (!grouped[parentId]) grouped[parentId] = [];
+      grouped[parentId].push(comment);
+    });
+    return grouped;
+  }, [comments]);
 
   if (!open || !postId) return null;
 
@@ -46,79 +52,65 @@ export default function PostCommentsSheet({
     e.preventDefault();
     const trimmed = text.trim();
     if (!trimmed || loading) return;
-
-    if (!currentUserId || currentUserId === 'anonim_user_id') {
+    if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') {
       alert('Şərh yazmaq üçün profil qeydiyyatı tələb olunur.');
       return;
     }
-
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
-      await addPostComment(postId, {
-        id: currentUserId,
-        name: currentUserName,
-        avatar: currentUserAvatar,
-      }, trimmed);
-      setText('');
+      await addPostComment(postId, { id: currentUserId, name: currentUserName, avatar: currentUserAvatar }, trimmed, replyTo?.id);
+      setText(''); setReplyTo(null);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Şərh göndərilmədi.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
+  };
+
+  const renderComment = (comment: PostComment, isReply = false): React.ReactNode => {
+    const stats = likes[comment.id] || { count: 0, liked: false };
+    return (
+      <React.Fragment key={comment.id}>
+        <div className={styles.commentItem} style={isReply ? { marginLeft: 36, borderLeft: '2px solid rgba(99,102,241,.35)', paddingLeft: 10 } : undefined}>
+          {comment.userAvatar ? <img src={comment.userAvatar} alt="" className={styles.commentAvatar} /> : <div className={styles.commentAvatarFallback}>{comment.userName.charAt(0)}</div>}
+          <div className={styles.commentBody}>
+            <div className={styles.commentAuthor}>{comment.userName}</div>
+            <div className={styles.commentText}>{comment.text}</div>
+            <div style={{ display: 'flex', gap: 14, marginTop: 7 }}>
+              <button type="button" disabled={likeBusy === comment.id} onClick={async () => {
+                if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') { alert('Bəyənmək üçün qeydiyyatdan keçin.'); return; }
+                if (likeBusy) return;
+                setLikeBusy(comment.id);
+                try { await togglePostCommentLike(comment, currentUserId); }
+                catch (err) { console.error(err); setError('Şərhi bəyənmək alınmadı.'); }
+                finally { setLikeBusy(null); }
+              }} style={{ border: 0, background: 'none', color: stats.liked ? '#fb7185' : '#94a3b8', padding: 0, fontSize: 12, fontWeight: 700 }}>
+                {stats.liked ? '♥ Bəyənildi' : '♡ Bəyən'} {stats.count ? '· ' + stats.count : ''}
+              </button>
+              {!isReply && <button type="button" onClick={() => setReplyTo(comment)} style={{ border: 0, background: 'none', color: '#a5b4fc', padding: 0, fontSize: 12, fontWeight: 700 }}>Cavab yaz</button>}
+            </div>
+          </div>
+        </div>
+        {!isReply && (repliesByParent[comment.id] || []).map((reply) => renderComment(reply, true))}
+      </React.Fragment>
+    );
   };
 
   return (
     <div className={styles.modalOverlay} onClick={onClose}>
-      <div
-        className={`${styles.modalSheet} ${styles.commentsSheet}`}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Şərhlər"
-      >
+      <div className={styles.modalSheet + ' ' + styles.commentsSheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Şərhlər">
         <div className={styles.commentsSheetHead}>
           <h2 className={styles.modalTitle}>💬 Şərhlər</h2>
           {postTitle ? <p className={styles.commentsSheetSub}>{postTitle}</p> : null}
-          <button type="button" className={styles.commentsCloseBtn} onClick={onClose} aria-label="Bağla">
-            ✕
-          </button>
+          <button type="button" className={styles.commentsCloseBtn} onClick={onClose} aria-label="Bağla">✕</button>
         </div>
-
         <div className={styles.commentsList}>
           {error && <div className={styles.commentsError}>{error}</div>}
-          {comments.length === 0 ? (
-            <div className={styles.commentsEmpty}>İlk şərhi sən yaz!</div>
-          ) : (
-            comments.map((c) => (
-              <div key={c.id} className={styles.commentItem}>
-                {c.userAvatar ? (
-                  <img src={c.userAvatar} alt="" className={styles.commentAvatar} />
-                ) : (
-                  <div className={styles.commentAvatarFallback}>{c.userName.charAt(0)}</div>
-                )}
-                <div className={styles.commentBody}>
-                  <div className={styles.commentAuthor}>{c.userName}</div>
-                  <div className={styles.commentText}>{c.text}</div>
-                </div>
-              </div>
-            ))
-          )}
+          {roots.length === 0 ? <div className={styles.commentsEmpty}>İlk şərhi sən yaz!</div> : roots.map((comment) => renderComment(comment))}
         </div>
-
         <form className={styles.commentForm} onSubmit={handleSubmit}>
-          <input
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Şərh yaz..."
-            className={styles.commentInput}
-            maxLength={500}
-            disabled={loading}
-          />
-          <button type="submit" className={styles.commentSubmit} disabled={loading || !text.trim()}>
-            {loading ? '...' : 'Göndər'}
-          </button>
+          {replyTo && <div style={{ flexBasis: '100%', color: '#a5b4fc', fontSize: 11 }}>Cavab: {replyTo.userName} <button type="button" onClick={() => setReplyTo(null)} style={{ border: 0, background: 'none', color: '#fda4af' }}>Ləğv et</button></div>}
+          <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={replyTo ? 'Cavabını yaz...' : 'Şərh yaz...'} className={styles.commentInput} maxLength={500} disabled={loading} />
+          <button type="submit" className={styles.commentSubmit} disabled={loading || !text.trim()}>{loading ? '...' : 'Göndər'}</button>
         </form>
       </div>
     </div>
