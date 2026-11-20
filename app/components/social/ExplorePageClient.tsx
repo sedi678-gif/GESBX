@@ -300,7 +300,7 @@ export default function ExplorePageClient() {
     const title = media.title?.trim() || `${current.userName} — GEPS X`;
     const shareData = { title: 'GEPS X', text: `${title} · ${current.userName}`, url };
     try {
-      if (Capacitor.isNativePlatform()) {
+      if (Capacitor.getPlatform() === 'android') {
         await NativeShare.share(shareData);
       } else if (typeof navigator.share === 'function') {
         await navigator.share(shareData);
