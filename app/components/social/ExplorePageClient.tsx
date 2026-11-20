@@ -128,6 +128,8 @@ export default function ExplorePageClient() {
   const [shareSearch, setShareSearch] = useState('');
   const [shareUsers, setShareUsers] = useState<AppUserProfile[]>([]);
   const [shareBusyId, setShareBusyId] = useState<string | null>(null);
+  const [videoMuted, setVideoMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const touchStart = useRef({ x: 0, y: 0 });
 
@@ -156,6 +158,11 @@ export default function ExplorePageClient() {
   useEffect(() => {
     setMediaIndex(0);
   }, [userIndex]);
+
+  useEffect(() => {
+    setVideoMuted(true);
+    if (videoRef.current) videoRef.current.muted = true;
+  }, [media?.id]);
 
   const current = filtered[userIndex];
   const media = current?.mediaList[mediaIndex];
@@ -278,6 +285,60 @@ export default function ExplorePageClient() {
     setShowShareSheet(true);
   };
 
+  const getCurrentShareUrl = () => {
+    if (!current) return window.location.href;
+    return `${window.location.origin}/profile?user=${encodeURIComponent(current.userId)}`;
+  };
+
+  const shareOutsideGesbx = async () => {
+    if (!current || !media) return;
+    const url = getCurrentShareUrl();
+    const title = media.title?.trim() || `${current.userName} — GEPS X`;
+    const shareData = { title: 'GEPS X', text: `${title} · ${current.userName}`, url };
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share(shareData);
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        alert('Paylaşım bağlantısı kopyalandı. İstədiyiniz tətbiqə yapışdırın.');
+      } else {
+        window.prompt('Paylaşım bağlantısını kopyalayın:', url);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      console.error('[Explore] system share failed:', error);
+      try {
+        await navigator.clipboard.writeText(url);
+        alert('Paylaşım pəncərəsi açılmadı. Bağlantı kopyalandı.');
+      } catch {
+        window.prompt('Bağlantını kopyalayın:', url);
+      }
+    }
+  };
+
+  const copyShareLink = async () => {
+    if (!current || !media) return;
+    const url = getCurrentShareUrl();
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Bağlantı kopyalandı.');
+    } catch {
+      window.prompt('Bağlantını kopyalayın:', url);
+    }
+  };
+
+  const toggleVideoSound = async () => {
+    const video = videoRef.current;
+    const nextMuted = !videoMuted;
+    setVideoMuted(nextMuted);
+    if (video) {
+      video.muted = nextMuted;
+      if (!nextMuted) {
+        try { await video.play(); } catch (error) { console.warn('[Explore] video playback after unmute failed:', error); }
+      }
+    }
+  };
+
   const searchShareUsers = async () => {
     if (!shareSearch.trim()) { setShareUsers([]); return; }
     try { setShareUsers(await searchUsers(shareSearch, myId)); }
@@ -344,7 +405,12 @@ export default function ExplorePageClient() {
               </span>
             </div>
             {media.mediaType === 'video' ? (
-              <video src={media.mediaUrl} className={styles.mediaFullPremium} autoPlay loop muted playsInline />
+              <>
+                <video ref={videoRef} src={media.mediaUrl} className={styles.mediaFullPremium} autoPlay loop muted={videoMuted} playsInline />
+                <button type="button" onClick={() => void toggleVideoSound()} aria-label={videoMuted ? 'Səsi aç' : 'Səsi bağla'} style={{ position: 'absolute', zIndex: 7, top: 54, right: 14, width: 42, height: 42, border: '1px solid rgba(255,255,255,.35)', borderRadius: 999, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 20, display: 'grid', placeItems: 'center' }}>
+                  {videoMuted ? '🔇' : '🔊'}
+                </button>
+              </>
             ) : (
               <img src={media.mediaUrl} alt={media.title} className={styles.mediaFullPremium} />
             )}
@@ -503,7 +569,16 @@ export default function ExplorePageClient() {
               <h2 className={styles.modalTitle}>Paylaşımı göndər</h2>
               <button type="button" className={styles.commentsCloseBtn} onClick={() => setShowShareSheet(false)} aria-label="Bağla">✕</button>
             </div>
-            <p style={{ color: '#94a3b8', fontSize: 12 }}>Göndərmək istədiyin istifadəçini axtar.</p>
+            <p style={{ color: '#94a3b8', fontSize: 12 }}>Videonu və ya paylaşımı istədiyiniz tətbiqə göndərin.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '12px 0 16px' }}>
+              <button type="button" className={styles.secondaryBtn} onClick={() => void shareOutsideGesbx()} style={{ minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span style={{ fontSize: 21 }}>↗</span><span>Digər tətbiqlərdə paylaş<br /><small style={{ opacity: .75 }}>Quick Share və tətbiqlər</small></span>
+              </button>
+              <button type="button" className={styles.secondaryBtn} onClick={() => void copyShareLink()} style={{ minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span style={{ fontSize: 21 }}>🔗</span><span>Bağlantını kopyala</span>
+              </button>
+            </div>
+            <p style={{ color: '#94a3b8', fontSize: 12 }}>GEPS X daxilində istifadəçiyə göndər:</p>
             <div className={styles.searchControls}>
               <input className={styles.input} placeholder="Ad və ya nickname..." value={shareSearch} onChange={(e) => setShareSearch(e.target.value)} />
               <button type="button" className={styles.secondaryBtn} onClick={() => void searchShareUsers()}>Axtar</button>
