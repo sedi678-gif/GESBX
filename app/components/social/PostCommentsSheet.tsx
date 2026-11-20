@@ -51,7 +51,15 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if (loading) return;
+    if (!postId) {
+      setError('Bu paylaşımın identifikatoru tapılmadı. Şərhləri bağlayıb yenidən açın.');
+      return;
+    }
+    if (!trimmed) {
+      setError(replyTo ? 'Cavab mətnini yazın.' : 'Şərh mətnini yazın.');
+      return;
+    }
     if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') {
       alert('Şərh yazmaq üçün profil qeydiyyatı tələb olunur.');
       return;
@@ -62,7 +70,10 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
       setText(''); setReplyTo(null);
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Şərh göndərilmədi.');
+      const message = err instanceof Error ? err.message : 'Şərh göndərilmədi.';
+      setError(message.includes('permission') || message.includes('insufficient')
+        ? 'Şərh göndərmək üçün hesab icazəsi təsdiqlənmədi. Hesabdan çıxıb yenidən daxil olun.'
+        : message);
     } finally { setLoading(false); }
   };
 
@@ -96,7 +107,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
               {!isReply && (
-                <button type="button" className={styles.commentReplyButton} onClick={() => { setReplyTo(comment); setText((value) => value.trim() ? value : `@${comment.userName} `); setError(''); }}>
+                <button type="button" className={styles.commentReplyButton} onClick={() => { setReplyTo(comment); setText(`@${comment.userName}, `); setError(''); }}>
                   ↩ Cavab yaz
                 </button>
               )}
@@ -123,7 +134,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
         <form className={styles.commentForm} onSubmit={handleSubmit}>
           {replyTo && (
             <div className={styles.replyingToBar}>
-              <span><strong>@{replyTo.userName}</strong> istifadəçisinə cavab yazırsan</span>
+              <span><strong>Cavab:</strong> @{replyTo.userName},</span>
               <button type="button" onClick={() => setReplyTo(null)}>Ləğv et ✕</button>
             </div>
           )}
