@@ -893,6 +893,20 @@ export async function addPostComment(
 
   await verifyCommentProfileOwner(user.id);
 
+  // Yalnız mövcud paylaşımın altına şərh yazılmasına icazə ver.
+  const postSnap = await getDoc(doc(db, 'posts', postId));
+  if (!postSnap.exists()) {
+    throw new Error('Bu paylaşım artıq mövcud deyil. Səhifəni yeniləyin.');
+  }
+
+  // Cavab verilən əsas şərhin eyni paylaşımda olduğunu əvvəlcədən yoxla.
+  if (parentCommentId) {
+    const parentSnap = await getDoc(doc(db, 'post_comments', parentCommentId));
+    if (!parentSnap.exists() || parentSnap.data().postId !== postId) {
+      throw new Error('Cavab verilən şərh tapılmadı. Şərhləri yeniləyib yenidən cəhd edin.');
+    }
+  }
+
   const now = Date.now();
   await addDoc(collection(db, 'post_comments'), {
     postId,
