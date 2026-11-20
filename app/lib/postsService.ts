@@ -889,6 +889,31 @@ export async function addPostComment(
     userName: user.name.trim() || 'İstifadəçi',
     userAvatar: user.avatar || '',
     text: trimmed,
+    ...(parentCommentId ? { parentCommentId } : {}),
     createdAt: now,
   });
+}
+
+export async function togglePostCommentLike(comment: PostComment, userId: string): Promise<boolean> {
+  if (!comment.id || !comment.postId || !userId) throw new Error('Şərhi bəyənmək üçün hesaba daxil olun.');
+  await ensureFirebaseAuth();
+  const likeRef = doc(db, 'post_comment_likes', comment.id + '_' + userId);
+  const existing = await getDoc(likeRef);
+  if (existing.exists()) { await deleteDoc(likeRef); return false; }
+  await setDoc(likeRef, { commentId: comment.id, postId: comment.postId, userId, createdAt: Date.now() });
+  return true;
+}
+
+export function listenPostCommentLikes(postId: string, userId: string, callback: (likes: Record<string, { count: number; liked: boolean }>) => void): Unsubscribe {
+  if (!postId) { callback({}); return () => {}; }
+  return onSnapshot(query(collection(db, 'post_comment_likes'), where('postId', '==', postId)), (snap) => {
+    const result: Record<string, { count: number; liked: boolean }> = {};
+    snap.forEach((item) => {
+      const data = item.data(); const commentId = String(data.commentId || ''); if (!commentId) return;
+      const entry = result[commentId] || { count: 0, liked: false }; entry.count += 1;
+      if (data.userId === userId) entry.liked = true;
+      result[commentId] = entry;
+    });
+    callback(result);
+  }, (error) => { console.error('Şərh bəyənmələri yüklənmədi:', error); callback({}); });
 }
