@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase';
 import Link from 'next/link';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import {
@@ -52,6 +54,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
     banned?: boolean;
   } | null>(null);
   const [cosmetics, setCosmetics] = useState<PlayerCosmetics | null>(null);
+  const [publicPlayer, setPublicPlayer] = useState<{ allianceName?: string | null; score?: number } | null>(null);
   const [posts, setPosts] = useState<SocialPost[]>([]);
   const [followers, setFollowers] = useState(0);
   const [following, setFollowing] = useState(0);
@@ -69,6 +72,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
     void (async () => {
       setLoading(true);
       setProfile(null);
+      setPublicPlayer(null);
       try {
         const u = await getUserProfile(targetUserId);
         if (!u) return;
@@ -84,6 +88,15 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
           frozen: u.frozen,
           banned: u.banned,
         });
+        try {
+          const publicPlayerSnap = await getDoc(doc(db, 'public_players', targetUserId));
+          if (publicPlayerSnap.exists()) {
+            const publicData = publicPlayerSnap.data();
+            setPublicPlayer({ allianceName: typeof publicData.allianceName === 'string' ? publicData.allianceName : null, score: Number(publicData.score) || 0 });
+          }
+        } catch (publicPlayerError) {
+          console.warn('[OtherUserProfile] public player data unavailable:', publicPlayerError);
+        }
         const initialLikes = Math.max(Number(u.likesReceived) || 0, readCachedLikesReceived(targetUserId));
         setLikesReceived(initialLikes);
         setViewsReceived(Math.max(Number(u.viewsReceived) || 0, readCachedViewsReceived(targetUserId)));
@@ -293,6 +306,16 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
 
       <div style={{ position: 'relative', zIndex: 1, padding: '0 20px 100px' }}>
         {profile.bio && <div style={{ margin: '0 0 18px', padding: '14px 16px', borderRadius: 18, background: 'rgba(8,12,28,.78)', border: '1px solid rgba(34,211,238,.18)', color: '#cbd5e1', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{profile.bio}</div>}
+        <section aria-label="İttifaq və reytinq" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginBottom: 18 }}>
+          <div style={{ minWidth: 0, padding: '14px 12px', borderRadius: 16, background: 'rgba(8,12,28,.82)', border: '1px solid rgba(99,102,241,.28)' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 800, marginBottom: 6 }}>🛡️ İTTİFAQ</div>
+            <div style={{ color: '#f8fafc', fontSize: 14, fontWeight: 800, overflowWrap: 'anywhere' }}>{publicPlayer?.allianceName || 'İttifaqa qoşulmayıb'}</div>
+          </div>
+          <div style={{ minWidth: 0, padding: '14px 12px', borderRadius: 16, background: 'rgba(8,12,28,.82)', border: '1px solid rgba(236,72,153,.28)' }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 800, marginBottom: 6 }}>🏆 REYTİNQ</div>
+            <div style={{ color: '#f8fafc', fontSize: 14, fontWeight: 800 }}>{Math.max(0, Math.floor(publicPlayer?.score || 0))} xal</div>
+          </div>
+        </section>
         <div style={{ fontSize: 13, fontWeight: 800, color: '#e2e8f0', marginBottom: 8 }}>
           Paylaşımlar · {posts.length}
         </div>
