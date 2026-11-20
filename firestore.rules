@@ -3209,7 +3209,19 @@ service cloud.firestore {
         && request.resource.data.expiresAt is int;
       allow update: if isSignedIn()
         && request.resource.data.userId == resource.data.userId
-        && (ownsProfileId(resource.data.userId) || isTrustedModerator())
+        && (
+          ownsProfileId(resource.data.userId)
+          || isTrustedModerator()
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'lastLikedBy'])
+            && request.resource.data.likes == resource.data.get('likes', 0) + 1
+            && request.resource.data.lastLikedBy is string
+            && ownsProfileId(request.resource.data.lastLikedBy)
+            && existsAfter(/databases/$(database)/documents/post_likes/$(postId + '_' + request.resource.data.lastLikedBy))
+            && getAfter(/databases/$(database)/documents/post_likes/$(postId + '_' + request.resource.data.lastLikedBy)).data.postId == postId
+            && getAfter(/databases/$(database)/documents/post_likes/$(postId + '_' + request.resource.data.lastLikedBy)).data.userId == request.resource.data.lastLikedBy
+          )
+        )
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['mediaUrl'])
           || (ownsProfileId(resource.data.userId)
             && resource.data.moderationStatus == 'pending'
@@ -3225,7 +3237,7 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.ownerId == resource.data.userId
               && getAfter(/databases/$(database)/documents/post_views/$(request.auth.uid)/views/$(request.resource.data.lastViewMarker)).data.viewerAuthUid == request.auth.uid))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-           'views', 'lastViewMarker', 'likes', 'commentsCount', 'giftCount', 'mediaUrl'
+           'views', 'lastViewMarker', 'likes', 'lastLikedBy', 'commentsCount', 'giftCount', 'mediaUrl'
         ])
         && (!request.resource.data.diff(resource.data).affectedKeys()
               .hasAny(['likes', 'commentsCount', 'giftCount'])
