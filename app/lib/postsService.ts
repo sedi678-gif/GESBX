@@ -16,7 +16,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { apiBaseUrl, db } from '@/firebase';
-import { ensureFirebaseAuth, compressImageSafe, withTimeout } from './firebaseAuth';
+import { ensureFirebaseAuth, requireFirebaseAuth, compressImageSafe, withTimeout } from './firebaseAuth';
 import { SocialPost, UserFeedItem, AppUserProfile, PostComment } from './socialTypes';
 import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discoverBoost';
 import { callSecureApi } from './secureFunctions';
@@ -869,6 +869,17 @@ export function listenPostComments(
   );
 }
 
+async function verifyCommentProfileOwner(profileId: string): Promise<void> {
+  const firebaseUser = await requireFirebaseAuth();
+  const profileSnap = await getDoc(doc(db, 'users', profileId));
+  if (!profileSnap.exists()) {
+    throw new Error('Profil hesabla əlaqələndirilməyib. Hesabdan çıxıb yenidən daxil olun.');
+  }
+  if (profileSnap.data().firebaseUid !== firebaseUser.uid) {
+    throw new Error('Bu profil hazırkı Firebase hesabına aid deyil. Yenidən daxil olun.');
+  }
+}
+
 export async function addPostComment(
   postId: string,
   user: { id: string; name: string; avatar?: string },
@@ -880,7 +891,7 @@ export async function addPostComment(
     throw new Error('Şərh yazmaq üçün məlumat çatışmır.');
   }
 
-  await ensureFirebaseAuth();
+  await verifyCommentProfileOwner(user.id);
 
   const now = Date.now();
   await addDoc(collection(db, 'post_comments'), {
@@ -896,7 +907,7 @@ export async function addPostComment(
 
 export async function togglePostCommentLike(comment: PostComment, userId: string): Promise<boolean> {
   if (!comment.id || !comment.postId || !userId) throw new Error('Şərhi bəyənmək üçün hesaba daxil olun.');
-  await ensureFirebaseAuth();
+  await verifyCommentProfileOwner(userId);
   const likeRef = doc(db, 'post_comment_likes', comment.id + '_' + userId);
   const existing = await getDoc(likeRef);
   if (existing.exists()) { await deleteDoc(likeRef); return false; }
