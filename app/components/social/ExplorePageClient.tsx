@@ -163,13 +163,13 @@ export default function ExplorePageClient() {
     setMediaIndex(0);
   }, [userIndex]);
 
+  const current = filtered[userIndex];
+  const media = current?.mediaList[mediaIndex];
+
   useEffect(() => {
     setVideoMuted(true);
     if (videoRef.current) videoRef.current.muted = true;
   }, [media?.id]);
-
-  const current = filtered[userIndex];
-  const media = current?.mediaList[mediaIndex];
   const currentUserId = current?.userId;
   const mediaId = media?.id;
 
