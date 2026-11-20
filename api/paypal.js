@@ -1,7 +1,10 @@
 const { paypalPayoutRequest, paypalWebhook } = require('../services/paypalPayout');
+const socialLikes = require('./social-likes');
 
 module.exports = async function paypalApi(req, res) {
-  if (String(req.query?.handler || 'request') === 'webhook') {
+  const handler = String(req.query?.handler || 'request');
+  if (handler === 'social-likes') return socialLikes(req, res);
+  if (handler === 'webhook') {
     return paypalWebhook(req, res);
   }
   return paypalPayoutRequest(req, res);
