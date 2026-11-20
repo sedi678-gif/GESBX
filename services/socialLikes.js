@@ -15,7 +15,7 @@ module.exports = async function socialLikes(req, res) {
   }
 
   try {
-    const match = header(req, 'authorization').match(/^Bearer\\s+(.+)$/i);
+    const match = header(req, 'authorization').match(/^Bearer\s+(.+)$/i);
     if (!match) throw new ApiError(401, 'AUTH_REQUIRED');
 
     let identity;
