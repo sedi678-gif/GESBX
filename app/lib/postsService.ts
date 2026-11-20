@@ -814,6 +814,7 @@ function mapCommentDoc(id: string, raw: Record<string, unknown>): PostComment | 
     userAvatar: raw.userAvatar ? String(raw.userAvatar) : undefined,
     text: String(raw.text),
     createdAt,
+    parentCommentId: raw.parentCommentId ? String(raw.parentCommentId) : undefined,
   };
 }
 
@@ -871,7 +872,8 @@ export function listenPostComments(
 export async function addPostComment(
   postId: string,
   user: { id: string; name: string; avatar?: string },
-  text: string
+  text: string,
+  parentCommentId?: string
 ): Promise<void> {
   const trimmed = text.trim();
   if (!postId || !user.id || !trimmed) {
