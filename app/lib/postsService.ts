@@ -868,7 +868,7 @@ function mapCommentDoc(id: string, raw: Record<string, unknown>): PostComment | 
     postId: String(raw.postId),
     userId: String(raw.userId),
     userName: String(raw.userName || 'İstifadəçi'),
-    userAvatar: raw.userAvatar ? String(raw.userAvatar) : undefined,
+    userAvatar: (raw.userAvatar || raw.avatar || raw.photoURL || raw.photoUrl) ? String(raw.userAvatar || raw.avatar || raw.photoURL || raw.photoUrl) : undefined,
     text: String(raw.text),
     createdAt,
     parentCommentId: raw.parentCommentId ? String(raw.parentCommentId) : undefined,
