@@ -305,6 +305,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
         onClose={() => setCommentItem(null)}
         currentUserId={userId}
         currentUserName={getLocalProfileDisplayName()}
+        currentUserAvatar={user?.photoURL || undefined}
       />
     </>
   );
