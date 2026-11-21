@@ -3008,3 +3008,35 @@
   display: none !important;
   -webkit-appearance: none;
 }
+
+
+/* Explore: let the app own vertical swipe navigation between videos. */
+.feedStagePremium {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.mediaFullPremium {
+  pointer-events: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mediaFullPremium::-webkit-media-controls,
+.mediaFullPremium::-webkit-media-controls-enclosure,
+.mediaFullPremium::-webkit-media-controls-panel,
+.mediaFullPremium::-webkit-media-controls-play-button,
+.mediaFullPremium::-webkit-media-controls-start-playback-button,
+.mediaFullPremium::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  opacity: 0 !important;
+  -webkit-appearance: none !important;
+}
+
+@keyframes exploreFeedRise {
+  from { transform: translateY(7%); opacity: .72; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.mediaFramePremium {
+  animation: exploreFeedRise .22s ease-out both;
+}
