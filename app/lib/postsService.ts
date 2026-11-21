@@ -21,6 +21,7 @@ import { SocialPost, UserFeedItem, AppUserProfile, PostComment } from './socialT
 import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discoverBoost';
 import { callSecureApi } from './secureFunctions';
 import { getUserProfile } from './socialService';
+import { resolveSocketUrl } from './realtimeConfig';
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -898,12 +899,39 @@ export function listenPostCommentCount(
 
 const commentAvatarCache = new Map<string, Promise<string | undefined>>();
 
+async function fetchCommentAvatarFromSeparateServer(profileId: string): Promise<string | undefined> {
+  const serverUrl = resolveSocketUrl();
+  if (!serverUrl || !profileId) return undefined;
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser) return undefined;
+  const token = await firebaseUser.getIdToken();
+  const response = await fetch(`${serverUrl.replace(/\\/$/, '')}/profile-avatar/${encodeURIComponent(profileId)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  if (!response.ok) return undefined;
+  const payload = await response.json().catch(() => ({}));
+  return typeof payload.avatar === 'string' && payload.avatar.trim()
+    ? payload.avatar.trim()
+    : undefined;
+}
+
 async function resolveCommentAvatar(userId: string): Promise<string | undefined> {
   if (!userId) return undefined;
   let cached = commentAvatarCache.get(userId);
   if (!cached) {
     cached = (async () => {
-      // Əsas profil şəkli users/{id} sənədində saxlanılır.
+      // Əvvəlcə ayrıca Node serverindən (Render) avatarı al; Vercel Function
+      // limiti istifadə olunmur. Sonra köhnə fallback-lara keç.
+      try {
+        const remoteAvatar = await fetchCommentAvatarFromSeparateServer(userId);
+        if (remoteAvatar) return remoteAvatar;
+      } catch (error) {
+        console.warn('[postsService] separate profile avatar server failed:', userId, error);
+      }
+
+      // Server müvəqqəti əlçatan deyilsə, mövcud profil fallback-ı işləsin.
       try {
         const profile = await getUserProfile(userId);
         if (profile?.avatar) return profile.avatar;
@@ -1015,6 +1043,23 @@ export async function addPostComment(
   }
 
   const token = await firebaseUser.getIdToken(true);
+  // Firebase Auth photoURL is not the app profile avatar. Read the app avatar
+  // from the separate Node server so every newly written comment stores the
+  // same image shown on the author's public profile.
+  let commentAvatar = '';
+  try {
+    commentAvatar = await fetchCommentAvatarFromSeparateServer(user.id) || '';
+  } catch (error) {
+    console.warn('[postsService] author avatar lookup before comment failed:', error);
+  }
+  if (!commentAvatar) {
+    try {
+      commentAvatar = (await getUserProfile(user.id))?.avatar || user.avatar || '';
+    } catch {
+      commentAvatar = user.avatar || '';
+    }
+  }
+
   const response = await fetch(`${apiBaseUrl}/api/paypal?handler=social-likes`, {
     method: 'POST',
     headers: {
@@ -1027,7 +1072,7 @@ export async function addPostComment(
       postId,
       parentCommentId: parentCommentId || '',
       userName: user.name,
-      userAvatar: user.avatar || '',
+      userAvatar: commentAvatar,
       text: trimmed,
     }),
   });
