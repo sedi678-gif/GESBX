@@ -20,6 +20,7 @@ import { ensureFirebaseAuth, requireFirebaseAuth, compressImageSafe, withTimeout
 import { SocialPost, UserFeedItem, AppUserProfile, PostComment } from './socialTypes';
 import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discoverBoost';
 import { callSecureApi } from './secureFunctions';
+import { getUserProfile } from './socialService';
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -895,6 +896,23 @@ export function listenPostCommentCount(
   );
 }
 
+const commentAvatarCache = new Map<string, Promise<string | undefined>>();
+
+async function resolveCommentAvatar(userId: string): Promise<string | undefined> {
+  if (!userId) return undefined;
+  let cached = commentAvatarCache.get(userId);
+  if (!cached) {
+    cached = getUserProfile(userId)
+      .then((profile) => profile?.avatar || undefined)
+      .catch((error) => {
+        console.warn('[postsService] şərh müəllifinin profil şəkli yüklənmədi:', userId, error);
+        return undefined;
+      });
+    commentAvatarCache.set(userId, cached);
+  }
+  return cached;
+}
+
 export function listenPostComments(
   postId: string,
   callback: (comments: PostComment[]) => void,
@@ -905,9 +923,10 @@ export function listenPostComments(
     return () => {};
   }
 
+  let active = true;
   const q = query(collection(db, 'post_comments'), where('postId', '==', postId));
 
-  return onSnapshot(
+  const unsubscribe = onSnapshot(
     q,
     (snap) => {
       const comments: PostComment[] = [];
@@ -916,7 +935,24 @@ export function listenPostComments(
         if (mapped) comments.push(mapped);
       });
       comments.sort((a, b) => a.createdAt - b.createdAt);
+
+      // Şərh sənədində avatar saxlanmayıbsa, müəllifin açıq profilindən götür.
+      // Əvvəl şərhləri dərhal göstər, şəkillər gələndə siyahını yenilə.
       callback(comments);
+      const missingAvatarIds = Array.from(new Set(
+        comments.filter((comment) => !comment.userAvatar).map((comment) => comment.userId)
+      ));
+      if (missingAvatarIds.length) {
+        void Promise.all(missingAvatarIds.map(async (userId) => [userId, await resolveCommentAvatar(userId)] as const))
+          .then((avatars) => {
+            if (!active) return;
+            const avatarByUserId = new Map(avatars);
+            callback(comments.map((comment) => ({
+              ...comment,
+              userAvatar: comment.userAvatar || avatarByUserId.get(comment.userId),
+            })));
+          });
+      }
     },
     (err) => {
       console.error('Post şərhləri xətası:', err);
@@ -924,6 +960,11 @@ export function listenPostComments(
       callback([]);
     }
   );
+
+  return () => {
+    active = false;
+    unsubscribe();
+  };
 }
 
 async function verifyCommentProfileOwner(profileId: string): Promise<void> {
