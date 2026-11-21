@@ -68,9 +68,12 @@ app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 app.get('/profile-avatar/:profileId', async (req, res) => {
   res.setHeader('Cache-Control', 'private, max-age=60');
   try {
-    const match = String(req.headers.authorization || '').match(/^Bearer\\s+(.+)$/i);
-    if (!match) return res.status(401).json({ error: 'AUTH_REQUIRED' });
-    const identity = await getAdminAuth().verifyIdToken(match[1], true);
+    const authorization = String(req.headers.authorization || '');
+    const token = authorization.toLowerCase().startsWith('bearer ')
+      ? authorization.slice(7).trim()
+      : '';
+    if (!token) return res.status(401).json({ error: 'AUTH_REQUIRED' });
+    const identity = await getAdminAuth().verifyIdToken(token, true);
     if (!identity?.uid) return res.status(401).json({ error: 'AUTH_TOKEN_INVALID' });
 
     const profileId = String(req.params.profileId || '').trim();
