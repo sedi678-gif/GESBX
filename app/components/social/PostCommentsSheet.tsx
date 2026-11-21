@@ -5,6 +5,8 @@ import { addPostComment, listenPostComments, listenPostCommentLikes, togglePostC
 import type { PostComment } from '@/app/lib/socialTypes';
 import styles from './social.module.css';
 
+const commentLikeCache = new Map<string, Record<string, { count: number; liked: boolean }>>();
+
 interface PostCommentsSheetProps {
   open: boolean;
   postId: string | null;
@@ -22,14 +24,23 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   const [replyTo, setReplyTo] = useState<PostComment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [likes, setLikes] = useState<Record<string, { count: number; liked: boolean }>>({});
+  const [likes, setLikes] = useState<Record<string, { count: number; liked: boolean }>>(() => commentLikeCache.get(`${postId || ''}:${currentUserId}`) || {});
   const [likeBusy, setLikeBusy] = useState<string | null>(null);
   const likeActionAtRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
-    if (!open || !postId) { setComments([]); setText(''); setReplyTo(null); setError(''); setLikes({}); return; }
+    if (!open || !postId) { setComments([]); setText(''); setReplyTo(null); setError(''); return; }
     return listenPostComments(postId, setComments, setError);
   }, [open, postId]);
+
+  useEffect(() => {
+    const cached = commentLikeCache.get(`${postId || ''}:${currentUserId}`);
+    setLikes(cached || {});
+  }, [postId, currentUserId]);
+
+  useEffect(() => {
+    if (postId && currentUserId) commentLikeCache.set(`${postId}:${currentUserId}`, likes);
+  }, [likes, postId, currentUserId]);
 
   useEffect(() => {
     if (!open || !postId) return;
