@@ -199,7 +199,7 @@ async function decidePost(db, postId, decision) {
   });
 }
 
-async function publishOwnedPost(db, identity, postId, userId) {
+async function publishOwnedPost(db, identity, postId, userId, thumbnailUrl) {
   const userSnap = await db.doc(`users/${userId}`).get();
   if (!userSnap.exists || userSnap.data()?.firebaseUid !== identity.uid) {
     throw new ApiError(403, 'POST_OWNER_FORBIDDEN');
@@ -220,6 +220,7 @@ async function publishOwnedPost(db, identity, postId, userId) {
 
     const media = validateCompleteMedia(post, chunksSnap.docs);
     transaction.update(postRef, {
+      ...(thumbnailUrl ? { thumbnailUrl } : {}),
       moderationStatus: 'approved',
       moderationProvider: 'verified-owner-publish',
       moderatedAt: Date.now(),
@@ -399,13 +400,19 @@ module.exports = async function adminModeratePostHandler(req, res) {
       return sendJson(res, 200, await bootstrapOrRecordAdmin(db, identity, displayName));
     }
     if (payload.action === 'publish') {
-      assertExactKeys(payload, ['action', 'postId', 'userId']);
+      const allowedPublishKeys = ['action', 'postId', 'userId'];
+      if (Object.prototype.hasOwnProperty.call(payload, 'thumbnailUrl')) allowedPublishKeys.push('thumbnailUrl');
+      assertExactKeys(payload, allowedPublishKeys);
       const postId = String(payload.postId || '');
       const userId = String(payload.userId || '');
       if (!POST_ID_PATTERN.test(postId) || !USER_ID_PATTERN.test(userId)) {
         throw new ApiError(400, 'INVALID_REQUEST');
       }
-      return sendJson(res, 200, await publishOwnedPost(db, identity, postId, userId));
+      const thumbnailUrl = payload.thumbnailUrl === undefined ? undefined : String(payload.thumbnailUrl);
+      if (thumbnailUrl !== undefined && (!thumbnailUrl.startsWith('data:image/jpeg;base64,') || thumbnailUrl.length > 300_000)) {
+        throw new ApiError(400, 'THUMBNAIL_INVALID');
+      }
+      return sendJson(res, 200, await publishOwnedPost(db, identity, postId, userId, thumbnailUrl));
     }
 
     await assertSuperAdmin(db, identity.uid);
@@ -453,7 +460,7 @@ module.exports = async function adminModeratePostHandler(req, res) {
       'PLAY_INTEGRITY_REQUIRED', 'PLAY_INTEGRITY_NOT_CONFIGURED', 'PLAY_INTEGRITY_REJECTED',
       'PLAY_INTEGRITY_UNAVAILABLE', 'RATE_LIMITED', 'SECURITY_CONFIGURATION_MISSING',
       'INVALID_REQUEST', 'ADMIN_REVIEW_FORBIDDEN', 'POST_OWNER_FORBIDDEN', 'POST_NOT_FOUND', 'POST_NOT_PENDING',
-      'MEDIA_INCOMPLETE', 'MEDIA_INVALID', 'MEDIA_TOO_LARGE',
+      'MEDIA_INCOMPLETE', 'MEDIA_INVALID', 'MEDIA_TOO_LARGE', 'THUMBNAIL_INVALID',
     ]);
     const code = knownCodes.has(error.code) ? error.code : 'POST_MODERATION_UNAVAILABLE';
     if (status >= 500) console.error('admin-moderate-post failed:', error.message);
