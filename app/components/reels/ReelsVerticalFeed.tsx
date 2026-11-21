@@ -16,7 +16,8 @@ type ReelsVerticalFeedProps = {
   userId: string;
 };
 
-export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {\n  const { user } = useUser();
+export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
+  const { user } = useUser();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const slotRefs = useRef<Map<number, HTMLElement>>(new Map());
   const [items, setItems] = useState<ForYouFeedItem[]>([]);
