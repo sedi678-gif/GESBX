@@ -39,23 +39,35 @@ export default function FollowListSheet({
     setLoading(true);
     const listen = mode === 'followers' ? listenFollowerIds : listenFollowingIds;
 
-    return listen(userId, (ids) => {
+    let active = true;
+    const unsubscribe = listen(userId, (ids) => {
       void (async () => {
-        const profiles = await Promise.all(
-          ids.map(async (id) => {
-            const profile = await getUserProfile(id);
-            if (profile) return profile;
-            return {
-              id,
-              name: 'İstifadəçi',
-              handle: `@${id}`,
-            } satisfies AppUserProfile;
-          })
-        );
-        setUsers(profiles);
-        setLoading(false);
+        try {
+          const profiles = await Promise.all(
+            ids.map(async (id) => {
+              try {
+                const profile = await getUserProfile(id);
+                if (profile) return profile;
+              } catch (error) {
+                console.warn('[FollowListSheet] profile lookup failed:', id, error);
+              }
+              return {
+                id,
+                name: 'İstifadəçi',
+                handle: `@${id}`,
+              } satisfies AppUserProfile;
+            })
+          );
+          if (active) setUsers(profiles);
+        } finally {
+          if (active) setLoading(false);
+        }
       })();
     });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [open, userId, mode]);
 
   if (!open) return null;
