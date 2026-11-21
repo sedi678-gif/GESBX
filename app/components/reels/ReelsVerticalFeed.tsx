@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PostCommentsSheet from '@/app/components/social/PostCommentsSheet';
 import { listenUserLikedPostIds, recordPostView, toggleLikePost } from '@/app/lib/postsService';
 import { getReelsForYou, trackReelSignal, type ForYouFeedItem } from '@/app/lib/reelsForYou';
-import { getLocalProfileDisplayName } from '@/app/lib/userId';
+import { getLocalProfileDisplayName } from '@/app/lib/userId';\nimport { useUser } from '@/context/UserContext';
 import { callSecureFunction } from '@/app/lib/secureFunctions';
 import ReelsSlide, { type ReelsWatchFlush } from './ReelsSlide';
 
@@ -15,7 +15,7 @@ type ReelsVerticalFeedProps = {
   userId: string;
 };
 
-export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
+export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {\n  const { user } = useUser();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const slotRefs = useRef<Map<number, HTMLElement>>(new Map());
   const [items, setItems] = useState<ForYouFeedItem[]>([]);
