@@ -91,6 +91,7 @@ function mapPostDoc(
     userAge: typeof raw.userAge === 'number' ? raw.userAge : undefined,
     title: String(raw.title || ''),
     mediaUrl: String(raw.mediaUrl),
+    thumbnailUrl: typeof raw.thumbnailUrl === 'string' ? raw.thumbnailUrl : undefined,
     mediaType: raw.mediaType === 'video' ? 'video' : 'image',
     durationSeconds: Number.isFinite(Number(raw.durationSeconds)) ? Number(raw.durationSeconds) : undefined,
     likes: Number(raw.likes) || 0,
@@ -139,6 +140,47 @@ async function validatePostMediaDimensions(file: File, mediaType: 'video' | 'ima
     }
   } finally {
     URL.revokeObjectURL(url);
+  }
+}
+
+
+async function createVideoThumbnailDataUrl(file: File): Promise<string | undefined> {
+  const objectUrl = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'auto';
+  video.muted = true;
+  video.playsInline = true;
+  video.src = objectUrl;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error('Thumbnail timeout')), 8000);
+      const finish = () => { window.clearTimeout(timeout); resolve(); };
+      video.onloadeddata = finish;
+      video.onerror = () => { window.clearTimeout(timeout); reject(new Error('Video thumbnail unavailable')); };
+      video.onloadedmetadata = () => {
+        try { video.currentTime = Math.min(0.1, Math.max(0, video.duration / 20)); }
+        catch { /* loadeddata fallback */ }
+      };
+      video.onseeked = finish;
+    });
+    const width = video.videoWidth || 320;
+    const height = video.videoHeight || 320;
+    const scale = Math.min(1, 320 / Math.max(width, height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) return undefined;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.48);
+  } catch (error) {
+    console.warn('Video thumbnail generation skipped:', error);
+    return undefined;
+  } finally {
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(objectUrl);
   }
 }
 
@@ -238,6 +280,7 @@ async function createPostInternal(
   const uploadFile = mediaType === 'image' ? await preparePostMediaFile(file) : file;
   await validatePostMediaDimensions(uploadFile, mediaType);
   const durationSeconds = mediaType === 'video' ? await readVideoDurationSeconds(uploadFile) : undefined;
+  const thumbnailUrl = mediaType === 'video' ? await createVideoThumbnailDataUrl(uploadFile) : undefined;
   onProgress?.('Hesab təsdiqlənir...');
   const firebaseUser = await ensureFirebaseAuth();
   if (!firebaseUser) {
@@ -260,6 +303,7 @@ async function createPostInternal(
     ...(calcAge(user.birthDate) !== undefined ? { userAge: calcAge(user.birthDate) } : {}),
     title: title.trim(),
     mediaUrl,
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
     mediaPath,
     mediaType,
     ...(mediaGroupId ? { mediaGroupId } : {}),
