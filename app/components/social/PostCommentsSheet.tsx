@@ -95,8 +95,23 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                   if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') { alert('Bəyənmək üçün qeydiyyatdan keçin.'); return; }
                   if (likeBusy) return;
                   setLikeBusy(comment.id);
-                  try { await togglePostCommentLike(comment, currentUserId); }
-                  catch (err) {
+                  const previous = likes[comment.id] || { count: 0, liked: false };
+                  const optimisticLiked = !previous.liked;
+                  setLikes((prev) => ({
+                    ...prev,
+                    [comment.id]: {
+                      count: Math.max(0, previous.count + (optimisticLiked ? 1 : -1)),
+                      liked: optimisticLiked,
+                    },
+                  }));
+                  try {
+                    const confirmedLiked = await togglePostCommentLike(comment, currentUserId);
+                    setLikes((prev) => ({
+                      ...prev,
+                      [comment.id]: { ...prev[comment.id], liked: confirmedLiked },
+                    }));
+                  } catch (err) {
+                    setLikes((prev) => ({ ...prev, [comment.id]: previous }));
                     console.error('Şərh bəyənmə xətası:', err);
                     setError(err instanceof Error ? err.message : 'Şərhi bəyənmək alınmadı. Hesab icazəsini yoxlayın.');
                   } finally { setLikeBusy(null); }
