@@ -1022,12 +1022,21 @@ function ProfilePageContent() {
   };
 
   const handleDeleteOwnPost = async (postId: string) => {
-    if (!window.confirm('Bu paylaşımı silmək istəyirsiniz?')) return;
+    const postToRestore = posts.find((post) => post.id === postId);
+    if (!postToRestore) return;
+
+    // Optimistic UI: paylaşımı server cavabını gözləmədən dərhal gizlət.
+    setPosts((current) => current.filter((post) => post.id !== postId));
+    setSelectedPostId(null);
+
     try {
       await deleteOwnPost(postId, currentUser.id);
-      closePostViewer();
-      alert('Paylaşım silindi.');
     } catch (error) {
+      // Server silməni qəbul etməsə, paylaşımı əvvəlki yerinə qaytar.
+      setPosts((current) => current.some((post) => post.id === postId)
+        ? current
+        : [...current, postToRestore].sort((a, b) => b.createdAt - a.createdAt));
+      setSelectedPostId(postId);
       alert(error instanceof Error ? error.message : 'Paylaşım silinmədi.');
     }
   };
