@@ -71,9 +71,15 @@ function mapPublicUserProfile(userId: string, data: Record<string, unknown>): Ap
 
 export async function getUserProfile(userId: string): Promise<AppUserProfile | null> {
   if (!userId) return null;
+  let localProfile: AppUserProfile | null = null;
   try {
     const snap = await getDoc(doc(db, 'users', userId));
-    if (snap.exists()) return mapPublicUserProfile(userId, snap.data() as Record<string, unknown>);
+    if (snap.exists()) {
+      localProfile = mapPublicUserProfile(userId, snap.data() as Record<string, unknown>);
+      // An existing users document with an empty avatar must not prevent the
+      // server from checking the legacy players document.
+      if (localProfile.avatar) return localProfile;
+    }
   } catch (error) {
     // Older user documents may contain private fields that intentionally block
     // direct public Firestore reads. Resolve the same public profile server-side.
@@ -81,7 +87,7 @@ export async function getUserProfile(userId: string): Promise<AppUserProfile | n
   }
 
   const firebaseUser = await ensureFirebaseAuth();
-  if (!firebaseUser) return null;
+  if (!firebaseUser) return localProfile;
   const token = await firebaseUser.getIdToken();
   const response = await fetch(`/api/paypal?handler=social-likes&profileId=${encodeURIComponent(userId)}`, {
     method: 'GET',
