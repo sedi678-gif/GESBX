@@ -24,7 +24,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
-  const [likeBusy, setLikeBusy] = useState(false);
+  const pendingLikesRef = useRef<Set<string>>(new Set());
   const [commentItem, setCommentItem] = useState<ForYouFeedItem | null>(null);
   const loadingMore = useRef(false);
   const rewardSessions = useRef<Map<string, Promise<string | null>>>(new Map());
@@ -67,7 +67,9 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
 
   useEffect(() => {
     if (!canTrack) return;
-    return listenUserLikedPostIds(userId, setLikedIds);
+    return listenUserLikedPostIds(userId, (serverIds) => {
+      setLikedIds((previous) => new Set([...serverIds, ...pendingLikesRef.current]));
+    });
   }, [canTrack, userId]);
 
   useEffect(() => {
@@ -172,9 +174,9 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   );
 
   const handleLike = async (item: ForYouFeedItem) => {
-    if (!canTrack || likeBusy || likedIds.has(item.videoId)) return;
-    setLikeBusy(true);
+    if (!canTrack || pendingLikesRef.current.has(item.videoId) || likedIds.has(item.videoId)) return;
     const likedVideoId = item.videoId;
+    pendingLikesRef.current.add(likedVideoId);
     const previousLikes = item.likes;
     // Ürək və sayğac dərhal yenilənir.
     setLikedIds((prev) => new Set(prev).add(likedVideoId));
@@ -204,7 +206,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
       ));
       alert(err instanceof Error ? err.message : 'Bəyənmə alınmadı.');
     } finally {
-      setLikeBusy(false);
+      pendingLikesRef.current.delete(likedVideoId);
     }
   };
 
@@ -283,7 +285,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
                   item={item}
                   active={index === activeIndex}
                   liked={likedIds.has(item.videoId)}
-                  likeBusy={likeBusy}
+                  likeBusy={false}
                   onLike={() => void handleLike(item)}
                   onComment={() => handleComment(item)}
                   onShare={() => void handleShare(item)}
