@@ -1045,3 +1045,58 @@ export function listenPostCommentLikes(postId: string, userId: string, callback:
     if (timer) clearTimeout(timer);
   };
 }
+
+
+async function runOwnedSocialAction(
+  kind: 'post-delete' | 'comment-edit' | 'comment-delete' | 'comment-report',
+  userId: string,
+  targetId: string,
+  extra: Record<string, string> = {},
+): Promise<void> {
+  if (!userId || !targetId) throw new Error('Əməliyyat üçün məlumat çatışmır.');
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser || firebaseUser.isAnonymous) {
+    throw new Error('Bu əməliyyat üçün qeydiyyatdan keçmiş hesaba daxil olun.');
+  }
+  const response = await fetch(`${apiBaseUrl}/api/paypal?handler=social-likes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${await firebaseUser.getIdToken(true)}`,
+    },
+    body: JSON.stringify({ kind, userId, targetId, ...extra }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const messages: Record<string, string> = {
+      POST_NOT_FOUND: 'Paylaşım tapılmadı.',
+      COMMENT_NOT_FOUND: 'Şərh tapılmadı.',
+      POST_OWNER_REQUIRED: 'Yalnız öz paylaşımınızı silə bilərsiniz.',
+      COMMENT_OWNER_REQUIRED: 'Yalnız öz şərhinizi dəyişə və ya silə bilərsiniz.',
+      PROFILE_ACCOUNT_MISMATCH: 'Profil bu hesaba bağlı deyil. Yenidən daxil olun.',
+      COMMENT_FIELDS_INVALID: 'Şərh boş ola bilməz və 500 simvoldan uzun ola bilməz.',
+      REPORT_FIELDS_INVALID: 'Şikayət səbəbini yazın.',
+    };
+    throw new Error(messages[String(payload.error || '')] || 'Əməliyyat yerinə yetirilmədi. Bir az sonra yenidən yoxlayın.');
+  }
+}
+
+export async function deleteOwnPost(postId: string, userId: string): Promise<void> {
+  await runOwnedSocialAction('post-delete', userId, postId);
+}
+
+export async function editOwnPostComment(commentId: string, userId: string, text: string): Promise<void> {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 500) throw new Error('Şərh 1–500 simvol arasında olmalıdır.');
+  await runOwnedSocialAction('comment-edit', userId, commentId, { text: trimmed });
+}
+
+export async function deleteOwnPostComment(commentId: string, userId: string): Promise<void> {
+  await runOwnedSocialAction('comment-delete', userId, commentId);
+}
+
+export async function reportPostComment(commentId: string, userId: string, reason: string): Promise<void> {
+  const trimmed = reason.trim();
+  if (!trimmed) throw new Error('Şikayət səbəbini yazın.');
+  await runOwnedSocialAction('comment-report', userId, commentId, { reason: trimmed });
+}
