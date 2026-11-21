@@ -440,7 +440,7 @@ export default function ExplorePageClient() {
                 type="button"
                 className={`${styles.actionBtnPremium} ${styles.actionBtnPremiumWithCount}`}
                 onClick={handleLike}
-                disabled={likeBusy || isMediaLiked}
+                disabled={isMediaLiked}
                 style={isMediaLiked ? { opacity: 0.7 } : undefined}
                 aria-label="Bəyən"
               >
