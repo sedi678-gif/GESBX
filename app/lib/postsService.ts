@@ -905,7 +905,7 @@ async function fetchCommentAvatarFromSeparateServer(profileId: string): Promise<
   const firebaseUser = await ensureFirebaseAuth();
   if (!firebaseUser) return undefined;
   const token = await firebaseUser.getIdToken();
-  const response = await fetch(`${serverUrl.replace(/\\/$/, '')}/profile-avatar/${encodeURIComponent(profileId)}`, {
+  const response = await fetch(`${serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl}/profile-avatar/${encodeURIComponent(profileId)}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
     cache: 'no-store',
