@@ -45,7 +45,6 @@ export default function VideoPostPreview({
         muted
         playsInline
         preload={shouldLoad ? 'auto' : 'none'}
-        fetchPriority={priority ? 'high' : 'auto'}
         onLoadedData={(event) => event.currentTarget.pause()}
       />
       <span
