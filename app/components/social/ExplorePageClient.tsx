@@ -411,8 +411,7 @@ export default function ExplorePageClient() {
                   preload="auto"
                   loop
                   muted={videoMuted}
-                  defaultMuted
-                  playsInline
+playsInline
                   controls={false}
                   disablePictureInPicture
                   onLoadedData={(event) => {
