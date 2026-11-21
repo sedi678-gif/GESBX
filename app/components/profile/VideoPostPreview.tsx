@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 type VideoPostPreviewProps = {
   src: string;
+  thumbnailUrl?: string;
   overlayClassName?: string;
   overlayStyle?: React.CSSProperties;
   priority?: boolean;
@@ -11,12 +12,14 @@ type VideoPostPreviewProps = {
 
 export default function VideoPostPreview({
   src,
+  thumbnailUrl,
   overlayClassName,
   overlayStyle,
   priority = false,
 }: VideoPostPreviewProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -40,12 +43,15 @@ export default function VideoPostPreview({
 
   return (
     <span ref={containerRef} style={{ display: 'block', position: 'relative', width: '100%', height: '100%' }}>
+      {thumbnailUrl && !videoReady && (
+        <img src={thumbnailUrl} alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      )}
       <video
         src={shouldLoad ? src : undefined}
         muted
         playsInline
         preload={shouldLoad ? 'auto' : 'none'}
-        onLoadedData={(event) => event.currentTarget.pause()}
+        onLoadedData={(event) => { event.currentTarget.pause(); setVideoReady(true); }}
       />
       <span
         aria-hidden="true"
