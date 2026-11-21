@@ -102,7 +102,7 @@ const AZ_REGIONS = [
 ];
 
 export default function ExplorePageClient() {
-  const { userId } = useUser();
+  const { userId, user } = useUser();
   const t = useAppStrings();
   const myId = userId;
 
