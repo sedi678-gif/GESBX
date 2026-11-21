@@ -56,7 +56,7 @@ module.exports = async function socialLikes(req, res) {
   }
 
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST, OPTIONS');
+    res.setHeader('Allow', 'GET, POST, OPTIONS');
     return sendJson(res, 405, { error: 'METHOD_NOT_ALLOWED' });
   }
 
