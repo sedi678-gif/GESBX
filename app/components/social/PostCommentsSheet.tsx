@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { addPostComment, listenPostComments, listenPostCommentLikes, togglePostCommentLike } from '@/app/lib/postsService';
+import { addPostComment, listenPostComments, listenPostCommentLikes, togglePostCommentLike, editOwnPostComment, deleteOwnPostComment, reportPostComment } from '@/app/lib/postsService';
 import type { PostComment } from '@/app/lib/socialTypes';
 import styles from './social.module.css';
 
@@ -22,6 +22,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   const [comments, setComments] = useState<PostComment[]>([]);
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<PostComment | null>(null);
+  const [editingComment, setEditingComment] = useState<PostComment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [likes, setLikes] = useState<Record<string, { count: number; liked: boolean }>>(() => commentLikeCache.get(`${postId || ''}:${currentUserId}`) || {});
@@ -90,8 +91,14 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
     }
     setLoading(true); setError('');
     try {
-      await addPostComment(postId, { id: currentUserId, name: currentUserName, avatar: currentUserAvatar }, trimmed, replyTo?.id);
-      setText(''); setReplyTo(null);
+      if (editingComment) {
+        await editOwnPostComment(editingComment.id, currentUserId, trimmed);
+        setEditingComment(null);
+      } else {
+        await addPostComment(postId, { id: currentUserId, name: currentUserName, avatar: currentUserAvatar }, trimmed, replyTo?.id);
+        setReplyTo(null);
+      }
+      setText('');
     } catch (err) {
       console.error(err);
       const message = err instanceof Error ? err.message : 'Şərh göndərilmədi.';
@@ -150,9 +157,24 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
               {!isReply && (
-                <button type="button" className={styles.commentReplyButton} onClick={() => { setReplyTo(comment); setText(''); setError(''); }}>
-                  ↩ Cavab yaz
-                </button>
+                <button type="button" className={styles.commentReplyButton} onClick={() => { setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label="Cavab yaz">↩</button>
+              )}
+              {comment.userId === currentUserId ? (
+                <>
+                  <button type="button" className={styles.commentMiniAction} aria-label="Şərhi düzəlt" title="Düzəlt" onClick={() => { setEditingComment(comment); setReplyTo(null); setText(comment.text); setError(''); }}>✎</button>
+                  <button type="button" className={styles.commentMiniAction} aria-label="Şərhi sil" title="Sil" onClick={async () => {
+                    if (!window.confirm('Bu şərhi silmək istəyirsiniz?')) return;
+                    try { await deleteOwnPostComment(comment.id, currentUserId); }
+                    catch (err) { setError(err instanceof Error ? err.message : 'Şərh silinmədi.'); }
+                  }}>🗑</button>
+                </>
+              ) : (
+                <button type="button" className={styles.commentMiniAction} aria-label="Şərhdən şikayət et" title="Şikayət et" onClick={async () => {
+                  const reason = window.prompt('Şikayət səbəbini yazın:');
+                  if (!reason?.trim()) return;
+                  try { await reportPostComment(comment.id, currentUserId, reason); alert('Şikayət göndərildi.'); }
+                  catch (err) { setError(err instanceof Error ? err.message : 'Şikayət göndərilmədi.'); }
+                }}>⚑</button>
               )}
             </div>
           </div>
@@ -175,14 +197,20 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
           {roots.length === 0 ? <div className={styles.commentsEmpty}>İlk şərhi sən yaz!</div> : roots.map((comment) => renderComment(comment))}
         </div>
         <form className={styles.commentForm} onSubmit={handleSubmit}>
+          {editingComment && (
+            <div className={styles.replyingToBar}>
+              <span className={styles.replyingToName}>Şərhi düzəlt</span>
+              <button type="button" onClick={() => { setEditingComment(null); setText(''); }}>Ləğv et ✕</button>
+            </div>
+          )}
           {replyTo && (
             <div className={styles.replyingToBar}>
               <span className={styles.replyingToName}>{replyTo.userName}</span>
               <button type="button" onClick={() => setReplyTo(null)}>Ləğv et ✕</button>
             </div>
           )}
-          <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={replyTo ? 'Cavabını yaz...' : 'Şərh yaz...'} className={styles.commentInput} maxLength={500} disabled={loading} />
-          <button type="submit" className={styles.commentSubmit} disabled={loading || !text.trim()}>{loading ? 'Göndərilir…' : replyTo ? 'Cavabla' : 'Göndər'}</button>
+          <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={editingComment ? 'Şərhi düzəlt...' : replyTo ? 'Cavabını yaz...' : 'Şərh yaz...'} className={styles.commentInput} maxLength={500} disabled={loading} />
+          <button type="submit" className={styles.commentSubmit} disabled={loading || !text.trim()}>{loading ? '...' : editingComment ? 'Yadda saxla' : replyTo ? 'Cavabla' : 'Göndər'}</button>
         </form>
       </div>
     </div>
