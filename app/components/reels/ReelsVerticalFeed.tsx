@@ -174,22 +174,34 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   const handleLike = async (item: ForYouFeedItem) => {
     if (!canTrack || likeBusy || likedIds.has(item.videoId)) return;
     setLikeBusy(true);
+    const likedVideoId = item.videoId;
+    const previousLikes = item.likes;
+    // Ürək və sayğac dərhal yenilənir.
+    setLikedIds((prev) => new Set(prev).add(likedVideoId));
+    setItems((prev) => prev.map((row) =>
+      row.videoId === likedVideoId ? { ...row, likes: previousLikes + 1 } : row
+    ));
     try {
-      const result = await toggleLikePost(item.videoId, userId);
-      setLikedIds((prev) => new Set(prev).add(item.videoId));
-      setItems((prev) =>
-        prev.map((row) =>
-          row.videoId === item.videoId ? { ...row, likes: result.likes } : row
-        )
-      );
+      const result = await toggleLikePost(likedVideoId, userId);
+      setItems((prev) => prev.map((row) =>
+        row.videoId === likedVideoId ? { ...row, likes: result.likes } : row
+      ));
       void trackReelSignal(userId, {
-        videoId: item.videoId,
+        videoId: likedVideoId,
         eventType: 'like',
         watchDurationSeconds: 0,
         categoryId: item.categoryId,
         hashtags: item.hashtags,
       }).catch((err) => console.warn('[Reels] like failed:', err));
     } catch (err) {
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(likedVideoId);
+        return next;
+      });
+      setItems((prev) => prev.map((row) =>
+        row.videoId === likedVideoId ? { ...row, likes: previousLikes } : row
+      ));
       alert(err instanceof Error ? err.message : 'Bəyənmə alınmadı.');
     } finally {
       setLikeBusy(false);
