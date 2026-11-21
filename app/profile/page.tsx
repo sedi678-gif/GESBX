@@ -1514,18 +1514,20 @@ function ProfilePageContent() {
               {posts.map((post) => (
                 <div key={post.id} className={profileStyles.postTile} onClick={() => setSelectedPostId(post.id)}>
                   {post.mediaUrl ? (post.mediaType === 'video' ? (
-                    <video
-                      src={post.mediaUrl}
-                      muted
-                      playsInline
-                      preload="auto"
-                      onLoadedData={(event) => {
-                        const video = event.currentTarget;
-                        video.pause();
-                        try { video.currentTime = 0.01; } catch { /* preview frame may not be seekable yet */ }
-                      }}
-                    />
-                    <span aria-hidden="true" className={profileStyles.postVideoPlay}>▶</span>
+                    <>
+                      <video
+                        src={post.mediaUrl}
+                        muted
+                        playsInline
+                        preload="auto"
+                        onLoadedData={(event) => {
+                          const video = event.currentTarget;
+                          video.pause();
+                          try { video.currentTime = 0.01; } catch { /* preview frame may not be seekable yet */ }
+                        }}
+                      />
+                      <span aria-hidden="true" className={profileStyles.postVideoPlay}>▶</span>
+                    </>
                   ) : (
                     <img src={post.mediaUrl} alt={post.title} />
                   )) : <span className={profileStyles.postMediaPending}>Media yüklənir...</span>}
