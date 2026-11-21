@@ -24,10 +24,10 @@ module.exports = async function socialLikes(req, res) {
           || code === 'FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH') throw new ApiError(503, code);
         throw new ApiError(401, 'AUTH_TOKEN_INVALID');
       }
-      if (!identity?.uid || identity.firebase?.sign_in_provider === 'anonymous') {
+      const publicProfileId = String(req.query?.profileId || '').trim();
+      if (!identity?.uid || (identity.firebase?.sign_in_provider === 'anonymous' && !publicProfileId)) {
         throw new ApiError(401, 'REGISTERED_ACCOUNT_REQUIRED');
       }
-      const publicProfileId = String(req.query?.profileId || '').trim();
       const db = getAdminFirestore();
       if (publicProfileId) {
         const publicProfileSnap = await db.doc(`users/${publicProfileId}`).get();
