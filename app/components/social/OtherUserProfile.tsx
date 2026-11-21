@@ -26,6 +26,7 @@ import {
 import { getPlayerCosmetics } from '@/app/components/shop/cosmeticsService';
 import { PlayerCosmetics } from '@/app/components/alliance/types';
 import ProfileHeroDisplay from '@/app/components/profile/ProfileHeroDisplay';
+import VideoPostPreview from '@/app/components/profile/VideoPostPreview';
 import { DEFAULT_BANNER } from '@/app/components/shop/cosmeticsConfig';
 import FollowListSheet from '@/app/components/social/FollowListSheet';
 import { SocialPost } from '@/app/lib/socialTypes';
@@ -323,23 +324,10 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
           <div style={{ textAlign: 'center', padding: 24, color: '#64748b', fontSize: 13 }}>Paylaşım yoxdur</div>
         ) : (
           <div ref={postGridRef} className={styles.postGrid} style={{ padding: 0 }}>
-            {posts.map((post) => (
+            {posts.map((post, index) => (
               <div key={post.id} className={styles.postThumb} data-post-view-id={post.id}>
                 {post.mediaType === 'video' ? (
-                  <>
-                    <video
-                      src={post.mediaUrl}
-                      muted
-                      playsInline
-                      preload="auto"
-                      onLoadedData={(event) => {
-                        const video = event.currentTarget;
-                        video.pause();
-                        try { video.currentTime = 0.01; } catch { /* preview frame may not be seekable yet */ }
-                      }}
-                    />
-                    <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none', color: '#fff', fontSize: 24, textShadow: '0 2px 10px rgba(0,0,0,.8)' }}>▶</span>
-                  </>
+                  <VideoPostPreview src={post.mediaUrl} priority={index < 3} />
                 ) : (
                   <img src={post.mediaUrl} alt={post.title} />
                 )}
