@@ -166,7 +166,21 @@ export default function ExplorePageClient() {
 
   useEffect(() => {
     setVideoMuted(true);
-    if (videoRef.current) videoRef.current.muted = true;
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = true;
+    video.defaultMuted = true;
+    // Start each newly selected Explore video immediately, without showing
+    // the browser's paused/play overlay between feed items.
+    const start = () => {
+      video.muted = true;
+      if (video.paused) {
+        void video.play().catch((error) => console.warn('[Explore] autoplay blocked:', error));
+      }
+    };
+    if (video.readyState >= 2) start();
+    else video.addEventListener('loadeddata', start, { once: true });
+    return () => video.removeEventListener('loadeddata', start);
   }, [media?.id]);
   const currentUserId = current?.userId;
   const mediaId = media?.id;
@@ -377,7 +391,7 @@ export default function ExplorePageClient() {
             </AppLink>
           </div>
         ) : (
-          <div className={styles.mediaFramePremium}>
+          <div key={current.userId} className={styles.mediaFramePremium}>
             <div className={styles.storyDotsPremium}>
               {current.mediaList.map((_, i) => (
                 <div key={i} className={`${styles.storyDotPremium} ${i === mediaIndex ? styles.storyDotPremiumActive : ''}`} />
@@ -389,15 +403,25 @@ export default function ExplorePageClient() {
             {media.mediaType === 'video' ? (
               <>
                 <video
+                  key={media.id}
                   ref={videoRef}
                   src={media.mediaUrl}
                   className={styles.mediaFullPremium}
                   autoPlay
+                  preload="auto"
                   loop
                   muted={videoMuted}
+                  defaultMuted
                   playsInline
                   controls={false}
                   disablePictureInPicture
+                  onLoadedData={(event) => {
+                    const video = event.currentTarget;
+                    video.muted = true;
+                    if (video.paused) {
+                      void video.play().catch((error) => console.warn('[Explore] autoplay blocked:', error));
+                    }
+                  }}
                   onCanPlay={(event) => {
                     const video = event.currentTarget;
                     if (video.paused) {
