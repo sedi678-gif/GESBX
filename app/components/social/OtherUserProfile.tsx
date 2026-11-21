@@ -327,7 +327,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
             {posts.map((post, index) => (
               <div key={post.id} className={styles.postThumb} data-post-view-id={post.id}>
                 {post.mediaType === 'video' ? (
-                  <VideoPostPreview src={post.mediaUrl} priority={index < 3} />
+                  <VideoPostPreview src={post.mediaUrl} thumbnailUrl={post.thumbnailUrl} priority={index < 3} />
                 ) : (
                   <img src={post.mediaUrl} alt={post.title} />
                 )}
