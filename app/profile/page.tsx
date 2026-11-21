@@ -1514,7 +1514,7 @@ function ProfilePageContent() {
             <div className={profileStyles.postGridPremium}>
               {posts.map((post, index) => (
                 <div key={post.id} className={profileStyles.postTile} onClick={() => setSelectedPostId(post.id)}>
-                  {post.mediaUrl ? (post.mediaType === 'video' ? (
+                  {(post.mediaUrl || post.thumbnail) ? (post.mediaType === 'video' ? (
                     <VideoPostPreview
                       src={post.mediaUrl}
                       thumbnailUrl={post.thumbnail}
