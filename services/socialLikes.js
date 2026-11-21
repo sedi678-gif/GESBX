@@ -93,7 +93,8 @@ module.exports = async function socialLikes(req, res) {
     const profileId = String(body.userId || '').trim();
     const kind = String(body.kind || '');
     const targetId = String(body.targetId || '').trim();
-    if (!profileId || !targetId || !['post', 'comment'].includes(kind)) {
+    if (!profileId || !['post', 'comment', 'comment-create'].includes(kind)
+      || (kind !== 'comment-create' && !targetId)) {
       throw new ApiError(400, 'LIKE_FIELDS_INVALID');
     }
 
@@ -101,6 +102,40 @@ module.exports = async function socialLikes(req, res) {
     const profile = await db.doc(`users/${profileId}`).get();
     if (!profile.exists || profile.data().firebaseUid !== identity.uid) {
       throw new ApiError(403, 'PROFILE_ACCOUNT_MISMATCH');
+    }
+
+    // Şərh və cavabları Admin SDK ilə yaz: mobil/web klientin Firestore
+    // yazma icazəsi və köhnə sessiya uyğunsuzluğu şərh göndərilməsini bloklamasın.
+    if (kind === 'comment-create') {
+      const postId = String(body.postId || '').trim();
+      const commentText = String(body.text || '').trim();
+      const parentCommentId = String(body.parentCommentId || '').trim();
+      if (!postId || !commentText || commentText.length > 500) {
+        throw new ApiError(400, 'COMMENT_FIELDS_INVALID');
+      }
+      const postRef = db.doc(`posts/${postId}`);
+      const parentRef = parentCommentId ? db.doc(`post_comments/${parentCommentId}`) : null;
+      const commentRef = db.collection('post_comments').doc();
+      await db.runTransaction(async (tx) => {
+        const postSnap = await tx.get(postRef);
+        if (!postSnap.exists) throw new ApiError(404, 'POST_NOT_FOUND');
+        if (parentRef) {
+          const parentSnap = await tx.get(parentRef);
+          if (!parentSnap.exists || String(parentSnap.data().postId || '') !== postId) {
+            throw new ApiError(404, 'PARENT_COMMENT_NOT_FOUND');
+          }
+        }
+        tx.create(commentRef, {
+          postId,
+          userId: profileId,
+          userName: String(body.userName || profile.data().name || 'İstifadəçi').trim().slice(0, 100) || 'İstifadəçi',
+          userAvatar: String(body.userAvatar || profile.data().avatar || '').slice(0, 2000),
+          text: commentText,
+          ...(parentCommentId ? { parentCommentId } : {}),
+          createdAt: Date.now(),
+        });
+      });
+      return sendJson(res, 200, { success: true, commentId: commentRef.id });
     }
 
     if (kind === 'post') {
