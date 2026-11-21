@@ -113,7 +113,17 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
     return (
       <React.Fragment key={comment.id}>
         <div className={styles.commentItem} style={isReply ? { marginLeft: 36, borderLeft: '2px solid rgba(99,102,241,.35)', paddingLeft: 10 } : undefined}>
-          {comment.userAvatar ? <img src={comment.userAvatar} alt="" className={styles.commentAvatar} /> : <div className={styles.commentAvatarFallback}>{comment.userName.charAt(0)}</div>}
+          {comment.userAvatar ? (
+            <>
+              <img src={comment.userAvatar} alt="" className={styles.commentAvatar}
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                  const fallback = event.currentTarget.nextElementSibling as HTMLElement | null;
+                  if (fallback) fallback.style.display = 'grid';
+                }} />
+              <div className={styles.commentAvatarFallback} style={{ display: 'none' }}>{comment.userName.charAt(0)}</div>
+            </>
+          ) : <div className={styles.commentAvatarFallback}>{comment.userName.charAt(0)}</div>}
           <div className={styles.commentBody}>
             <div className={styles.commentAuthor}>{comment.userName}</div>
             <div className={styles.commentText}>{comment.text}</div>
