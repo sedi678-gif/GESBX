@@ -108,11 +108,12 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
     } finally { setLoading(false); }
   };
 
-  const renderComment = (comment: PostComment, isReply = false): React.ReactNode => {
+  const renderComment = (comment: PostComment, depth = 0): React.ReactNode => {
     const stats = likes[comment.id] || { count: 0, liked: false };
+    const childComments = repliesByParent[comment.id] || [];
     return (
       <React.Fragment key={comment.id}>
-        <div className={styles.commentItem} style={isReply ? { marginLeft: 36, borderLeft: '2px solid rgba(99,102,241,.35)', paddingLeft: 10 } : undefined}>
+        <div className={styles.commentItem} style={depth > 0 ? { marginLeft: Math.min(depth, 4) * 24, borderLeft: '2px solid rgba(99,102,241,.35)', paddingLeft: 10 } : undefined}>
           {comment.userAvatar ? (
             <>
               <img src={comment.userAvatar} alt="" className={styles.commentAvatar}
@@ -166,9 +167,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.liked ? 'Bəyənildi' : 'Bəyən'}
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
-              {!isReply && (
-                <button type="button" className={styles.commentReplyButton} onClick={() => { setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label="Cavab yaz">↩</button>
-              )}
+              <button type="button" className={styles.commentReplyButton} onClick={() => { setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label="Cavab yaz">↩</button>
               {comment.userId === currentUserId ? (
                 <>
                   <button type="button" className={styles.commentMiniAction} aria-label="Şərhi düzəlt" title="Düzəlt" onClick={() => { setEditingComment(comment); setReplyTo(null); setText(comment.text); setError(''); }}>✎</button>
@@ -189,7 +188,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
             </div>
           </div>
         </div>
-        {!isReply && (repliesByParent[comment.id] || []).map((reply) => renderComment(reply, true))}
+        {childComments.map((child) => renderComment(child, depth + 1))}
       </React.Fragment>
     );
   };
