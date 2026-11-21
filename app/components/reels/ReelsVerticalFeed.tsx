@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PostCommentsSheet from '@/app/components/social/PostCommentsSheet';
 import { listenUserLikedPostIds, recordPostView, toggleLikePost } from '@/app/lib/postsService';
 import { getReelsForYou, trackReelSignal, type ForYouFeedItem } from '@/app/lib/reelsForYou';
-import { getLocalProfileDisplayName } from '@/app/lib/userId';\nimport { useUser } from '@/context/UserContext';
+import { getLocalProfileDisplayName } from '@/app/lib/userId';
+import { useUser } from '@/context/UserContext';
 import { callSecureFunction } from '@/app/lib/secureFunctions';
 import ReelsSlide, { type ReelsWatchFlush } from './ReelsSlide';
 
