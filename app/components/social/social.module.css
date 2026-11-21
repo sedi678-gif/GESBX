@@ -2999,3 +2999,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 .commentMiniAction:hover { color: #fff; background: rgba(99,102,241,.25); }
+
+
+/* Hide the browser's native play overlay in the Explore autoplay feed. */
+.mediaFullPremium::-webkit-media-controls,
+.mediaFullPremium::-webkit-media-controls-start-playback-button,
+.mediaFullPremium::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
