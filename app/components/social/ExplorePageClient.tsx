@@ -222,20 +222,36 @@ export default function ExplorePageClient() {
     setSearchResults(results);
   };
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  // Pointer events work consistently across Android WebView, Chrome and desktop.
+  // Ignore taps on controls/links so likes, comments and profile navigation remain usable.
+  const onFeedPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary || (e.target as HTMLElement).closest('button, a, input, select, textarea')) {
+      touchStart.current = { x: 0, y: 0 };
+      return;
+    }
+    touchStart.current = { x: e.clientX, y: e.clientY };
   };
 
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const dx = touchStart.current.x - e.changedTouches[0].clientX;
-    const dy = touchStart.current.y - e.changedTouches[0].clientY;
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+  const onFeedPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const start = touchStart.current;
+    if (start.x === 0 && start.y === 0) return;
+    const dx = start.x - e.clientX;
+    const dy = start.y - e.clientY;
+    touchStart.current = { x: 0, y: 0 };
+
+    // Require a deliberate swipe, and prefer the dominant axis.
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 44) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
       if (dx > 0 && current && mediaIndex < current.mediaList.length - 1) setMediaIndex((i) => i + 1);
-      if (dx < 0 && mediaIndex > 0) setMediaIndex((i) => i - 1);
-    } else if (Math.abs(dy) > 50) {
-      if (dy > 0 && userIndex < filtered.length - 1) setUserIndex((i) => i + 1);
-      if (dy < 0 && userIndex > 0) setUserIndex((i) => i - 1);
+      else if (dx < 0 && mediaIndex > 0) setMediaIndex((i) => i - 1);
+      return;
     }
+    if (dy > 0 && userIndex < filtered.length - 1) setUserIndex((i) => i + 1);
+    else if (dy < 0 && userIndex > 0) setUserIndex((i) => i - 1);
+  };
+
+  const onFeedPointerCancel = () => {
+    touchStart.current = { x: 0, y: 0 };
   };
 
   const handleLike = async () => {
@@ -381,7 +397,7 @@ export default function ExplorePageClient() {
         </button>
       </header>
 
-      <div className={styles.feedStagePremium} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div className={styles.feedStagePremium} onPointerDown={onFeedPointerDown} onPointerUp={onFeedPointerUp} onPointerCancel={onFeedPointerCancel}>
         {!current || !media ? (
           <div className={styles.emptyFeed}>
             <div className={styles.emptyFeedTitle}>{feedError || t.explore.empty}</div>
@@ -391,7 +407,7 @@ export default function ExplorePageClient() {
             </AppLink>
           </div>
         ) : (
-          <div key={current.userId} className={styles.mediaFramePremium}>
+          <div key={`${current.userId}:${media.id}`} className={styles.mediaFramePremium}>
             <div className={styles.storyDotsPremium}>
               {current.mediaList.map((_, i) => (
                 <div key={i} className={`${styles.storyDotPremium} ${i === mediaIndex ? styles.storyDotPremiumActive : ''}`} />
