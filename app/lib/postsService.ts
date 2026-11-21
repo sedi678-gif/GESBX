@@ -936,26 +936,10 @@ export async function togglePostCommentLike(comment: PostComment, userId: string
     throw new Error('Şərhi bəyənmək üçün hesaba daxil olun.');
   }
 
-  // Comment likes are written directly to the collection whose existing
-  // Firestore rules explicitly allow an owner to create/delete.
-  // This keeps comment likes independent from the Vercel post-like endpoint.
-  await verifyCommentProfileOwner(userId);
-
-  const likeRef = doc(db, 'post_comment_likes', `${comment.id}_${userId}`);
-  const existingLike = await getDoc(likeRef);
-
-  if (existingLike.exists()) {
-    await deleteDoc(likeRef);
-    return false;
-  }
-
-  await setDoc(likeRef, {
-    commentId: comment.id,
-    postId: comment.postId,
-    userId,
-    createdAt: Date.now(),
-  });
-  return true;
+  // Şərh bəyənməsini Vercel Admin API üzərindən et; brauzerdən Firestore
+  // yazması istifadəçinin Firestore qaydalarına ilişməsin.
+  const result = await sendSocialLikeRequest('comment', comment.id, userId);
+  return Boolean(result.liked);
 }
 
 export function listenPostCommentLikes(postId: string, userId: string, callback: (likes: Record<string, { count: number; liked: boolean }>) => void): Unsubscribe {
