@@ -30,15 +30,19 @@ module.exports = async function socialLikes(req, res) {
       }
       const db = getAdminFirestore();
       if (publicProfileId) {
-        const publicProfileSnap = await db.doc(`users/${publicProfileId}`).get();
-        if (!publicProfileSnap.exists) throw new ApiError(404, 'PROFILE_NOT_FOUND');
-        const raw = publicProfileSnap.data() || {};
+        const [publicProfileSnap, playerProfileSnap] = await Promise.all([
+          db.doc(`users/${publicProfileId}`).get(),
+          db.doc(`players/${publicProfileId}`).get(),
+        ]);
+        if (!publicProfileSnap.exists && !playerProfileSnap.exists) throw new ApiError(404, 'PROFILE_NOT_FOUND');
+        const raw = publicProfileSnap.exists ? (publicProfileSnap.data() || {}) : {};
+        const playerRaw = playerProfileSnap.exists ? (playerProfileSnap.data() || {}) : {};
         const profile = {
-          name: String(raw.name || ''),
-          surname: String(raw.surname || ''),
-          handle: String(raw.handle || ''),
-          gender: String(raw.gender || ''),
-          avatar: String(raw.avatar || ''),
+          name: String(raw.name || playerRaw.name || ''),
+          surname: String(raw.surname || playerRaw.surname || ''),
+          handle: String(raw.handle || playerRaw.handle || ''),
+          gender: String(raw.gender || playerRaw.gender || ''),
+          avatar: String(raw.avatar || raw.photoURL || raw.photoUrl || playerRaw.avatar || playerRaw.photoURL || playerRaw.photoUrl || playerRaw.userAvatar || ''),
           region: String(raw.region || ''),
           bio: String(raw.bio || ''),
           bannerGradient: String(raw.bannerGradient || ''),
