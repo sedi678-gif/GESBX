@@ -22,6 +22,7 @@ export interface SocialPost {
   userAge?: number;
   title: string;
   mediaUrl: string;
+  thumbnailUrl?: string;
   mediaType: 'video' | 'image';
   durationSeconds?: number;
   likes: number;
