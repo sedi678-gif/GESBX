@@ -27,10 +27,36 @@ module.exports = async function socialLikes(req, res) {
       if (!identity?.uid || identity.firebase?.sign_in_provider === 'anonymous') {
         throw new ApiError(401, 'REGISTERED_ACCOUNT_REQUIRED');
       }
+      const publicProfileId = String(req.query?.profileId || '').trim();
+      const db = getAdminFirestore();
+      if (publicProfileId) {
+        const publicProfileSnap = await db.doc(`users/${publicProfileId}`).get();
+        if (!publicProfileSnap.exists) throw new ApiError(404, 'PROFILE_NOT_FOUND');
+        const raw = publicProfileSnap.data() || {};
+        const profile = {
+          name: String(raw.name || ''),
+          surname: String(raw.surname || ''),
+          handle: String(raw.handle || ''),
+          gender: String(raw.gender || ''),
+          avatar: String(raw.avatar || ''),
+          region: String(raw.region || ''),
+          bio: String(raw.bio || ''),
+          bannerGradient: String(raw.bannerGradient || ''),
+          bannerImage: String(raw.bannerImage || ''),
+          vipTier: ['gold', 'platinum'].includes(raw.vipTier) ? raw.vipTier : 'none',
+          vipExpiresAt: Number(raw.vipExpiresAt) || 0,
+          equippedCosmetics: raw.equippedCosmetics || null,
+          frozen: Boolean(raw.frozen),
+          banned: Boolean(raw.banned),
+          likesReceived: Math.max(0, Math.floor(Number(raw.likesReceived) || 0)),
+          viewsReceived: Math.max(0, Math.floor(Number(raw.viewsReceived) || 0)),
+        };
+        return sendJson(res, 200, { profile });
+      }
+
       const profileId = String(req.query?.userId || '').trim();
       const postId = String(req.query?.postId || '').trim();
       if (!profileId || !postId) throw new ApiError(400, 'LIKE_FIELDS_INVALID');
-      const db = getAdminFirestore();
       const profile = await db.doc(`users/${profileId}`).get();
       if (!profile.exists || profile.data().firebaseUid !== identity.uid) {
         throw new ApiError(403, 'PROFILE_ACCOUNT_MISMATCH');
