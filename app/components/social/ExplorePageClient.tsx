@@ -123,7 +123,7 @@ export default function ExplorePageClient() {
   const [gender, setGender] = useState('all');
   const [reportReason, setReportReason] = useState('');
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
-  const [likeBusy, setLikeBusy] = useState(false);
+  const pendingLikesRef = useRef<Set<string>>(new Set());
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostTitle, setCommentPostTitle] = useState('');
@@ -140,7 +140,9 @@ export default function ExplorePageClient() {
 
   useEffect(() => {
     if (!myId || myId === 'anonim_user_id') return;
-    return listenUserLikedPostIds(myId, setLikedPostIds);
+    return listenUserLikedPostIds(myId, (serverIds) => {
+      setLikedPostIds((previous) => new Set([...serverIds, ...pendingLikesRef.current]));
+    });
   }, [myId]);
 
   useEffect(() => {
@@ -223,7 +225,7 @@ export default function ExplorePageClient() {
   };
 
   const handleLike = async () => {
-    if (!media || likeBusy) return;
+    if (!media || pendingLikesRef.current.has(media.id)) return;
     if (myId === 'anonim_user_id' || !myId) {
       alert('Bəyənmək üçün profil qeydiyyatı tələb olunur.');
       return;
@@ -232,8 +234,8 @@ export default function ExplorePageClient() {
       alert('Bu paylaşımı artıq bəyənmisiniz.');
       return;
     }
-    setLikeBusy(true);
     const likedMediaId = media.id;
+    pendingLikesRef.current.add(likedMediaId);
     // Ürək server cavabını gözləmədən dərhal görünür.
     setLikedPostIds((prev) => new Set(prev).add(likedMediaId));
     setHeartBurst((value) => value + 1);
@@ -249,7 +251,7 @@ export default function ExplorePageClient() {
       setHeartBurst((value) => Math.max(0, value - 1));
       alert('Bəyənmə qeydə alınmadı.');
     } finally {
-      setLikeBusy(false);
+      pendingLikesRef.current.delete(likedMediaId);
     }
   };
 
