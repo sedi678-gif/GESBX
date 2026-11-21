@@ -644,6 +644,7 @@ playsInline
         onClose={closeComments}
         currentUserId={myId}
         currentUserName={displayName}
+        currentUserAvatar={user?.photoURL || undefined}
       />
 
       <AppBottomNav activeTab="explore" />
