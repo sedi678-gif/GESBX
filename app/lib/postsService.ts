@@ -1063,7 +1063,7 @@ async function runOwnedSocialAction(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${await firebaseUser.getIdToken(true)}`,
+      Authorization: `Bearer ${await firebaseUser.getIdToken()}`,
     },
     body: JSON.stringify({ kind, userId, targetId, ...extra }),
   });
