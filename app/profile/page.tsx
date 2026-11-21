@@ -46,6 +46,7 @@ import OtherUserProfile from '@/app/components/social/OtherUserProfile';
 import FollowListSheet from '@/app/components/social/FollowListSheet';
 import AppLink from '@/app/components/AppLink';
 import ProfileHeroDisplay from '@/app/components/profile/ProfileHeroDisplay';
+import VideoPostPreview from '@/app/components/profile/VideoPostPreview';
 import ProfilePhotoEditorModal from '@/app/components/profile/ProfilePhotoEditorModal';
 import { ProfileCropKind } from '@/app/lib/profileImageCrop';
 import socialStyles from '@/app/components/social/social.module.css';
@@ -1511,23 +1512,14 @@ function ProfilePageContent() {
             </div>
           ) : (
             <div className={profileStyles.postGridPremium}>
-              {posts.map((post) => (
+              {posts.map((post, index) => (
                 <div key={post.id} className={profileStyles.postTile} onClick={() => setSelectedPostId(post.id)}>
                   {post.mediaUrl ? (post.mediaType === 'video' ? (
-                    <>
-                      <video
-                        src={post.mediaUrl}
-                        muted
-                        playsInline
-                        preload="auto"
-                        onLoadedData={(event) => {
-                          const video = event.currentTarget;
-                          video.pause();
-                          try { video.currentTime = 0.01; } catch { /* preview frame may not be seekable yet */ }
-                        }}
-                      />
-                      <span aria-hidden="true" className={profileStyles.postVideoPlay}>▶</span>
-                    </>
+                    <VideoPostPreview
+                      src={post.mediaUrl}
+                      overlayClassName={profileStyles.postVideoPlay}
+                      priority={index < 3}
+                    />
                   ) : (
                     <img src={post.mediaUrl} alt={post.title} />
                   )) : <span className={profileStyles.postMediaPending}>Media yüklənir...</span>}
