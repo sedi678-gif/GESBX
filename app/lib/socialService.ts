@@ -47,39 +47,53 @@ export async function searchUsers(searchQuery: string, currentUserId?: string): 
   return results.slice(0, 30);
 }
 
-export async function getUserProfile(userId: string): Promise<AppUserProfile | null> {
-  const snap = await getDoc(doc(db, 'users', userId));
-  if (!snap.exists()) return null;
-  const data = snap.data() as AppUserProfile & {
-    name?: string;
-    surname?: string;
-    handle?: string;
-    bio?: string;
-    bannerGradient?: string;
-    bannerImage?: string;
-    vipTier?: 'none' | 'gold' | 'platinum';
-    vipExpiresAt?: number;
-    equippedCosmetics?: AppUserProfile['equippedCosmetics'];
-  };
+function mapPublicUserProfile(userId: string, data: Record<string, unknown>): AppUserProfile {
   return {
     id: userId,
-    name: data.name || '',
-    surname: data.surname,
-    handle: data.handle || '',
-    gender: data.gender,
-    avatar: data.avatar,
-    region: data.region,
-    bio: data.bio,
-    bannerGradient: data.bannerGradient,
-    bannerImage: data.bannerImage,
-    vipTier: data.vipTier,
-    vipExpiresAt: data.vipExpiresAt,
-    equippedCosmetics: data.equippedCosmetics,
+    name: String(data.name || ''),
+    surname: data.surname ? String(data.surname) : undefined,
+    handle: String(data.handle || ''),
+    gender: data.gender ? String(data.gender) : undefined,
+    avatar: data.avatar ? String(data.avatar) : undefined,
+    region: data.region ? String(data.region) : undefined,
+    bio: data.bio ? String(data.bio) : undefined,
+    bannerGradient: data.bannerGradient ? String(data.bannerGradient) : undefined,
+    bannerImage: data.bannerImage ? String(data.bannerImage) : undefined,
+    vipTier: data.vipTier === 'gold' || data.vipTier === 'platinum' ? data.vipTier : 'none',
+    vipExpiresAt: Number(data.vipExpiresAt) || undefined,
+    equippedCosmetics: data.equippedCosmetics as AppUserProfile['equippedCosmetics'],
     frozen: Boolean(data.frozen),
     banned: Boolean(data.banned),
     likesReceived: Math.max(0, Math.floor(Number(data.likesReceived) || 0)),
     viewsReceived: Math.max(0, Math.floor(Number(data.viewsReceived) || 0)),
   };
+}
+
+export async function getUserProfile(userId: string): Promise<AppUserProfile | null> {
+  if (!userId) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', userId));
+    if (snap.exists()) return mapPublicUserProfile(userId, snap.data() as Record<string, unknown>);
+  } catch (error) {
+    // Older user documents may contain private fields that intentionally block
+    // direct public Firestore reads. Resolve the same public profile server-side.
+    console.warn('[socialService] direct public profile read denied; using safe profile endpoint:', error);
+  }
+
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser || firebaseUser.isAnonymous) return null;
+  const token = await firebaseUser.getIdToken();
+  const response = await fetch(`/api/paypal?handler=social-likes&profileId=${encodeURIComponent(userId)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  if (response.status === 404) return null;
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.profile || typeof payload.profile !== 'object') {
+    throw new Error(String(payload.error || 'İstifadəçi profili yüklənmədi.'));
+  }
+  return mapPublicUserProfile(userId, payload.profile as Record<string, unknown>);
 }
 
 export async function followUser(followerId: string, followingId: string): Promise<void> {
