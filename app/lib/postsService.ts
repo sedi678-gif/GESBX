@@ -303,7 +303,6 @@ async function createPostInternal(
     ...(calcAge(user.birthDate) !== undefined ? { userAge: calcAge(user.birthDate) } : {}),
     title: title.trim(),
     mediaUrl,
-    ...(thumbnailUrl ? { thumbnailUrl } : {}),
     mediaPath,
     mediaType,
     ...(mediaGroupId ? { mediaGroupId } : {}),
@@ -339,6 +338,7 @@ async function createPostInternal(
         action: 'publish',
         postId: postRef.id,
         userId: user.id,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
       });
     } catch (error) {
       await clearPostMedia(postRef.id).catch(() => {});
@@ -358,6 +358,7 @@ async function createPostInternal(
       action: 'publish',
       postId: postRef.id,
       userId: user.id,
+      ...(thumbnailUrl ? { thumbnailUrl } : {}),
     });
   } catch (error) {
     await clearPostMedia(postRef.id).catch((cleanupError) => console.warn('Yarımçıq paylaşım mediası silinmədi:', cleanupError));
