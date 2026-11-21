@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { addPostComment, listenPostComments, listenPostCommentLikes, togglePostCommentLike } from '@/app/lib/postsService';
 import type { PostComment } from '@/app/lib/socialTypes';
 import styles from './social.module.css';
@@ -24,6 +24,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   const [error, setError] = useState('');
   const [likes, setLikes] = useState<Record<string, { count: number; liked: boolean }>>({});
   const [likeBusy, setLikeBusy] = useState<string | null>(null);
+  const likeActionAtRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (!open || !postId) { setComments([]); setText(''); setReplyTo(null); setError(''); setLikes({}); return; }
@@ -32,7 +33,18 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
 
   useEffect(() => {
     if (!open || !postId) return;
-    return listenPostCommentLikes(postId, currentUserId, setLikes);
+    return listenPostCommentLikes(postId, currentUserId, (serverLikes) => {
+      setLikes((previous) => {
+        const merged = { ...serverLikes };
+        // Ignore a stale poll that began before a just-completed tap.
+        Object.entries(previous).forEach(([commentId, state]) => {
+          if (Date.now() - (likeActionAtRef.current[commentId] || 0) < 10000) {
+            merged[commentId] = state;
+          }
+        });
+        return merged;
+      });
+    });
   }, [open, postId, currentUserId]);
 
   const roots = useMemo(() => comments.filter((comment) => !comment.parentCommentId), [comments]);
@@ -95,6 +107,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                   if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') { alert('Bəyənmək üçün qeydiyyatdan keçin.'); return; }
                   if (likeBusy) return;
                   setLikeBusy(comment.id);
+                  likeActionAtRef.current[comment.id] = Date.now();
                   const previous = likes[comment.id] || { count: 0, liked: false };
                   const optimisticLiked = !previous.liked;
                   setLikes((prev) => ({
@@ -106,11 +119,13 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                   }));
                   try {
                     const confirmedLiked = await togglePostCommentLike(comment, currentUserId);
+                    likeActionAtRef.current[comment.id] = Date.now();
                     setLikes((prev) => ({
                       ...prev,
                       [comment.id]: { ...prev[comment.id], liked: confirmedLiked },
                     }));
                   } catch (err) {
+                    delete likeActionAtRef.current[comment.id];
                     setLikes((prev) => ({ ...prev, [comment.id]: previous }));
                     console.error('Şərh bəyənmə xətası:', err);
                     setError(err instanceof Error ? err.message : 'Şərhi bəyənmək alınmadı. Hesab icazəsini yoxlayın.');
