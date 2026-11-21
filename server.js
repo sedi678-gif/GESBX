@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
+const { getAdminAuth, getAdminFirestore } = require('./services/firebaseAdmin');
 
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -61,6 +62,58 @@ app.use(cors({
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
+
+// Public profile-avatar lookup lives on this standalone Node server (Render),
+// not in a Vercel Function. Only the avatar URL is returned.
+app.get('/profile-avatar/:profileId', async (req, res) => {
+  res.setHeader('Cache-Control', 'private, max-age=60');
+  try {
+    const match = String(req.headers.authorization || '').match(/^Bearer\\s+(.+)$/i);
+    if (!match) return res.status(401).json({ error: 'AUTH_REQUIRED' });
+    const identity = await getAdminAuth().verifyIdToken(match[1], true);
+    if (!identity?.uid) return res.status(401).json({ error: 'AUTH_TOKEN_INVALID' });
+
+    const profileId = String(req.params.profileId || '').trim();
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId)) {
+      return res.status(400).json({ error: 'PROFILE_ID_INVALID' });
+    }
+
+    const db = getAdminFirestore();
+    const [userSnap, playerSnap] = await Promise.all([
+      db.doc(`users/${profileId}`).get(),
+      db.doc(`players/${profileId}`).get(),
+    ]);
+
+    let user = userSnap.exists ? (userSnap.data() || {}) : {};
+    let player = playerSnap.exists ? (playerSnap.data() || {}) : {};
+
+    // Older comment documents can contain Firebase Auth UID instead of the
+    // generated public profile ID. Resolve that legacy ID without exposing
+    // any profile fields other than the avatar URL.
+    if (!userSnap.exists && !playerSnap.exists) {
+      const [usersByUid, playersByUid] = await Promise.all([
+        db.collection('users').where('firebaseUid', '==', profileId).limit(1).get(),
+        db.collection('players').where('firebaseUid', '==', profileId).limit(1).get(),
+      ]);
+      user = usersByUid.empty ? {} : (usersByUid.docs[0].data() || {});
+      player = playersByUid.empty ? {} : (playersByUid.docs[0].data() || {});
+    }
+
+    const avatar = [
+      user.avatar, user.photoURL, user.photoUrl, user.userAvatar,
+      player.avatar, player.photoURL, player.photoUrl, player.userAvatar,
+    ].find((value) => typeof value === 'string' && value.trim());
+
+    return res.status(200).json({ avatar: avatar ? String(avatar).trim() : null });
+  } catch (error) {
+    const code = error?.code || '';
+    const status = code === 'FIREBASE_SERVICE_ACCOUNT_MISSING'
+      || code === 'FIREBASE_SERVICE_ACCOUNT_INVALID'
+      || code === 'FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH' ? 503 : 401;
+    console.error('[Profile avatar] lookup failed:', code || error?.message || error);
+    return res.status(status).json({ error: status === 503 ? code : 'PROFILE_AVATAR_LOOKUP_FAILED' });
+  }
+});
 
 // Legacy Mongo endpoints are retired; Firebase is the authoritative data store.
 app.use('/api/users', (_req, res) => res.status(410).json({
