@@ -81,7 +81,7 @@ export async function getUserProfile(userId: string): Promise<AppUserProfile | n
   }
 
   const firebaseUser = await ensureFirebaseAuth();
-  if (!firebaseUser || firebaseUser.isAnonymous) return null;
+  if (!firebaseUser) return null;
   const token = await firebaseUser.getIdToken();
   const response = await fetch(`/api/paypal?handler=social-likes&profileId=${encodeURIComponent(userId)}`, {
     method: 'GET',
