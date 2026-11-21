@@ -119,7 +119,7 @@ module.exports = async function socialLikes(req, res) {
     const profileId = String(body.userId || '').trim();
     const kind = String(body.kind || '');
     const targetId = String(body.targetId || '').trim();
-    if (!profileId || !['post', 'comment', 'comment-create'].includes(kind)
+    if (!profileId || !['post', 'comment', 'comment-create', 'post-delete', 'comment-edit', 'comment-delete', 'comment-report'].includes(kind)
       || (kind !== 'comment-create' && !targetId)) {
       throw new ApiError(400, 'LIKE_FIELDS_INVALID');
     }
@@ -128,6 +128,74 @@ module.exports = async function socialLikes(req, res) {
     const profile = await db.doc(`users/${profileId}`).get();
     if (!profile.exists || profile.data().firebaseUid !== identity.uid) {
       throw new ApiError(403, 'PROFILE_ACCOUNT_MISMATCH');
+    }
+
+    if (kind === 'post-delete') {
+      const postRef = db.doc(`posts/${targetId}`);
+      const postSnap = await postRef.get();
+      if (!postSnap.exists) throw new ApiError(404, 'POST_NOT_FOUND');
+      if (String(postSnap.data().userId || '') !== profileId) throw new ApiError(403, 'POST_OWNER_REQUIRED');
+
+      const [commentsSnap, postLikesSnap, commentLikesSnap, mediaSnap] = await Promise.all([
+        db.collection('post_comments').where('postId', '==', targetId).get(),
+        db.collection('post_likes').where('postId', '==', targetId).get(),
+        db.collection('post_comment_likes').where('postId', '==', targetId).get(),
+        postRef.collection('media').get(),
+      ]);
+      const refs = [
+        ...commentsSnap.docs.map((item) => item.ref),
+        ...postLikesSnap.docs.map((item) => item.ref),
+        ...commentLikesSnap.docs.map((item) => item.ref),
+        ...mediaSnap.docs.map((item) => item.ref),
+        postRef,
+      ];
+      for (let offset = 0; offset < refs.length; offset += 450) {
+        const batch = db.batch();
+        refs.slice(offset, offset + 450).forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+      return sendJson(res, 200, { success: true });
+    }
+
+    if (kind === 'comment-edit' || kind === 'comment-delete') {
+      const commentRef = db.doc(`post_comments/${targetId}`);
+      const commentSnap = await commentRef.get();
+      if (!commentSnap.exists) throw new ApiError(404, 'COMMENT_NOT_FOUND');
+      if (String(commentSnap.data().userId || '') !== profileId) throw new ApiError(403, 'COMMENT_OWNER_REQUIRED');
+      if (kind === 'comment-edit') {
+        const text = String(body.text || '').trim();
+        if (!text || text.length > 500) throw new ApiError(400, 'COMMENT_FIELDS_INVALID');
+        await commentRef.update({ text, editedAt: Date.now() });
+      } else {
+        const [likesSnap, repliesSnap] = await Promise.all([
+          db.collection('post_comment_likes').where('commentId', '==', targetId).get(),
+          db.collection('post_comments').where('parentCommentId', '==', targetId).get(),
+        ]);
+        const refs = [...likesSnap.docs.map((item) => item.ref), ...repliesSnap.docs.map((item) => item.ref), commentRef];
+        const batch = db.batch();
+        refs.forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
+      return sendJson(res, 200, { success: true });
+    }
+
+    if (kind === 'comment-report') {
+      const commentRef = db.doc(`post_comments/${targetId}`);
+      const commentSnap = await commentRef.get();
+      if (!commentSnap.exists) throw new ApiError(404, 'COMMENT_NOT_FOUND');
+      const reason = String(body.reason || '').trim();
+      if (!reason || reason.length > 500) throw new ApiError(400, 'REPORT_FIELDS_INVALID');
+      await db.collection('reports').add({
+        reporterId: profileId,
+        targetUserId: String(commentSnap.data().userId || ''),
+        targetPostId: String(commentSnap.data().postId || ''),
+        targetCommentId: targetId,
+        reason,
+        type: 'comment',
+        createdAt: Date.now(),
+        status: 'pending',
+      });
+      return sendJson(res, 200, { success: true });
     }
 
     // Şərh və cavabları Admin SDK ilə yaz: mobil/web klientin Firestore
