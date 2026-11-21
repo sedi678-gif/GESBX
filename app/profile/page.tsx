@@ -946,7 +946,7 @@ function ProfilePageContent() {
           userId: p.userId,
           title: p.title,
           mediaUrl: p.mediaUrl,
-          thumbnail: p.mediaUrl,
+          thumbnail: p.thumbnailUrl || p.mediaUrl,
           mediaType: p.mediaType,
           moderationStatus: p.moderationStatus,
           views: p.views,
@@ -1517,6 +1517,7 @@ function ProfilePageContent() {
                   {post.mediaUrl ? (post.mediaType === 'video' ? (
                     <VideoPostPreview
                       src={post.mediaUrl}
+                      thumbnailUrl={post.thumbnail}
                       overlayClassName={profileStyles.postVideoPlay}
                       priority={index < 3}
                     />
