@@ -82,29 +82,25 @@ app.get('/profile-avatar/:profileId', async (req, res) => {
     }
 
     const db = getAdminFirestore();
-    const [userSnap, playerSnap] = await Promise.all([
+    const [userSnap, playerSnap, usersByUid, playersByUid] = await Promise.all([
       db.doc(`users/${profileId}`).get(),
       db.doc(`players/${profileId}`).get(),
+      db.collection('users').where('firebaseUid', '==', profileId).limit(1).get(),
+      db.collection('players').where('firebaseUid', '==', profileId).limit(1).get(),
     ]);
 
-    let user = userSnap.exists ? (userSnap.data() || {}) : {};
-    let player = playerSnap.exists ? (playerSnap.data() || {}) : {};
-
-    // Older comment documents can contain Firebase Auth UID instead of the
-    // generated public profile ID. Resolve that legacy ID without exposing
-    // any profile fields other than the avatar URL.
-    if (!userSnap.exists && !playerSnap.exists) {
-      const [usersByUid, playersByUid] = await Promise.all([
-        db.collection('users').where('firebaseUid', '==', profileId).limit(1).get(),
-        db.collection('players').where('firebaseUid', '==', profileId).limit(1).get(),
-      ]);
-      user = usersByUid.empty ? {} : (usersByUid.docs[0].data() || {});
-      player = playersByUid.empty ? {} : (playersByUid.docs[0].data() || {});
-    }
+    // A legacy UID document may exist but have no avatar, while the linked
+    // generated-ID profile contains it. Check every linked document.
+    const userById = userSnap.exists ? (userSnap.data() || {}) : {};
+    const playerById = playerSnap.exists ? (playerSnap.data() || {}) : {};
+    const userByUid = usersByUid.empty ? {} : (usersByUid.docs[0].data() || {});
+    const playerByUid = playersByUid.empty ? {} : (playersByUid.docs[0].data() || {});
 
     const avatar = [
-      user.avatar, user.photoURL, user.photoUrl, user.userAvatar,
-      player.avatar, player.photoURL, player.photoUrl, player.userAvatar,
+      userById.avatar, userById.photoURL, userById.photoUrl, userById.userAvatar,
+      userByUid.avatar, userByUid.photoURL, userByUid.photoUrl, userByUid.userAvatar,
+      playerById.avatar, playerById.photoURL, playerById.photoUrl, playerById.userAvatar,
+      playerByUid.avatar, playerByUid.photoURL, playerByUid.photoUrl, playerByUid.userAvatar,
     ].find((value) => typeof value === 'string' && value.trim());
 
     return res.status(200).json({ avatar: avatar ? String(avatar).trim() : null });
