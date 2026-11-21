@@ -388,7 +388,23 @@ export default function ExplorePageClient() {
             </div>
             {media.mediaType === 'video' ? (
               <>
-                <video ref={videoRef} src={media.mediaUrl} className={styles.mediaFullPremium} autoPlay loop muted={videoMuted} playsInline />
+                <video
+                  ref={videoRef}
+                  src={media.mediaUrl}
+                  className={styles.mediaFullPremium}
+                  autoPlay
+                  loop
+                  muted={videoMuted}
+                  playsInline
+                  controls={false}
+                  disablePictureInPicture
+                  onCanPlay={(event) => {
+                    const video = event.currentTarget;
+                    if (video.paused) {
+                      void video.play().catch((error) => console.warn('[Explore] autoplay blocked:', error));
+                    }
+                  }}
+                />
                 <button type="button" onClick={() => void toggleVideoSound()} aria-label={videoMuted ? 'Səsi aç' : 'Səsi bağla'} style={{ position: 'absolute', zIndex: 7, top: 54, right: 14, width: 42, height: 42, border: '1px solid rgba(255,255,255,.35)', borderRadius: 999, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 20, display: 'grid', placeItems: 'center' }}>
                   {videoMuted ? '🔇' : '🔊'}
                 </button>
