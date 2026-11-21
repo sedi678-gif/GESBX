@@ -30,19 +30,29 @@ module.exports = async function socialLikes(req, res) {
       }
       const db = getAdminFirestore();
       if (publicProfileId) {
-        const [publicProfileSnap, playerProfileSnap] = await Promise.all([
+        // Comment records created by older app versions may store the Firebase
+        // Auth UID in userId, while public profile documents use the generated
+        // numeric profile ID. Resolve both forms so legacy authors still get
+        // their actual profile avatar.
+        const [publicProfileSnap, playerProfileSnap, usersByUidSnap, playersByUidSnap] = await Promise.all([
           db.doc(`users/${publicProfileId}`).get(),
           db.doc(`players/${publicProfileId}`).get(),
+          db.collection('users').where('firebaseUid', '==', publicProfileId).limit(1).get(),
+          db.collection('players').where('firebaseUid', '==', publicProfileId).limit(1).get(),
         ]);
-        if (!publicProfileSnap.exists && !playerProfileSnap.exists) throw new ApiError(404, 'PROFILE_NOT_FOUND');
-        const raw = publicProfileSnap.exists ? (publicProfileSnap.data() || {}) : {};
-        const playerRaw = playerProfileSnap.exists ? (playerProfileSnap.data() || {}) : {};
+        const uidUserRaw = usersByUidSnap.empty ? {} : (usersByUidSnap.docs[0].data() || {});
+        const uidPlayerRaw = playersByUidSnap.empty ? {} : (playersByUidSnap.docs[0].data() || {});
+        if (!publicProfileSnap.exists && !playerProfileSnap.exists && usersByUidSnap.empty && playersByUidSnap.empty) {
+          throw new ApiError(404, 'PROFILE_NOT_FOUND');
+        }
+        const raw = publicProfileSnap.exists ? (publicProfileSnap.data() || {}) : uidUserRaw;
+        const playerRaw = playerProfileSnap.exists ? (playerProfileSnap.data() || {}) : uidPlayerRaw;
         const profile = {
-          name: String(raw.name || playerRaw.name || ''),
-          surname: String(raw.surname || playerRaw.surname || ''),
-          handle: String(raw.handle || playerRaw.handle || ''),
-          gender: String(raw.gender || playerRaw.gender || ''),
-          avatar: String(raw.avatar || raw.photoURL || raw.photoUrl || playerRaw.avatar || playerRaw.photoURL || playerRaw.photoUrl || playerRaw.userAvatar || ''),
+          name: String(raw.name || uidUserRaw.name || playerRaw.name || uidPlayerRaw.name || ''),
+          surname: String(raw.surname || uidUserRaw.surname || playerRaw.surname || uidPlayerRaw.surname || ''),
+          handle: String(raw.handle || uidUserRaw.handle || playerRaw.handle || uidPlayerRaw.handle || ''),
+          gender: String(raw.gender || uidUserRaw.gender || playerRaw.gender || uidPlayerRaw.gender || ''),
+          avatar: String(raw.avatar || raw.photoURL || raw.photoUrl || uidUserRaw.avatar || uidUserRaw.photoURL || uidUserRaw.photoUrl || playerRaw.avatar || playerRaw.photoURL || playerRaw.photoUrl || playerRaw.userAvatar || uidPlayerRaw.avatar || uidPlayerRaw.photoURL || uidPlayerRaw.photoUrl || uidPlayerRaw.userAvatar || ''),
           region: String(raw.region || ''),
           bio: String(raw.bio || ''),
           bannerGradient: String(raw.bannerGradient || ''),
