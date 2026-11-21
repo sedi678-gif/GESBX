@@ -33,7 +33,6 @@ import {
   ensureFirebaseAuth,
   linkCurrentAccountToEmail,
   refreshEmailVerification,
-  signInFirebaseAccount,
 } from '@/app/lib/firebaseAuth';
 import { PostComment, SocialPost } from '@/app/lib/socialTypes';
 import { listenFollowCounts, reportContent } from '@/app/lib/socialService';
@@ -309,13 +308,6 @@ function readStoredProfile(firebaseUid: string | null) {
   } catch {
     return null;
   }
-}
-
-function isFirebasePermissionDenied(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as { code?: unknown; message?: unknown };
-  return candidate.code === 'permission-denied'
-    || (typeof candidate.message === 'string' && /missing or insufficient permissions/i.test(candidate.message));
 }
 
 function ProfileBootSkeleton() {
@@ -917,10 +909,6 @@ function ProfilePageContent() {
   const postVideoCameraInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingPost, setIsUploadingPost] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
-  const [postAuthRecovery, setPostAuthRecovery] = useState(false);
-  const [postAuthEmail, setPostAuthEmail] = useState('');
-  const [postAuthPassword, setPostAuthPassword] = useState('');
-  const [postAuthError, setPostAuthError] = useState('');
   const [postsLoadError, setPostsLoadError] = useState('');
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
   const likedPostIdsRef = useRef(likedPostIds);
@@ -1222,10 +1210,11 @@ function ProfilePageContent() {
       await uploadSelectedPost();
     } catch (err) {
       console.error('Paylaşım xətası:', err);
-      if (isFirebasePermissionDenied(err)) {
-        setPostAuthRecovery(true);
-        setPostAuthEmail(auth.currentUser?.email || accountEmail);
-        setPostAuthError('Bu brauzerdəki Firebase sessiyası profilinə bağlı deyil. Profilin Firebase email və şifrəsi ilə daxil olub paylaşımı yenidən göndər.');
+      const code = err && typeof err === 'object' && 'code' in err
+        ? String((err as { code?: unknown }).code || '')
+        : '';
+      if (code === 'permission-denied' || (err instanceof Error && /missing or insufficient permissions/i.test(err.message))) {
+        alert('Paylaşım yadda saxlanmadı: media yazmaq üçün icazə rədd edildi. Heç bir Firebase email və ya şifrə tələb olunmur. Səhifəni yeniləyib bir daha yoxlayın.');
         return;
       }
       const msg = err instanceof Error ? err.message : 'Paylaşım yüklənmədi.';
@@ -1270,8 +1259,6 @@ function ProfilePageContent() {
       setUploadReadyFile(null);
       setUploadReadyFiles([]);
       setFilePreviewUrl('');
-      setPostAuthRecovery(false);
-      setPostAuthPassword('');
       setIsUploadModalOpen(false);
       alert('Paylaşım uğurla profilinizdə yayımlandı.');
     } finally {
@@ -1280,18 +1267,6 @@ function ProfilePageContent() {
     }
   };
 
-  const handlePostAuthRecovery = async () => {
-    if (isUploadingPost || !postAuthEmail.trim() || !postAuthPassword) return;
-    setPostAuthError('');
-    try {
-      await signInFirebaseAccount(postAuthEmail, postAuthPassword);
-      setPostAuthPassword('');
-      await uploadSelectedPost();
-    } catch (error) {
-      console.error('Firebase profil giriş xətası:', error);
-      setPostAuthError(error instanceof Error ? error.message : 'Firebase hesabına giriş alınmadı.');
-    }
-  };
 
   const activeProfileRoute = viewUserId ? `user:${viewUserId}` : 'self';
   if (profileBooting || resolvedProfileRoute !== activeProfileRoute) {
@@ -2079,38 +2054,9 @@ function ProfilePageContent() {
                   )}
                 </div>
               )}
-              <button type="submit" className={socialStyles.primaryBtn} disabled={isUploadingPost || isPreparingFile || postAuthRecovery || !selectedFiles.length || !newPostTitle.trim()}>
+              <button type="submit" className={socialStyles.primaryBtn} disabled={isUploadingPost || isPreparingFile || !selectedFiles.length || !newPostTitle.trim()}>
                 {isUploadingPost ? 'Yüklənir...' : isPreparingFile ? 'Hazırlanır...' : 'Paylaş (24 saat)'}
               </button>
-              {postAuthRecovery ? (
-                <div style={{ display: 'grid', gap: 8, marginTop: 12, padding: 12, borderRadius: 12, background: 'rgba(15,23,42,0.72)', border: '1px solid rgba(248,113,113,0.35)' }}>
-                  <p style={{ fontSize: 12, color: '#fecaca', margin: 0 }}>{postAuthError}</p>
-                  <input
-                    type="email"
-                    autoComplete="username"
-                    placeholder="Firebase hesabının emaili"
-                    value={postAuthEmail}
-                    onChange={(event) => setPostAuthEmail(event.target.value)}
-                    className={socialStyles.input}
-                  />
-                  <input
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="Firebase şifrəsi"
-                    value={postAuthPassword}
-                    onChange={(event) => setPostAuthPassword(event.target.value)}
-                    className={socialStyles.input}
-                  />
-                  <button
-                    type="button"
-                    className={socialStyles.primaryBtn}
-                    onClick={() => void handlePostAuthRecovery()}
-                    disabled={isUploadingPost || !postAuthEmail.trim() || !postAuthPassword}
-                  >
-                    {isUploadingPost ? uploadProgress || 'Daxil olunur...' : 'Daxil ol və paylaşımı təkrar et'}
-                  </button>
-                </div>
-              ) : null}
               {isPreparingFile ? (
                 <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 8 }}>
                   Fayl optimizasiya olunur...
