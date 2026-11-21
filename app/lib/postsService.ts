@@ -952,7 +952,9 @@ async function resolveCommentAvatar(userId: string): Promise<string | undefined>
     })();
     commentAvatarCache.set(userId, cached);
   }
-  return cached;
+  const resolved = await cached;
+  if (!resolved) commentAvatarCache.delete(userId);
+  return resolved;
 }
 
 export function listenPostComments(
