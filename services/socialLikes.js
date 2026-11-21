@@ -35,9 +35,18 @@ module.exports = async function socialLikes(req, res) {
       if (!profile.exists || profile.data().firebaseUid !== identity.uid) {
         throw new ApiError(403, 'PROFILE_ACCOUNT_MISMATCH');
       }
-      const snap = await db.collection('post_comment_likes').where('postId', '==', postId).get();
+      // Return an explicit zero-state for every comment. This prevents the
+      // client from treating a missing map entry as an authoritative unlike
+      // when a comment currently has no likes.
+      const [commentsSnap, likesSnap] = await Promise.all([
+        db.collection('post_comments').where('postId', '==', postId).get(),
+        db.collection('post_comment_likes').where('postId', '==', postId).get(),
+      ]);
       const likes = {};
-      snap.forEach((item) => {
+      commentsSnap.forEach((item) => {
+        likes[item.id] = { count: 0, liked: false };
+      });
+      likesSnap.forEach((item) => {
         const data = item.data();
         const commentId = String(data.commentId || '');
         if (!commentId) return;
