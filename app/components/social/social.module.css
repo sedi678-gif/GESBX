@@ -2980,3 +2980,22 @@
   font-size: 12px;
   font-weight: 700;
 }
+
+
+.commentMiniAction {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(148,163,184,.22);
+  border-radius: 50%;
+  background: rgba(30,41,59,.62);
+  color: #cbd5e1;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.commentMiniAction:hover { color: #fff; background: rgba(99,102,241,.25); }
