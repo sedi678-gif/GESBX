@@ -902,33 +902,52 @@ export async function addPostComment(
   if (!postId || !user.id || !trimmed) {
     throw new Error('Şərh yazmaq üçün məlumat çatışmır.');
   }
-
-  await verifyCommentProfileOwner(user.id);
-
-  // Yalnız mövcud paylaşımın altına şərh yazılmasına icazə ver.
-  const postSnap = await getDoc(doc(db, 'posts', postId));
-  if (!postSnap.exists()) {
-    throw new Error('Bu paylaşım artıq mövcud deyil. Səhifəni yeniləyin.');
+  if (trimmed.length > 500) {
+    throw new Error('Şərh 500 simvoldan uzun ola bilməz.');
   }
 
-  // Cavab verilən əsas şərhin eyni paylaşımda olduğunu əvvəlcədən yoxla.
-  if (parentCommentId) {
-    const parentSnap = await getDoc(doc(db, 'post_comments', parentCommentId));
-    if (!parentSnap.exists() || parentSnap.data().postId !== postId) {
-      throw new Error('Cavab verilən şərh tapılmadı. Şərhləri yeniləyib yenidən cəhd edin.');
-    }
+  // Şərhi və cavabı eyni mövcud Vercel API üzərindən yazırıq.
+  // Beləliklə Firestore klient qaydaları və köhnə auth sessiyası
+  // şərh yaratma əməliyyatını səhvən bloklamır.
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser || firebaseUser.isAnonymous) {
+    throw new Error('Şərh yazmaq üçün qeydiyyatdan keçmiş hesaba daxil olun.');
   }
 
-  const now = Date.now();
-  await addDoc(collection(db, 'post_comments'), {
-    postId,
-    userId: user.id,
-    userName: user.name.trim() || 'İstifadəçi',
-    userAvatar: user.avatar || '',
-    text: trimmed,
-    ...(parentCommentId ? { parentCommentId } : {}),
-    createdAt: now,
+  const token = await firebaseUser.getIdToken(true);
+  const response = await fetch(`${apiBaseUrl}/api/paypal?handler=social-likes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      kind: 'comment-create',
+      userId: user.id,
+      postId,
+      parentCommentId: parentCommentId || '',
+      userName: user.name,
+      userAvatar: user.avatar || '',
+      text: trimmed,
+    }),
   });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const messages: Record<string, string> = {
+      AUTH_REQUIRED: 'Hesaba giriş təsdiqlənmədi. Hesabdan çıxıb yenidən daxil olun.',
+      AUTH_TOKEN_INVALID: 'Hesab sessiyasının vaxtı bitib. Yenidən daxil olun.',
+      REGISTERED_ACCOUNT_REQUIRED: 'Şərh yazmaq üçün qeydiyyatdan keçmiş hesaba daxil olun.',
+      PROFILE_ACCOUNT_MISMATCH: 'Profil bu hesaba bağlı deyil. Hesabdan çıxıb yenidən daxil olun.',
+      POST_NOT_FOUND: 'Bu paylaşım artıq mövcud deyil. Səhifəni yeniləyin.',
+      PARENT_COMMENT_NOT_FOUND: 'Cavab verilən şərh tapılmadı. Şərhləri yeniləyib yenidən cəhd edin.',
+      COMMENT_FIELDS_INVALID: 'Şərh mətni boşdur və ya 500 simvoldan uzundur.',
+      FIREBASE_SERVICE_ACCOUNT_MISSING: 'Şərh serveri hələ qurulmayıb. Bir az sonra yenidən yoxlayın.',
+      FIREBASE_SERVICE_ACCOUNT_INVALID: 'Şərh serverinin hesab konfiqurasiyasında xəta var.',
+      FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH: 'Şərh serveri yanlış Firebase layihəsinə qoşulub.',
+    };
+    throw new Error(messages[String(payload.error || '')]
+      || `Şərh göndərilmədi (${String(payload.error || response.status)}). Bir az sonra yenidən yoxlayın.`);
+  }
 }
 
 export async function togglePostCommentLike(comment: PostComment, userId: string): Promise<boolean> {
