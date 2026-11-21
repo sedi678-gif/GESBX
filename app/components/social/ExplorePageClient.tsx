@@ -233,15 +233,20 @@ export default function ExplorePageClient() {
       return;
     }
     setLikeBusy(true);
+    const likedMediaId = media.id;
+    // Ürək server cavabını gözləmədən dərhal görünür.
+    setLikedPostIds((prev) => new Set(prev).add(likedMediaId));
+    setHeartBurst((value) => value + 1);
     try {
-      const result = await toggleLikePost(media.id, myId);
-      if (result.alreadyLiked) {
-        alert('Bu paylaşımı artıq bəyənmisiniz.');
-      }
-      setLikedPostIds((prev) => new Set(prev).add(media.id));
-      setHeartBurst((value) => value + 1);
+      await toggleLikePost(likedMediaId, myId);
     } catch (err) {
       console.error(err);
+      setLikedPostIds((prev) => {
+        const next = new Set(prev);
+        next.delete(likedMediaId);
+        return next;
+      });
+      setHeartBurst((value) => Math.max(0, value - 1));
       alert('Bəyənmə qeydə alınmadı.');
     } finally {
       setLikeBusy(false);
