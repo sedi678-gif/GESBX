@@ -1586,7 +1586,10 @@ function ProfilePageContent() {
           <div className={profileStyles.postViewerSheet} onClick={(e) => e.stopPropagation()}>
             <div className={profileStyles.postViewerHeader}>
               <h3 className={profileStyles.postViewerTitle}>{activePost.title}</h3>
-              <button type="button" className={profileStyles.profileModalClose} onClick={closePostViewer} aria-label="Bağla">✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button type="button" className={socialStyles.commentMiniAction} onClick={() => void handleDeleteOwnPost(activePost.id)} aria-label="Paylaşımı sil" title="Sil">🗑</button>
+                <button type="button" className={profileStyles.profileModalClose} onClick={closePostViewer} aria-label="Bağla">✕</button>
+              </div>
             </div>
 
             <div className={profileStyles.postViewerMedia}>
@@ -1629,7 +1632,6 @@ function ProfilePageContent() {
                   >
                     <PostActionIcon kind="share" alt="Paylaş" size="sm" />
                   </button>
-                  <button type="button" className={profileStyles.postViewerActionBtn} onClick={() => void handleDeleteOwnPost(activePost.id)} aria-label="Paylaşımı sil" title="Sil">🗑</button>
                   <button type="button" className={profileStyles.postViewerActionBtn} onClick={handleReport} title="Bildir" aria-label="Bildir">
                     <PostActionIcon kind="report" alt="Bildir" size="sm" />
                   </button>
