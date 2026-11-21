@@ -23,6 +23,10 @@ import {
   writeCachedLikesReceived,
   addPostComment,
   listenPostComments,
+  deleteOwnPost,
+  editOwnPostComment,
+  deleteOwnPostComment,
+  reportPostComment,
   preparePostMediaFile,
 } from '@/app/lib/postsService';
 import {
@@ -895,6 +899,7 @@ function ProfilePageContent() {
   }, [playerProfile?.proPanelActive]);
   const [newCommentText, setNewCommentText] = useState('');
   const [viewerComments, setViewerComments] = useState<PostComment[]>([]);
+  const [editingViewerComment, setEditingViewerComment] = useState<PostComment | null>(null);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -991,6 +996,7 @@ function ProfilePageContent() {
     if (!selectedPostId) {
       setViewerComments([]);
       setNewCommentText('');
+      setEditingViewerComment(null);
       return;
     }
     return listenPostComments(selectedPostId, setViewerComments);
@@ -1027,6 +1033,16 @@ function ProfilePageContent() {
     }
   };
 
+  const handleDeleteOwnPost = async (postId: string) => {
+    if (!window.confirm('Bu paylaşımı silmək istəyirsiniz?')) return;
+    try {
+      await deleteOwnPost(postId, currentUser.id);
+      closePostViewer();
+      alert('Paylaşım silindi.');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Paylaşım silinmədi.');
+    }
+  };
   const handleSharePost = async (postId: string, title: string) => {
     const url = `${window.location.origin}/profile?user=${currentUser.id}`;
     const text = `${currentUser.name} — ${title}`;
@@ -1078,15 +1094,20 @@ function ProfilePageContent() {
 
     setCommentSubmitting(true);
     try {
-      await addPostComment(
-        selectedPostId,
-        {
-          id: currentUser.id,
-          name: `${currentUser.name || 'Sən'} ${currentUser.surname || ''}`.trim(),
-          avatar: currentUser.avatar,
-        },
-        newCommentText.trim()
-      );
+      if (editingViewerComment) {
+        await editOwnPostComment(editingViewerComment.id, currentUser.id, newCommentText.trim());
+        setEditingViewerComment(null);
+      } else {
+        await addPostComment(
+          selectedPostId,
+          {
+            id: currentUser.id,
+            name: `${currentUser.name || 'Sən'} ${currentUser.surname || ''}`.trim(),
+            avatar: currentUser.avatar,
+          },
+          newCommentText.trim()
+        );
+      }
       setNewCommentText('');
     } catch (err) {
       console.error(err);
@@ -1608,6 +1629,7 @@ function ProfilePageContent() {
                   >
                     <PostActionIcon kind="share" alt="Paylaş" size="sm" />
                   </button>
+                  <button type="button" className={profileStyles.postViewerActionBtn} onClick={() => void handleDeleteOwnPost(activePost.id)} aria-label="Paylaşımı sil" title="Sil">🗑</button>
                   <button type="button" className={profileStyles.postViewerActionBtn} onClick={handleReport} title="Bildir" aria-label="Bildir">
                     <PostActionIcon kind="report" alt="Bildir" size="sm" />
                   </button>
@@ -1634,10 +1656,15 @@ function ProfilePageContent() {
                 {viewerComments.length === 0 ? (
                   <div style={{ color: '#64748b', fontSize: 12, textAlign: 'center' }}>İlk şərh yazan sən ol!</div>
                 ) : (
-                  viewerComments.map((c) => (
-                    <div key={c.id} className={profileStyles.postViewerCommentItem}>
-                      <span style={{ fontWeight: 800, color: '#a5b4fc', marginRight: 6 }}>{c.userName}:</span>
-                      {c.text}
+                  viewerComments.map((comment) => (
+                    <div key={comment.id} className={profileStyles.postViewerCommentItem} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}><span style={{ fontWeight: 800, color: '#a5b4fc', marginRight: 6 }}>{comment.userName}:</span>{comment.text}</div>
+                      {comment.userId === currentUser.id ? (
+                        <>
+                          <button type="button" className={socialStyles.commentMiniAction} aria-label="Şərhi düzəlt" title="Düzəlt" onClick={() => { setEditingViewerComment(comment); setNewCommentText(comment.text); }}>✎</button>
+                          <button type="button" className={socialStyles.commentMiniAction} aria-label="Şərhi sil" title="Sil" onClick={async () => { if (!window.confirm('Bu şərhi silmək istəyirsiniz?')) return; try { await deleteOwnPostComment(comment.id, currentUser.id); } catch (error) { alert(error instanceof Error ? error.message : 'Şərh silinmədi.'); } }}>🗑</button>
+                        </>
+                      ) : <button type="button" className={socialStyles.commentMiniAction} aria-label="Şərhdən şikayət et" title="Şikayət et" onClick={async () => { const reason = window.prompt('Şikayət səbəbini yazın:'); if (!reason?.trim()) return; try { await reportPostComment(comment.id, currentUser.id, reason); alert('Şikayət göndərildi.'); } catch (error) { alert(error instanceof Error ? error.message : 'Şikayət göndərilmədi.'); } }}>⚑</button>}
                     </div>
                   ))
                 )}
@@ -1648,15 +1675,16 @@ function ProfilePageContent() {
               className={profileStyles.postViewerCommentForm}
               onSubmit={handleAddComment}
             >
+              {editingViewerComment ? <div style={{ padding: '5px 10px', color: '#c4b5fd', fontSize: 11 }}>✎ Şərhi düzəlt <button type="button" onClick={() => { setEditingViewerComment(null); setNewCommentText(''); }} style={{ border: 0, background: 'transparent', color: '#fda4af' }}>✕</button></div> : null}
               <input
                 type="text"
-                placeholder="Şərh yaz..."
+                placeholder={editingViewerComment ? 'Şərhi düzəlt...' : 'Şərh yaz...'}
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
                 className={profileStyles.postViewerCommentInput}
               />
               <button type="submit" className={profileStyles.postViewerCommentSubmit} disabled={commentSubmitting}>
-                {commentSubmitting ? '...' : 'Göndər'}
+                {commentSubmitting ? '...' : editingViewerComment ? 'Yadda saxla' : 'Göndər'}
               </button>
             </form>
 
