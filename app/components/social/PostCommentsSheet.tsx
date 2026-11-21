@@ -27,6 +27,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   const [likes, setLikes] = useState<Record<string, { count: number; liked: boolean }>>(() => commentLikeCache.get(`${postId || ''}:${currentUserId}`) || {});
   const [likeBusy, setLikeBusy] = useState<string | null>(null);
   const likeActionAtRef = useRef<Record<string, number>>({});
+  const pendingCommentLikesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open || !postId) { setComments([]); setText(''); setReplyTo(null); setError(''); return; }
@@ -116,7 +117,8 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 disabled={likeBusy === comment.id}
                 onClick={async () => {
                   if (!currentUserId || currentUserId === 'anonim_user_id' || currentUserId === 'guest') { alert('Bəyənmək üçün qeydiyyatdan keçin.'); return; }
-                  if (likeBusy) return;
+                  if (pendingCommentLikesRef.current.has(comment.id)) return;
+                  pendingCommentLikesRef.current.add(comment.id);
                   setLikeBusy(comment.id);
                   likeActionAtRef.current[comment.id] = Date.now();
                   const previous = likes[comment.id] || { count: 0, liked: false };
@@ -140,7 +142,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                     setLikes((prev) => ({ ...prev, [comment.id]: previous }));
                     console.error('Şərh bəyənmə xətası:', err);
                     setError(err instanceof Error ? err.message : 'Şərhi bəyənmək alınmadı. Hesab icazəsini yoxlayın.');
-                  } finally { setLikeBusy(null); }
+                  } finally { pendingCommentLikesRef.current.delete(comment.id); setLikeBusy((active) => active === comment.id ? null : active); }
                 }}
               >
                 <span aria-hidden="true">{stats.liked ? '♥' : '♡'}</span>
