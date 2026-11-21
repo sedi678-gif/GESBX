@@ -222,14 +222,21 @@ export default function ExplorePageClient() {
     setSearchResults(results);
   };
 
-  // Pointer events work consistently across Android WebView, Chrome and desktop.
-  // Ignore taps on controls/links so likes, comments and profile navigation remain usable.
+  // A swipe is handled by the feed itself; buttons and profile links keep their normal taps.
+  // Starting playback on pointer-down also gives Android WebView a user gesture
+  // to recover playback if its autoplay policy paused the video.
   const onFeedPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary || (e.target as HTMLElement).closest('button, a, input, select, textarea')) {
       touchStart.current = { x: 0, y: 0 };
       return;
     }
     touchStart.current = { x: e.clientX, y: e.clientY };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    const video = videoRef.current;
+    if (video?.paused) {
+      video.muted = true;
+      void video.play().catch((error) => console.warn('[Explore] playback retry failed:', error));
+    }
   };
 
   const onFeedPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -239,15 +246,23 @@ export default function ExplorePageClient() {
     const dy = start.y - e.clientY;
     touchStart.current = { x: 0, y: 0 };
 
-    // Require a deliberate swipe, and prefer the dominant axis.
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 44) return;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      if (dx > 0 && current && mediaIndex < current.mediaList.length - 1) setMediaIndex((i) => i + 1);
-      else if (dx < 0 && mediaIndex > 0) setMediaIndex((i) => i - 1);
-      return;
+    // Ignore taps and diagonal movement; only deliberate vertical swipes change feed items.
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 44 || Math.abs(dx) >= Math.abs(dy)) return;
+    if (dy > 0) {
+      // Swipe up: show the next post/video in this feed before moving to another user.
+      if (current && mediaIndex < current.mediaList.length - 1) {
+        setMediaIndex((i) => i + 1);
+      } else if (userIndex < filtered.length - 1) {
+        setUserIndex((i) => i + 1);
+      }
+    } else {
+      // Swipe down: go back to the previous post, or the previous user.
+      if (mediaIndex > 0) {
+        setMediaIndex((i) => i - 1);
+      } else if (userIndex > 0) {
+        setUserIndex((i) => i - 1);
+      }
     }
-    if (dy > 0 && userIndex < filtered.length - 1) setUserIndex((i) => i + 1);
-    else if (dy < 0 && userIndex > 0) setUserIndex((i) => i - 1);
   };
 
   const onFeedPointerCancel = () => {
@@ -430,6 +445,8 @@ export default function ExplorePageClient() {
 playsInline
                   controls={false}
                   disablePictureInPicture
+                  disableRemotePlayback
+                  controlsList="nodownload noplaybackrate noremoteplayback"
                   onLoadedData={(event) => {
                     const video = event.currentTarget;
                     video.muted = true;
