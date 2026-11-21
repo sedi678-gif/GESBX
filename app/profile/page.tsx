@@ -1147,9 +1147,6 @@ function ProfilePageContent() {
     setUploadReadyFile(null);
     setUploadReadyFiles([]);
     setIsPreparingFile(false);
-    setPostAuthRecovery(false);
-    setPostAuthError('');
-    setPostAuthPassword('');
     setFilePreviewUrl('');
     setIsUploadModalOpen(true);
     void ensureFirebaseAuth();
