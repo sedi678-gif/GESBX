@@ -902,12 +902,26 @@ async function resolveCommentAvatar(userId: string): Promise<string | undefined>
   if (!userId) return undefined;
   let cached = commentAvatarCache.get(userId);
   if (!cached) {
-    cached = getUserProfile(userId)
-      .then((profile) => profile?.avatar || undefined)
-      .catch((error) => {
-        console.warn('[postsService] şərh müəllifinin profil şəkli yüklənmədi:', userId, error);
-        return undefined;
-      });
+    cached = (async () => {
+      // Əsas profil şəkli users/{id} sənədində saxlanılır.
+      try {
+        const profile = await getUserProfile(userId);
+        if (profile?.avatar) return profile.avatar;
+      } catch (error) {
+        console.warn('[postsService] public user avatar lookup failed:', userId, error);
+      }
+
+      // Köhnə profillərdə avatar yalnız players/{id} sənədində qala bilər.
+      try {
+        const playerSnap = await getDoc(doc(db, 'players', userId));
+        const player = playerSnap.exists() ? playerSnap.data() as Record<string, unknown> : {};
+        const avatar = player.avatar || player.photoURL || player.photoUrl || player.userAvatar;
+        if (typeof avatar === 'string' && avatar.trim()) return avatar;
+      } catch (error) {
+        console.warn('[postsService] legacy player avatar lookup failed:', userId, error);
+      }
+      return undefined;
+    })();
     commentAvatarCache.set(userId, cached);
   }
   return cached;
