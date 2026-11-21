@@ -944,14 +944,41 @@ export async function togglePostCommentLike(comment: PostComment, userId: string
 
 export function listenPostCommentLikes(postId: string, userId: string, callback: (likes: Record<string, { count: number; liked: boolean }>) => void): Unsubscribe {
   if (!postId) { callback({}); return () => {}; }
-  return onSnapshot(query(collection(db, 'post_comment_likes'), where('postId', '==', postId)), (snap) => {
-    const result: Record<string, { count: number; liked: boolean }> = {};
-    snap.forEach((item) => {
-      const data = item.data(); const commentId = String(data.commentId || ''); if (!commentId) return;
-      const entry = result[commentId] || { count: 0, liked: false }; entry.count += 1;
-      if (data.userId === userId) entry.liked = true;
-      result[commentId] = entry;
-    });
-    callback(result);
-  }, (error) => { console.error('Şərh bəyənmələri yüklənmədi:', error); callback({}); });
+
+  let active = true;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let loading = false;
+
+  const load = async () => {
+    if (!active || loading) return;
+    loading = true;
+    try {
+      const firebaseUser = await ensureFirebaseAuth();
+      if (!firebaseUser || firebaseUser.isAnonymous) {
+        callback({});
+        return;
+      }
+      const token = await firebaseUser.getIdToken();
+      const params = new URLSearchParams({ handler: 'social-likes', postId, userId });
+      const response = await fetch(`${apiBaseUrl}/api/paypal?${params.toString()}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(String(payload.error || 'Şərh bəyənmələri yüklənmədi.'));
+      if (active && payload.likes && typeof payload.likes === 'object') callback(payload.likes);
+    } catch (error) {
+      console.error('Şərh bəyənmələri serverdən yüklənmədi:', error);
+    } finally {
+      loading = false;
+      if (active) timer = setTimeout(load, 4000);
+    }
+  };
+
+  void load();
+  return () => {
+    active = false;
+    if (timer) clearTimeout(timer);
+  };
 }
