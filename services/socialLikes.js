@@ -8,7 +8,53 @@ const {
 } = require('./apiSecurity');
 
 module.exports = async function socialLikes(req, res) {
-  if (applyCors(req, res)) return;
+  if (applyCors(req, res, 'GET, POST, OPTIONS')) return;
+
+  if (req.method === 'GET') {
+    try {
+      const match = header(req, 'authorization').match(/^Bearer\\s+(.+)$/i);
+      if (!match) throw new ApiError(401, 'AUTH_REQUIRED');
+      let identity;
+      try {
+        identity = await getAdminAuth().verifyIdToken(match[1], true);
+      } catch (error) {
+        const code = error?.code || '';
+        if (code === 'FIREBASE_SERVICE_ACCOUNT_MISSING'
+          || code === 'FIREBASE_SERVICE_ACCOUNT_INVALID'
+          || code === 'FIREBASE_SERVICE_ACCOUNT_PROJECT_MISMATCH') throw new ApiError(503, code);
+        throw new ApiError(401, 'AUTH_TOKEN_INVALID');
+      }
+      if (!identity?.uid || identity.firebase?.sign_in_provider === 'anonymous') {
+        throw new ApiError(401, 'REGISTERED_ACCOUNT_REQUIRED');
+      }
+      const profileId = String(req.query?.userId || '').trim();
+      const postId = String(req.query?.postId || '').trim();
+      if (!profileId || !postId) throw new ApiError(400, 'LIKE_FIELDS_INVALID');
+      const db = getAdminFirestore();
+      const profile = await db.doc(`users/${profileId}`).get();
+      if (!profile.exists || profile.data().firebaseUid !== identity.uid) {
+        throw new ApiError(403, 'PROFILE_ACCOUNT_MISMATCH');
+      }
+      const snap = await db.collection('post_comment_likes').where('postId', '==', postId).get();
+      const likes = {};
+      snap.forEach((item) => {
+        const data = item.data();
+        const commentId = String(data.commentId || '');
+        if (!commentId) return;
+        const entry = likes[commentId] || { count: 0, liked: false };
+        entry.count += 1;
+        if (data.userId === profileId) entry.liked = true;
+        likes[commentId] = entry;
+      });
+      return sendJson(res, 200, { likes });
+    } catch (error) {
+      const status = error instanceof ApiError ? error.status : 500;
+      const code = error instanceof ApiError ? error.code : 'SOCIAL_LIKE_FAILED';
+      if (status >= 500) console.error('Social like read API failed:', error?.message || error);
+      return sendJson(res, status, { error: code });
+    }
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST, OPTIONS');
     return sendJson(res, 405, { error: 'METHOD_NOT_ALLOWED' });
