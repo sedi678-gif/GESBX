@@ -417,6 +417,7 @@ export function postsToFeed(posts: SocialPost[]): UserFeedItem[] {
     const media = {
       id: post.id,
       mediaUrl: post.mediaUrl,
+      thumbnailUrl: post.thumbnailUrl,
       mediaType: post.mediaType,
       title: post.title,
       createdAt: post.createdAt,
@@ -1045,22 +1046,9 @@ export async function addPostComment(
   }
 
   const token = await firebaseUser.getIdToken(true);
-  // Firebase Auth photoURL is not the app profile avatar. Read the app avatar
-  // from the separate Node server so every newly written comment stores the
-  // same image shown on the author's public profile.
-  let commentAvatar = '';
-  try {
-    commentAvatar = await fetchCommentAvatarFromSeparateServer(user.id) || '';
-  } catch (error) {
-    console.warn('[postsService] author avatar lookup before comment failed:', error);
-  }
-  if (!commentAvatar) {
-    try {
-      commentAvatar = (await getUserProfile(user.id))?.avatar || user.avatar || '';
-    } catch {
-      commentAvatar = user.avatar || '';
-    }
-  }
+  // Şərhi avatar serverinin cavabını gözlətmədən dərhal göndər.
+  // GESBX profil şəkli çağırandan ötürülür; boşdursa server profil sənədindən tamamlayır.
+  const commentAvatar = user.avatar || '';
 
   const response = await fetch(`${apiBaseUrl}/api/paypal?handler=social-likes`, {
     method: 'POST',
