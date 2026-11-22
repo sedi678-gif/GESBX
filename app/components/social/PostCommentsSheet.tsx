@@ -167,7 +167,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.liked ? 'Bəyənildi' : 'Bəyən'}
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
-              <button type="button" className={styles.commentReplyButton} onClick={() => { setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label="Cavab yaz">↩</button>
+              <button type="button" className={styles.commentReplyButton} onClick={() => { setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label={depth > 0 ? "Bu cavaba cavab yaz" : "Şərhə cavab yaz"}>↩ <span>{depth > 0 ? 'Cavaba cavab yaz' : 'Cavab yaz'}</span></button>
               {comment.userId === currentUserId ? (
                 <>
                   <button type="button" className={styles.commentMiniAction} aria-label="Şərhi düzəlt" title="Düzəlt" onClick={() => { setEditingComment(comment); setReplyTo(null); setText(comment.text); setError(''); }}>✎</button>
