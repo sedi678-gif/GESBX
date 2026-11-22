@@ -982,17 +982,18 @@ export function listenPostComments(
       // Şərh sənədində avatar saxlanmayıbsa, müəllifin açıq profilindən götür.
       // Əvvəl şərhləri dərhal göstər, şəkillər gələndə siyahını yenilə.
       callback(comments);
-      const missingAvatarIds = Array.from(new Set(
-        comments.filter((comment) => !comment.userAvatar).map((comment) => comment.userId)
-      ));
-      if (missingAvatarIds.length) {
-        void Promise.all(missingAvatarIds.map(async (userId) => [userId, await resolveCommentAvatar(userId)] as const))
+      // Resolve the current app-profile avatar for every commenter, not only
+      // comments with an empty field. Older comments may contain a stale Firebase
+      // Auth photoURL (or a broken URL) that masks the real GESBX profile image.
+      const commenterIds = Array.from(new Set(comments.map((comment) => comment.userId)));
+      if (commenterIds.length) {
+        void Promise.all(commenterIds.map(async (userId) => [userId, await resolveCommentAvatar(userId)] as const))
           .then((avatars) => {
             if (!active) return;
             const avatarByUserId = new Map(avatars);
             callback(comments.map((comment) => ({
               ...comment,
-              userAvatar: comment.userAvatar || avatarByUserId.get(comment.userId),
+              userAvatar: avatarByUserId.get(comment.userId) || comment.userAvatar,
             })));
           });
       }
