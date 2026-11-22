@@ -11,7 +11,7 @@ import {
   listenUserLikedPostIds,
   recordPostView,
 } from '@/app/lib/postsService';
-import { reportContent, searchUsers, listenBlockedUsers } from '@/app/lib/socialService';
+import { reportContent, searchUsers, listenBlockedUsers, getUserProfile } from '@/app/lib/socialService';
 import { UserFeedItem, AppUserProfile } from '@/app/lib/socialTypes';
 import { useUser } from '@/context/UserContext';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
@@ -102,7 +102,7 @@ const AZ_REGIONS = [
 ];
 
 export default function ExplorePageClient() {
-  const { userId, user, playerProfile } = useUser();
+  const { userId, user } = useUser();
   const t = useAppStrings();
   const myId = userId;
 
@@ -129,6 +129,7 @@ export default function ExplorePageClient() {
   const [commentPostTitle, setCommentPostTitle] = useState('');
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [videoMuted, setVideoMuted] = useState(true);
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const touchStart = useRef({ x: 0, y: 0 });
@@ -137,6 +138,21 @@ export default function ExplorePageClient() {
     if (!myId) return;
     return listenBlockedUsers(myId, setBlockedIds);
   }, [myId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!myId || myId === 'anonim_user_id') {
+      setCurrentUserAvatar(user?.photoURL || undefined);
+      return;
+    }
+    void getUserProfile(myId).then((profile) => {
+      if (active) setCurrentUserAvatar(profile?.avatar || user?.photoURL || undefined);
+    }).catch(() => {
+      if (active) setCurrentUserAvatar(user?.photoURL || undefined);
+    });
+    return () => { active = false; };
+  }, [myId, user?.photoURL]);
+
 
   useEffect(() => {
     if (!myId || myId === 'anonim_user_id') return;
@@ -645,7 +661,7 @@ playsInline
         onClose={closeComments}
         currentUserId={myId}
         currentUserName={displayName}
-        currentUserAvatar={playerProfile?.avatar || user?.photoURL || undefined}
+        currentUserAvatar={currentUserAvatar || user?.photoURL || undefined}
       />
 
       <AppBottomNav activeTab="explore" />
