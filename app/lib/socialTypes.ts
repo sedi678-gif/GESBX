@@ -44,6 +44,7 @@ export interface UserFeedItem {
   mediaList: {
     id: string;
     mediaUrl: string;
+    thumbnailUrl?: string;
     mediaType: 'video' | 'image';
     title: string;
     createdAt: number;
