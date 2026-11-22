@@ -29,6 +29,7 @@ import ProfileHeroDisplay from '@/app/components/profile/ProfileHeroDisplay';
 import VideoPostPreview from '@/app/components/profile/VideoPostPreview';
 import { DEFAULT_BANNER } from '@/app/components/shop/cosmeticsConfig';
 import FollowListSheet from '@/app/components/social/FollowListSheet';
+import PostCommentsSheet from '@/app/components/social/PostCommentsSheet';
 import { SocialPost } from '@/app/lib/socialTypes';
 import styles from './social.module.css';
 import profileStyles from '@/app/components/profile/profile.module.css';
@@ -67,6 +68,9 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   const [reportReason, setReportReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [followListMode, setFollowListMode] = useState<'followers' | 'following' | null>(null);
+  const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
+  const [showPostComments, setShowPostComments] = useState(false);
+  const [viewerProfile, setViewerProfile] = useState<{ name: string; surname?: string; avatar?: string } | null>(null);
   const postGridRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -119,6 +123,15 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   useEffect(() => {
     return listenUserPosts(targetUserId, setPosts);
   }, [targetUserId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!myId || myId === 'anonim_user_id' || myId === 'guest') { setViewerProfile(null); return; }
+    void getUserProfile(myId).then((user) => {
+      if (active && user) setViewerProfile({ name: user.name || 'İstifadəçi', surname: user.surname || '', avatar: user.avatar || '' });
+    }).catch((error) => console.warn('[OtherUserProfile] viewer profile unavailable:', error));
+    return () => { active = false; };
+  }, [myId]);
 
   useEffect(() => {
     const cached = readCachedLikesReceived(targetUserId);
@@ -325,17 +338,47 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
         ) : (
           <div ref={postGridRef} className={styles.postGrid} style={{ padding: 0 }}>
             {posts.map((post, index) => (
-              <div key={post.id} className={styles.postThumb} data-post-view-id={post.id}>
+              <button key={post.id} type="button" className={styles.postThumb} data-post-view-id={post.id} onClick={() => { setSelectedPost(post); setShowPostComments(false); }} aria-label="Paylaşımı aç">
                 {post.mediaType === 'video' ? (
                   <VideoPostPreview src={post.mediaUrl} thumbnailUrl={post.thumbnailUrl} priority={index < 3} />
                 ) : (
                   <img src={post.mediaUrl} alt={post.title} />
                 )}
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
+
+
+      {selectedPost && (
+        <div className={styles.modalOverlay} onClick={() => { setSelectedPost(null); setShowPostComments(false); }}>
+          <section className={styles.modalSheet} role="dialog" aria-modal="true" aria-label="Video paylaşımı" onClick={(event) => event.stopPropagation()} style={{ maxHeight: '92dvh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <strong style={{ color: '#f8fafc', fontSize: 15 }}>{selectedPost.title || 'Paylaşım'}</strong>
+              <button type="button" onClick={() => { setSelectedPost(null); setShowPostComments(false); }} aria-label="Bağla" style={{ border: 0, background: 'transparent', color: '#fff', fontSize: 22 }}>✕</button>
+            </div>
+            <div style={{ width: '100%', maxHeight: '58dvh', marginTop: 10, background: '#000', borderRadius: 12, overflow: 'hidden', display: 'grid', placeItems: 'center' }}>
+              {selectedPost.mediaType === 'video'
+                ? <video src={selectedPost.mediaUrl} poster={selectedPost.thumbnailUrl} controls autoPlay playsInline style={{ width: '100%', maxHeight: '58dvh', objectFit: 'contain' }} />
+                : <img src={selectedPost.mediaUrl} alt={selectedPost.title} style={{ width: '100%', maxHeight: '58dvh', objectFit: 'contain' }} />}
+            </div>
+            <button type="button" className={styles.primaryBtn} onClick={() => setShowPostComments(true)} style={{ marginTop: 12 }}>
+              💬 Şərhlər ({selectedPost.commentsCount || 0}) · Şərh yaz / Cavab ver
+            </button>
+          </section>
+        </div>
+      )}
+
+      <PostCommentsSheet
+        open={showPostComments && Boolean(selectedPost)}
+        postId={selectedPost?.id || null}
+        postTitle={selectedPost?.title}
+        onClose={() => setShowPostComments(false)}
+        currentUserId={myId}
+        currentUserName={`${viewerProfile?.name || 'İstifadəçi'} ${viewerProfile?.surname || ''}`.trim()}
+        currentUserAvatar={viewerProfile?.avatar}
+      />
 
       {showReport && (
         <div className={styles.modalOverlay} onClick={() => setShowReport(false)}>
