@@ -21,7 +21,6 @@ import { SocialPost, UserFeedItem, AppUserProfile, PostComment } from './socialT
 import { isDiscoverBoostActive, listenDiscoverBoostMap } from '@/app/lib/discoverBoost';
 import { callSecureApi } from './secureFunctions';
 import { getUserProfile } from './socialService';
-import { resolveSocketUrl } from './realtimeConfig';
 
 const POST_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -900,7 +899,7 @@ export function listenPostCommentCount(
 const commentAvatarCache = new Map<string, Promise<string | undefined>>();
 
 async function fetchCommentAvatarFromSeparateServer(profileId: string): Promise<string | undefined> {
-  const serverUrl = resolveSocketUrl();
+  const serverUrl = process.env.NEXT_PUBLIC_AVATAR_API_URL?.trim();
   if (!serverUrl || !profileId) return undefined;
   const firebaseUser = await ensureFirebaseAuth();
   if (!firebaseUser) return undefined;
