@@ -102,7 +102,7 @@ const AZ_REGIONS = [
 ];
 
 export default function ExplorePageClient() {
-  const { userId, user } = useUser();
+  const { userId, user, playerProfile } = useUser();
   const t = useAppStrings();
   const myId = userId;
 
@@ -437,6 +437,7 @@ export default function ExplorePageClient() {
                   key={media.id}
                   ref={videoRef}
                   src={media.mediaUrl}
+                  poster={media.thumbnailUrl}
                   className={styles.mediaFullPremium}
                   autoPlay
                   preload="auto"
@@ -644,7 +645,7 @@ playsInline
         onClose={closeComments}
         currentUserId={myId}
         currentUserName={displayName}
-        currentUserAvatar={user?.photoURL || undefined}
+        currentUserAvatar={playerProfile?.avatar || user?.photoURL || undefined}
       />
 
       <AppBottomNav activeTab="explore" />
