@@ -11,3 +11,5 @@ module.exports = async function paypalApi(req, res) {
   }
   return paypalPayoutRequest(req, res);
 };
+
+module.exports.config = { api: { bodyParser: { sizeLimit: '2mb' } } };
