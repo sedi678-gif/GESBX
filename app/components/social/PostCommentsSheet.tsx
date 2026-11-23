@@ -188,7 +188,6 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 <button type="button" role="menuitem" onClick={() => setActiveCommentMenu(null)}>Bağla</button>
               </div>
             )}
-            </div>
           </div>
         </div>
         {childComments.map((child) => renderComment(child, depth + 1))}
