@@ -48,7 +48,7 @@ export interface StoredMessage {
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80';
 
-const INLINE_LIMIT = 900_000;
+const INLINE_LIMIT = 650_000;
 /** Kiçik səs mesajları üçün Storage əvəzinə inline saxlama */
 const VOICE_INLINE_PREFER = 350_000;
 async function privateMessagesRequest<T = any>(
