@@ -64,6 +64,7 @@ import {
   clearChat,
   editMessage,
   messagePreview,
+  markMessageReceived,
   isTransferableMessageUrl,
   type FastSendResult,
   ChatSummary,
@@ -181,12 +182,14 @@ function MessageBubble({
   const cls = mine ? styles.bubbleMine : styles.bubbleTheirs;
   const timeLabel = formatTime(m.createdAt);
   const editedLabel = m.editedAt ? ' · redaktə olunub' : '';
+  const statusMark = mine ? (m.readAt ? '✓✓' : m.deliveredAt ? '✓✓' : '✓') : '';
+  const statusClass = m.readAt ? styles.messageStatusRead : styles.messageStatus;
 
   if (m.type === 'audio' && m.audioUrl) {
     return (
       <div className={cls}>
         <VoiceMessagePlayer src={m.audioUrl} durationMs={m.audioDurationMs} />
-        <div className={styles.bubbleMeta}>🎤 Səs mesajı · {timeLabel}</div>
+        <div className={styles.bubbleMeta}>🎤 Səs mesajı · {timeLabel} {statusMark && <span className={statusClass}>{statusMark}</span>}</div>
       </div>
     );
   }
@@ -209,7 +212,7 @@ function MessageBubble({
           )}
         </button>
         <div className={styles.bubbleMeta}>
-          {m.type === 'image' ? '📷 Şəkil' : '🎬 Video'} · {timeLabel}
+          {m.type === 'image' ? '📷 Şəkil' : '🎬 Video'} · {timeLabel} {statusMark && <span className={statusClass}>{statusMark}</span>}
         </div>
       </div>
     );
@@ -260,6 +263,7 @@ function MessageBubble({
       <div className={styles.bubbleTime}>
         {timeLabel}
         {editedLabel}
+        {statusMark && <span className={statusClass}> {statusMark}</span>}
       </div>
     </div>
   );
@@ -354,7 +358,22 @@ export default function MessagesPageClient() {
       setMessages([]);
       return;
     }
-    return listenChatMessages(selectedChat.chatId, setMessages);
+    return listenChatMessages(selectedChat.chatId, (nextMessages) => {
+      setMessages(nextMessages);
+      const visible = typeof document !== 'undefined' && document.visibilityState === 'visible';
+      const now = Date.now();
+      for (const message of nextMessages) {
+        if (message.recipientId !== String(myId)) continue;
+        const status: { deliveredAt?: number; readAt?: number } = {};
+        if (!message.deliveredAt) status.deliveredAt = now;
+        if (visible && !message.readAt) status.readAt = now;
+        if (Object.keys(status).length) {
+          void markMessageReceived(message.id, status).catch((err) => {
+            console.warn('[Message] status update failed:', err);
+          });
+        }
+      }
+    });
   }, [selectedChat?.chatId]);
 
   const applyIncomingMessage = useCallback((message: StoredMessage) => {
@@ -731,8 +750,10 @@ export default function MessagesPageClient() {
         recipientAvatar: selectedChat.avatar,
       });
 
-      await trackMessageContact(selectedChat.id, text);
       relayMessage(String(selectedChat.id), message);
+      void trackMessageContact(selectedChat.id, text).catch((contactError) => {
+        console.warn('[Message] contact tracking failed:', contactError);
+      });
     } catch (err) {
       console.error(err);
       alert(editingMessage ? 'Mesaj düzənlənmədi.' : 'Mesaj göndərilmədi.');
