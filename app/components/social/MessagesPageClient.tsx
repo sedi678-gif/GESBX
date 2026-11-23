@@ -46,7 +46,6 @@ import { TEEN_SAFETY_RULES, getCallSettings } from '@/app/lib/callSettings';
 import {
   blockUser,
   reportContent,
-  searchUsers,
   listenBlockedUsers,
   isBlocked,
   getUserProfile,
@@ -56,6 +55,7 @@ import {
   ensurePrivateChat,
   listenUserChats,
   listenChatMessages,
+  searchMessageUsers,
   sendPrivateMessage,
   sendAudioMessageFast,
   sendMediaMessageFast,
@@ -355,7 +355,7 @@ export default function MessagesPageClient() {
       setChats(summaries.map(chatSummaryToItem));
     }, (error) => {
       console.error('[Message] söhbət siyahısı yüklənmədi:', error);
-      alert('Söhbət siyahısı yüklənmədi. Firebase icazələrini yoxlamaq lazımdır.');
+      alert('Söhbət siyahısı serverdən yüklənmədi: ' + error.message);
     });
   }, [myId]);
 
@@ -364,7 +364,7 @@ export default function MessagesPageClient() {
       setMessages([]);
       return;
     }
-    return listenChatMessages(selectedChat.chatId, (nextMessages) => {
+    return listenChatMessages(selectedChat.chatId, String(myId), (nextMessages) => {
       setMessages(nextMessages);
       const visible = typeof document !== 'undefined' && document.visibilityState === 'visible';
       const now = Date.now();
@@ -374,14 +374,14 @@ export default function MessagesPageClient() {
         if (!message.deliveredAt) status.deliveredAt = now;
         if (visible && !message.readAt) status.readAt = now;
         if (Object.keys(status).length) {
-          void markMessageReceived(message.id, status).catch((err) => {
+          void markMessageReceived(message.id, status, String(myId)).catch((err) => {
             console.warn('[Message] status update failed:', err);
           });
         }
       }
     }, (error) => {
       console.error('[Message] mesaj tarixçəsi yüklənmədi:', error);
-      alert('Bu söhbətin mesajları yüklənmədi. Firebase oxuma icazəsini yoxlamaq lazımdır.');
+      alert('Mesaj tarixçəsi yüklənmədi: ' + error.message);
     });
   }, [selectedChat?.chatId]);
 
@@ -664,7 +664,7 @@ export default function MessagesPageClient() {
         startChatWithUser(profile);
         return;
       }
-      const users = await searchUsers(targetId, myId);
+      const users = await searchMessageUsers(targetId, myId);
       const u = users.find((x) => x.id === targetId) || users[0];
       if (u) startChatWithUser(u);
     })();
@@ -751,7 +751,7 @@ export default function MessagesPageClient() {
     try {
       if (editingMessage) {
         const editedAt = Date.now();
-        await editMessage(editingMessage.id, editingMessage.chatId, text);
+        await editMessage(editingMessage.id, editingMessage.chatId, text, String(myId));
         emitChatEdit(selectedChat.id, {
           chatId: editingMessage.chatId,
           messageId: editingMessage.id,
@@ -1054,7 +1054,7 @@ export default function MessagesPageClient() {
       const m = messages.find((x) => x.id === id);
       if (!m) continue;
       try {
-        await deleteMessage(m.id, m.chatId);
+        await deleteMessage(m.id, m.chatId, String(myId));
         emitChatDelete(selectedChat.id, { chatId: m.chatId, messageId: m.id });
       } catch (err) {
         console.error('[Message] batch delete:', err);
@@ -1069,7 +1069,7 @@ export default function MessagesPageClient() {
     setContextMenu(null);
     try {
       ensureAppSocket();
-      await deleteMessage(m.id, m.chatId);
+      await deleteMessage(m.id, m.chatId, String(myId));
       emitChatDelete(selectedChat.id, { chatId: m.chatId, messageId: m.id });
       setMessages((prev) => prev.filter((x) => x.id !== m.id));
     } catch (err) {
@@ -1095,7 +1095,7 @@ export default function MessagesPageClient() {
     if (!window.confirm('Bütün mesajlar silinsin? Bu geri qaytarıla bilməz.')) return;
     try {
       ensureAppSocket();
-      await clearChat(selectedChat.chatId);
+      await clearChat(selectedChat.chatId, String(myId));
       emitChatClear(selectedChat.id, { chatId: selectedChat.chatId });
       setMessages([]);
       setShowActions(false);
@@ -1106,7 +1106,7 @@ export default function MessagesPageClient() {
   };
 
   const runSearch = async () => {
-    const results = await searchUsers(searchQuery, myId);
+    const results = await searchMessageUsers(searchQuery, myId);
     setSearchResults(results.filter((u) => !isBlocked(blockedIds, u.id)));
   };
 
@@ -1513,9 +1513,12 @@ export default function MessagesPageClient() {
             >
               <IconAttach />
             </button>
-            <div className={styles.composeInputWrap}>
+            <div className={styles.composeInputWrap} dir="ltr">
               <input
                 type="text"
+                dir="ltr"
+                inputMode="text"
+                enterKeyHint="send"
                 className={styles.composeInput}
                 autoComplete="off"
                 autoCorrect="on"
