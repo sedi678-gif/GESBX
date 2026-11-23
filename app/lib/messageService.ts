@@ -91,9 +91,14 @@ async function persistPrivateMessage(
     payload.senderId,
     'POST',
     {
-      ...payload,
       senderId: payload.senderId,
       recipientId: payload.recipientId,
+      senderName: payload.senderName || '',
+      senderHandle: payload.senderHandle || '',
+      senderAvatar: payload.senderAvatar || '',
+      recipientName: payload.recipientName || '',
+      recipientHandle: payload.recipientHandle || '',
+      recipientAvatar: payload.recipientAvatar || '',
       message,
     }
   );
