@@ -733,7 +733,7 @@ export default function MessagesPageClient() {
       setChats((prev) => (prev.some((c) => c.chatId === chat.chatId) ? prev : [chat, ...prev]));
     } catch (err) {
       console.error('[Message] chat creation failed:', err);
-      alert('Söhbət yadda saxlanmadı. Firebase icazəsi və istifadəçi ID-sini yoxlamaq lazımdır.');
+      alert('Söhbət açılmadı: ' + (err instanceof Error ? err.message : 'SERVER_ERROR'));
       return;
     }
     setSelectedChat(chat);
@@ -788,7 +788,7 @@ export default function MessagesPageClient() {
       });
     } catch (err) {
       console.error(err);
-      alert(editingMessage ? 'Mesaj düzənlənmədi.' : 'Mesaj göndərilmədi.');
+      alert((editingMessage ? 'Mesaj düzənlənmədi: ' : 'Mesaj göndərilmədi: ') + (err instanceof Error ? err.message : 'SERVER_ERROR'));
       setMessageText(text);
     } finally {
       setSending(false);
