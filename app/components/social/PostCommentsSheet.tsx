@@ -27,6 +27,8 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   const [error, setError] = useState('');
   const [likes, setLikes] = useState<Record<string, { count: number; liked: boolean }>>(() => commentLikeCache.get(`${postId || ''}:${currentUserId}`) || {});
   const [likeBusy, setLikeBusy] = useState<string | null>(null);
+  const [activeCommentMenu, setActiveCommentMenu] = useState<string | null>(null);
+  const commentHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const likeActionAtRef = useRef<Record<string, number>>({});
   const pendingCommentLikesRef = useRef<Set<string>>(new Set());
 
@@ -72,6 +74,10 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   }, [comments]);
 
   if (!open || !postId) return null;
+
+  const clearCommentHoldTimer = () => {
+    if (commentHoldTimerRef.current) { clearTimeout(commentHoldTimerRef.current); commentHoldTimerRef.current = null; }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +133,11 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
           ) : <div className={styles.commentAvatarFallback}>{comment.userName.charAt(0)}</div>}
           <div className={styles.commentBody}>
             <div className={styles.commentAuthor}>{comment.userName}</div>
-            <div className={styles.commentText}>{comment.text}</div>
+            <div className={styles.commentText}
+              onPointerDown={(event) => { if (event.pointerType === 'mouse' && event.button !== 0) return; clearCommentHoldTimer(); commentHoldTimerRef.current = setTimeout(() => setActiveCommentMenu(comment.id), 520); }}
+              onPointerUp={clearCommentHoldTimer} onPointerCancel={clearCommentHoldTimer} onPointerLeave={clearCommentHoldTimer}
+              onContextMenu={(event) => { event.preventDefault(); clearCommentHoldTimer(); setActiveCommentMenu(comment.id); }}
+            >{comment.text}</div>
             <div className={styles.commentActions}>
               <button
                 type="button"
@@ -167,24 +177,17 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.liked ? 'Bəyənildi' : 'Bəyən'}
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
-              <button type="button" className={styles.commentReplyButton} onClick={() => { setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label={depth > 0 ? "Bu cavaba cavab yaz" : "Şərhə cavab yaz"}>↩ <span>{depth > 0 ? 'Cavaba cavab yaz' : 'Cavab yaz'}</span></button>
-              {comment.userId === currentUserId ? (
-                <>
-                  <button type="button" className={styles.commentMiniAction} aria-label="Şərhi düzəlt" title="Düzəlt" onClick={() => { setEditingComment(comment); setReplyTo(null); setText(comment.text); setError(''); }}>✎</button>
-                  <button type="button" className={styles.commentMiniAction} aria-label="Şərhi sil" title="Sil" onClick={async () => {
-                    if (!window.confirm('Bu şərhi silmək istəyirsiniz?')) return;
-                    try { await deleteOwnPostComment(comment.id, currentUserId); }
-                    catch (err) { setError(err instanceof Error ? err.message : 'Şərh silinmədi.'); }
-                  }}>🗑</button>
-                </>
-              ) : (
-                <button type="button" className={styles.commentMiniAction} aria-label="Şərhdən şikayət et" title="Şikayət et" onClick={async () => {
-                  const reason = window.prompt('Şikayət səbəbini yazın:');
-                  if (!reason?.trim()) return;
-                  try { await reportPostComment(comment.id, currentUserId, reason); alert('Şikayət göndərildi.'); }
-                  catch (err) { setError(err instanceof Error ? err.message : 'Şikayət göndərilmədi.'); }
-                }}>⚑</button>
-              )}
+              <button type="button" className={styles.commentReplyButton} onClick={() => { setActiveCommentMenu(null); setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label={depth > 0 ? "Bu cavaba cavab yaz" : "Şərhə cavab yaz"}>↩ <span>{depth > 0 ? 'Cavaba cavab yaz' : 'Cavab yaz'}</span></button>
+            </div>
+            {activeCommentMenu === comment.id && (
+              <div className={styles.commentContextMenu} role="menu" aria-label="Şərh seçimləri">
+                {comment.userId === currentUserId ? <>
+                  <button type="button" role="menuitem" onClick={() => { setActiveCommentMenu(null); setEditingComment(comment); setReplyTo(null); setText(comment.text); setError(''); }}>Düzənlə</button>
+                  <button type="button" role="menuitem" className={styles.commentContextDanger} onClick={async () => { setActiveCommentMenu(null); if (!window.confirm('Bu şərhi silmək istəyirsiniz?')) return; try { await deleteOwnPostComment(comment.id, currentUserId); } catch (err) { setError(err instanceof Error ? err.message : 'Şərh silinmədi.'); } }}>Şərhi sil</button>
+                </> : <button type="button" role="menuitem" className={styles.commentContextDanger} onClick={async () => { setActiveCommentMenu(null); const reason = window.prompt('Şikayət səbəbini yazın:'); if (!reason?.trim()) return; try { await reportPostComment(comment.id, currentUserId, reason); alert('Şikayət göndərildi.'); } catch (err) { setError(err instanceof Error ? err.message : 'Şikayət göndərilmədi.'); } }}>Şikayət et</button>}
+                <button type="button" role="menuitem" onClick={() => setActiveCommentMenu(null)}>Bağla</button>
+              </div>
+            )}
             </div>
           </div>
         </div>
