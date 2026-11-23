@@ -7,6 +7,7 @@ import Link from 'next/link';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import {
   listenUserPosts,
+  listenPostCommentCount,
   listenUserLikesReceived,
   listenUserViewsReceived,
   readCachedLikesReceived,
@@ -69,6 +70,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
   const [loading, setLoading] = useState(true);
   const [followListMode, setFollowListMode] = useState<'followers' | 'following' | null>(null);
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
+  const [selectedPostCommentCount, setSelectedPostCommentCount] = useState(0);
   const [showPostComments, setShowPostComments] = useState(false);
   const [viewerProfile, setViewerProfile] = useState<{ name: string; surname?: string; avatar?: string } | null>(null);
   const postGridRef = useRef<HTMLDivElement | null>(null);
@@ -207,6 +209,15 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
     if (!myId || myId === targetUserId) return;
     return listenIsFollowing(myId, targetUserId, setIsFollowing);
   }, [myId, targetUserId]);
+
+  useEffect(() => {
+    if (!selectedPost) {
+      setSelectedPostCommentCount(0);
+      return;
+    }
+    setSelectedPostCommentCount(Math.max(0, Number(selectedPost.commentsCount) || 0));
+    return listenPostCommentCount(selectedPost.id, setSelectedPostCommentCount);
+  }, [selectedPost?.id]);
 
   const handleFollow = async () => {
     if (!myId || myId === 'anonim_user_id' || myId === 'guest' || followBusy) {
@@ -364,7 +375,7 @@ export default function OtherUserProfile({ targetUserId, myId }: OtherUserProfil
                 : <img src={selectedPost.mediaUrl} alt={selectedPost.title} style={{ width: '100%', maxHeight: '58dvh', objectFit: 'contain' }} />}
             </div>
             <button type="button" className={styles.primaryBtn} onClick={() => setShowPostComments(true)} style={{ marginTop: 12 }}>
-              💬 Şərhlər ({selectedPost.commentsCount || 0}) · Şərh yaz / Cavab ver
+              💬 Şərhlər ({selectedPostCommentCount}) · Şərh yaz / Cavab ver
             </button>
           </section>
         </div>
