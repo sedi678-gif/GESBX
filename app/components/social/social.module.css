@@ -701,20 +701,54 @@
   transform: scale(0.94);
 }
 
-.voiceMsgTrack {
+.voiceMsgWaveform {
   flex: 1;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
+  min-width: 100px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
   overflow: hidden;
 }
 
-.voiceMsgFill {
-  height: 100%;
-  border-radius: inherit;
+.voiceMsgWaveBar {
+  display: block;
+  flex: 1 1 2px;
+  min-width: 2px;
+  max-width: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  transform-origin: center;
+  transition: background 0.15s ease;
+}
+
+.voiceMsgWaveBarPlayed {
   background: currentColor;
-  opacity: 0.75;
-  transition: width 0.12s linear;
+  opacity: 0.95;
+}
+
+.voiceMsgWaveBarPlaying {
+  animation: voiceWavePulse 650ms ease-in-out infinite alternate;
+}
+
+@keyframes voiceWavePulse {
+  from { transform: scaleY(0.58); }
+  to { transform: scaleY(1); }
+}
+
+.messageStatus {
+  margin-left: 3px;
+  color: rgba(255, 255, 255, 0.62);
+  font-weight: 800;
+  letter-spacing: -2px;
+}
+
+.messageStatusRead {
+  margin-left: 3px;
+  color: #53bdeb;
+  font-weight: 900;
+  letter-spacing: -2px;
 }
 
 .voiceMsgDuration {
@@ -738,11 +772,14 @@
 }
 
 .mediaMessageImage {
-  max-width: min(260px, 70vw);
-  max-height: 320px;
+  max-width: min(280px, 76vw);
+  max-height: 360px;
   border-radius: 12px;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  opacity: 1;
+  filter: none;
+  background: rgba(0, 0, 0, 0.12);
 }
 
 .mediaMessageVideo {
@@ -2203,9 +2240,15 @@
   box-shadow: 0 -8px 24px rgba(34, 211, 238, 0.08);
 }
 
-.msgHubPage .composeInput {
-  flex: 1;
-  min-width: 0;
+ .msgHubPage .composeInput {
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 80px;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: plaintext;
   padding: 11px 16px;
   border-radius: 999px;
   border: 1px solid rgba(34, 211, 238, 0.35);
