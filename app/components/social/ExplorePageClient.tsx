@@ -128,7 +128,7 @@ export default function ExplorePageClient() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostTitle, setCommentPostTitle] = useState('');
   const [showShareSheet, setShowShareSheet] = useState(false);
-  const [videoMuted, setVideoMuted] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -181,17 +181,21 @@ export default function ExplorePageClient() {
   const media = current?.mediaList[mediaIndex];
 
   useEffect(() => {
-    setVideoMuted(true);
+    try {
+      setSoundEnabled(window.localStorage.getItem('gesbx_explore_sound_enabled') === '1');
+    } catch { /* storage may be unavailable */ }
+  }, []);
+
+  useEffect(() => {
+    // Keep the user's sound choice for every next video in this Explore session.
     const video = videoRef.current;
     if (!video) return;
-    // New feed item starts muted. Sound is changed only by the user's sound button,
-    // so media loading events can never silently turn it off again.
-    video.muted = true;
-    video.defaultMuted = true;
+    video.muted = !soundEnabled;
+    video.defaultMuted = !soundEnabled;
     if (video.paused) {
-      void video.play().catch((error) => console.warn('[Explore] muted autoplay blocked:', error));
+      void video.play().catch((error) => console.warn('[Explore] autoplay blocked:', error));
     }
-  }, [media?.id]);
+  }, [media?.id, soundEnabled]);
   const currentUserId = current?.userId;
   const mediaId = media?.id;
 
@@ -397,14 +401,17 @@ export default function ExplorePageClient() {
   const toggleVideoSound = () => {
     const video = videoRef.current;
     if (!video) return;
-    // Read the element's real state to avoid stale React state on rapid taps.
-    const nextMuted = !video.muted;
-    video.muted = nextMuted;
-    setVideoMuted(nextMuted);
-    if (!nextMuted) {
-      // Call play synchronously inside the user's tap so Android WebView
-      // accepts the first unmute gesture instead of requiring repeated taps.
-      void video.play().catch((error) => console.warn('[Explore] playback after unmute failed:', error));
+    // Read the actual element state; one tap updates every subsequent feed video.
+    const nextSoundEnabled = video.muted;
+    video.muted = !nextSoundEnabled;
+    video.defaultMuted = !nextSoundEnabled;
+    setSoundEnabled(nextSoundEnabled);
+    try {
+      window.localStorage.setItem('gesbx_explore_sound_enabled', nextSoundEnabled ? '1' : '0');
+    } catch { /* storage may be unavailable in private mode */ }
+    if (nextSoundEnabled) {
+      // Keep play() in the same user gesture for Android WebView permission.
+      void video.play().catch((error) => console.warn('[Explore] playback after sound enable failed:', error));
     }
   };
 
@@ -460,7 +467,7 @@ export default function ExplorePageClient() {
                   autoPlay
                   preload="auto"
                   loop
-                  muted={videoMuted}
+                  muted={!soundEnabled}
 playsInline
                   controls={false}
                   disablePictureInPicture
@@ -468,8 +475,24 @@ playsInline
                   controlsList="nodownload noplaybackrate noremoteplayback"
                   onError={() => console.warn('[Explore] video source could not be decoded or loaded:', media.mediaUrl)}
                 />
-                <button type="button" onClick={() => void toggleVideoSound()} aria-label={videoMuted ? 'Səsi aç' : 'Səsi bağla'} style={{ position: 'absolute', zIndex: 7, top: 54, right: 14, width: 42, height: 42, border: '1px solid rgba(255,255,255,.35)', borderRadius: 999, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 20, display: 'grid', placeItems: 'center' }}>
-                  {videoMuted ? '🔇' : '🔊'}
+                <button
+                  type="button"
+                  className={styles.videoSoundToggle}
+                  onClick={() => void toggleVideoSound()}
+                  aria-label={soundEnabled ? 'Səsi bağla' : 'Səsi aç'}
+                  title={soundEnabled ? 'Səsi bağla' : 'Səsi aç'}
+                >
+                  <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+                    {soundEnabled ? (
+                      <>
+                        <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                        <path d="M19 5a10 10 0 0 1 0 14" />
+                      </>
+                    ) : (
+                      <path d="m17 9 5 6m0-6-5 6" />
+                    )}
+                  </svg>
                 </button>
               </>
             ) : (
