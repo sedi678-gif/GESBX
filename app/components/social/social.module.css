@@ -1688,6 +1688,17 @@
   font-weight: 800;
 }
 
+
+/* Açıq söhbətdə səhifənin özü sabit qalır, yalnız mesaj siyahısı sürüşür. */
+.msgHubChatOpen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
 /* Neon Messages Hub — yalnız mesaj səhifəsi */
 .msgHubPage {
   min-height: 100dvh;
@@ -2133,8 +2144,9 @@
 .msgHubPage .messageArea {
   background: transparent;
   display: flex;
+  flex: 1 1 0%;
   flex-direction: column;
-  height: calc(100dvh - 130px);
+  height: auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -2142,7 +2154,7 @@
 .msgHubPage .messageScroll {
   flex: 1 1 0%;
   min-height: 0;
-  height: 0;
+  height: auto;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
@@ -2252,23 +2264,32 @@
 }
 
 .msgHubPage .composeBar {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   min-width: 0;
   flex: 0 0 auto;
-  flex-wrap: nowrap;
   box-sizing: border-box;
 }
 
 .msgHubPage .composeInput {
   display: block;
-  flex: 1 1 0px;
-  width: 0;
+  grid-column: 2;
+  flex: none;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
+  height: 44px;
   box-sizing: border-box;
   writing-mode: horizontal-tb !important;
   text-orientation: mixed !important;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  text-align: left;
+  transform: none;
   direction: ltr;
   unicode-bidi: plaintext;
   padding: 11px 16px;
