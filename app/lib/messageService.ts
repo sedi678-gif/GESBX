@@ -178,7 +178,18 @@ async function upsertChat(
   _chatId: string,
   payload: ChatPayload & { lastMessage: string; lastMessageAt: number }
 ): Promise<void> {
-  await privateMessagesRequest('ensure-chat', payload.senderId, 'POST', payload);
+  await privateMessagesRequest('ensure-chat', payload.senderId, 'POST', {
+    senderId: payload.senderId,
+    recipientId: payload.recipientId,
+    senderName: payload.senderName || '',
+    senderHandle: payload.senderHandle || '',
+    senderAvatar: payload.senderAvatar || '',
+    recipientName: payload.recipientName || '',
+    recipientHandle: payload.recipientHandle || '',
+    recipientAvatar: payload.recipientAvatar || '',
+    lastMessage: payload.lastMessage,
+    lastMessageAt: payload.lastMessageAt,
+  });
 }
 
 async function uploadOrInline(path: string, blob: Blob, mime: string): Promise<string> {
