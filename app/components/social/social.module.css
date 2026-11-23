@@ -3285,3 +3285,30 @@
   min-width: 44px !important;
   max-width: 44px !important;
 }
+
+
+/* Mesaj sətirlərində bubble flex-in min-content eninə sıxılmasın.
+   Bu, "salam" sözünün hərflərə bölünüb nazik qutuya düşməsinin qarşısını alır. */
+.msgHubPage .messageBubbleCol {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 0 1 82% !important;
+  width: 82% !important;
+  min-width: 0 !important;
+  max-width: 82% !important;
+}
+.msgHubPage .bubbleMine,
+.msgHubPage .bubbleTheirs {
+  display: block !important;
+  width: fit-content !important;
+  min-width: 60px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+.msgHubPage .bubbleText {
+  white-space: pre-wrap !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+}
