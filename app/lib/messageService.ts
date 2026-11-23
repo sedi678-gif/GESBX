@@ -56,6 +56,55 @@ const DEFAULT_AVATAR =
 const INLINE_LIMIT = 900_000;
 /** Kiçik səs mesajları üçün Storage əvəzinə inline saxlama */
 const VOICE_INLINE_PREFER = 350_000;
+async function privateMessagesRequest<T = any>(
+  action: string,
+  profileId: string,
+  method: 'GET' | 'POST' = 'GET',
+  payload: Record<string, unknown> = {}
+): Promise<T> {
+  const user = await ensureFirebaseAuth();
+  if (!user) throw new Error('Mesaj serverinə qoşulmaq üçün hesaba daxil olun.');
+  const token = await user.getIdToken();
+  const params = new URLSearchParams({ handler: 'messages', action, profileId: String(profileId) });
+  const options: RequestInit = {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  };
+  if (method === 'GET') {
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) params.set(key, String(value));
+    });
+  } else {
+    options.body = JSON.stringify({ ...payload, profileId: String(profileId) });
+  }
+  const response = await fetch(`/api/paypal?${params.toString()}`, options);
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const code = String(result.error || 'PRIVATE_MESSAGES_FAILED');
+    throw new Error(code);
+  }
+  return result as T;
+}
+
+async function persistPrivateMessage(
+  payload: ChatPayload,
+  message: StoredMessage
+): Promise<StoredMessage> {
+  const result = await privateMessagesRequest<{ message: StoredMessage }>(
+    'send',
+    payload.senderId,
+    'POST',
+    {
+      ...payload,
+      senderId: payload.senderId,
+      recipientId: payload.recipientId,
+      message,
+    }
+  );
+  return result.message;
+}
+
 
 export interface FastSendResult {
   instant: StoredMessage;
@@ -109,54 +158,18 @@ interface ChatPayload extends ParticipantMeta {
 }
 
 export async function ensurePrivateChat(payload: ChatPayload): Promise<void> {
-  await ensureFirebaseAuth();
-  const chatId = buildChatId(payload.senderId, payload.recipientId);
-  const chatRef = doc(db, 'private_chats', chatId);
-  const existing = await getDoc(chatRef);
-  if (existing.exists()) return;
-
-  const now = Date.now();
-  await upsertChat(chatId, {
+  await upsertChat(buildChatId(payload.senderId, payload.recipientId), {
     ...payload,
     lastMessage: 'Yeni söhbət',
-    lastMessageAt: now,
+    lastMessageAt: Date.now(),
   });
 }
 
 async function upsertChat(
-  chatId: string,
+  _chatId: string,
   payload: ChatPayload & { lastMessage: string; lastMessageAt: number }
-) {
-  await ensureFirebaseAuth();
-  const existingChat = await getDoc(doc(db, 'private_chats', chatId));
-  const existingMeta = existingChat.exists()
-    ? (existingChat.data().participantMeta as Record<string, { name?: string; handle?: string; avatar?: string }>) || {}
-    : {};
-
-  await setDoc(
-    doc(db, 'private_chats', chatId),
-    {
-      chatId,
-      participants: [payload.senderId, payload.recipientId].sort(),
-      participantMeta: {
-        ...existingMeta,
-        [payload.senderId]: {
-          name: payload.senderName || existingMeta[payload.senderId]?.name || '',
-          handle: payload.senderHandle || existingMeta[payload.senderId]?.handle || '',
-          avatar: payload.senderAvatar || existingMeta[payload.senderId]?.avatar || DEFAULT_AVATAR,
-        },
-        [payload.recipientId]: {
-          name: payload.recipientName || existingMeta[payload.recipientId]?.name || '',
-          handle: payload.recipientHandle || existingMeta[payload.recipientId]?.handle || '',
-          avatar: payload.recipientAvatar || existingMeta[payload.recipientId]?.avatar || DEFAULT_AVATAR,
-        },
-      },
-      lastMessage: payload.lastMessage,
-      lastMessageAt: payload.lastMessageAt,
-      updatedAt: payload.lastMessageAt,
-    },
-    { merge: true }
-  );
+): Promise<void> {
+  await privateMessagesRequest('ensure-chat', payload.senderId, 'POST', payload);
 }
 
 async function uploadOrInline(path: string, blob: Blob, mime: string): Promise<string> {
@@ -201,8 +214,7 @@ export async function sendPrivateMessage(payload: ChatPayload & { text: string }
   const trimmed = payload.text.trim();
   if (!trimmed) throw new Error('Boş mesaj göndərilə bilməz');
 
-  await upsertChat(chatId, { ...payload, lastMessage: trimmed, lastMessageAt: now });
-  const msgRef = doc(collection(db, 'private_messages'));
+  const msgRef = newMessageRef();
   const message: StoredMessage = {
     id: msgRef.id,
     chatId,
@@ -212,8 +224,7 @@ export async function sendPrivateMessage(payload: ChatPayload & { text: string }
     text: trimmed,
     createdAt: now,
   };
-  await setDoc(msgRef, message);
-  return message;
+  return persistPrivateMessage(payload, message);
 }
 
 export async function sendAudioMessageFast(
@@ -241,16 +252,13 @@ export async function sendAudioMessageFast(
   };
 
   const persist = async (): Promise<StoredMessage> => {
-    await upsertChat(chatId, { ...payload, lastMessage: 'audio', lastMessageAt: now });
     const audioUrl = await persistBlobUrl(
       `voice_messages/${chatId}/${messageId}.${ext}`,
       payload.audioBlob,
       mime
     );
     const message: StoredMessage = { ...instant, audioUrl };
-    await setDoc(msgRef, message);
-    await upsertChat(chatId, { ...payload, lastMessage: '🎤 Səs mesajı', lastMessageAt: now });
-    return message;
+    return persistPrivateMessage(payload, message);
   };
 
   return { instant, persist, localPreviewUrl };
@@ -285,7 +293,6 @@ export async function sendMediaMessageFast(
   };
 
   const persist = async (): Promise<StoredMessage> => {
-    await upsertChat(chatId, { ...payload, lastMessage, lastMessageAt: now });
     let blob: Blob = payload.file;
     let mime = payload.file.type;
     if (type === 'image') {
@@ -300,9 +307,7 @@ export async function sendMediaMessageFast(
       type === 'image' ? 500_000 : VOICE_INLINE_PREFER
     );
     const message: StoredMessage = { ...instant, mediaUrl, mediaMime: mime };
-    await setDoc(msgRef, message);
-    await upsertChat(chatId, { ...payload, lastMessage, lastMessageAt: now });
-    return message;
+    return persistPrivateMessage(payload, message);
   };
 
   return { instant, persist, localPreviewUrl: socketUrl ? undefined : localPreviewUrl };
@@ -330,20 +335,13 @@ export async function sendFileMessageFast(payload: ChatPayload & { file: File })
   };
 
   const persist = async (): Promise<StoredMessage> => {
-    await upsertChat(chatId, { ...payload, lastMessage: payload.file.name, lastMessageAt: now });
     const mediaUrl = await uploadOrInline(
       `chat_files/${chatId}/${messageId}.${ext}`,
       payload.file,
       payload.file.type || 'application/octet-stream'
     );
     const message: StoredMessage = { ...instant, mediaUrl };
-    await setDoc(msgRef, message);
-    await upsertChat(chatId, {
-      ...payload,
-      lastMessage: `📁 ${payload.file.name}`,
-      lastMessageAt: now,
-    });
-    return message;
+    return persistPrivateMessage(payload, message);
   };
 
   return { instant, persist, localPreviewUrl: socketUrl ? undefined : localPreviewUrl };
@@ -362,13 +360,10 @@ export async function sendFileMessage(payload: ChatPayload & { file: File }): Pr
 export async function sendLocationMessage(
   payload: ChatPayload & { lat: number; lng: number; label: string }
 ): Promise<StoredMessage> {
-  await ensureFirebaseAuth();
   const chatId = buildChatId(payload.senderId, payload.recipientId);
   const now = Date.now();
-  const msgRef = doc(collection(db, 'private_messages'));
+  const msgRef = newMessageRef();
   const mapsUrl = `https://www.google.com/maps?q=${payload.lat},${payload.lng}`;
-  await upsertChat(chatId, { ...payload, lastMessage: 'location', lastMessageAt: now });
-
   const message: StoredMessage = {
     id: msgRef.id,
     chatId,
@@ -381,9 +376,7 @@ export async function sendLocationMessage(
     locationLng: payload.lng,
     createdAt: now,
   };
-  await setDoc(msgRef, message);
-  await upsertChat(chatId, { ...payload, lastMessage: '📍 Konum', lastMessageAt: now });
-  return message;
+  return persistPrivateMessage(payload, message);
 }
 
 export async function sendCallLogMessage(payload: {
@@ -394,14 +387,18 @@ export async function sendCallLogMessage(payload: {
   senderName?: string;
   recipientName?: string;
 }): Promise<void> {
-  await ensureFirebaseAuth();
   const chatId = buildChatId(payload.senderId, payload.recipientId);
   const now = Date.now();
   const label =
     payload.callType === 'video' ? `📹 Video zəng — ${payload.callStatus}` : `📞 Səsli zəng — ${payload.callStatus}`;
-
-  const msgRef = doc(collection(db, 'private_messages'));
-  await setDoc(msgRef, {
+  const meta = {
+    senderId: payload.senderId,
+    recipientId: payload.recipientId,
+    senderName: payload.senderName,
+    recipientName: payload.recipientName,
+  };
+  const msgRef = newMessageRef();
+  await persistPrivateMessage(meta, {
     id: msgRef.id,
     chatId,
     senderId: payload.senderId,
@@ -412,14 +409,6 @@ export async function sendCallLogMessage(payload: {
     callStatus: payload.callStatus,
     createdAt: now,
   });
-  await upsertChat(chatId, {
-    senderId: payload.senderId,
-    recipientId: payload.recipientId,
-    senderName: payload.senderName,
-    recipientName: payload.recipientName,
-    lastMessage: label,
-    lastMessageAt: now,
-  });
 }
 
 export function listenUserChats(
@@ -427,30 +416,15 @@ export function listenUserChats(
   callback: (chats: ChatSummary[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  const q = query(collection(db, 'private_chats'), where('participants', 'array-contains', userId));
-  return onSnapshot(q, (snap) => {
-    const chats: ChatSummary[] = [];
-    snap.forEach((d) => {
-      const data = d.data();
-      const participants = (data.participants as string[]) || [];
-      const otherId = participants.find((p) => p !== userId) || '';
-      const meta = (data.participantMeta as Record<string, { name?: string; handle?: string; avatar?: string }>)?.[otherId] || {};
-      chats.push({
-        chatId: (data.chatId as string) || d.id,
-        otherUserId: otherId,
-        otherUserName: meta.name || 'İstifadəçi',
-        otherUserHandle: meta.handle || '',
-        otherUserAvatar: meta.avatar || DEFAULT_AVATAR,
-        lastMessage: (data.lastMessage as string) || '',
-        lastMessageAt: (data.lastMessageAt as number) || 0,
-      });
+  let cancelled = false;
+  void privateMessagesRequest<{ chats: ChatSummary[] }>('chats', userId)
+    .then((result) => {
+      if (!cancelled) callback(result.chats || []);
+    })
+    .catch((error) => {
+      if (!cancelled) onError?.(error instanceof Error ? error : new Error(String(error)));
     });
-    chats.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
-    callback(chats);
-  }, (error) => {
-    console.error('[Message] chat list listener failed:', error);
-    onError?.(error);
-  });
+  return () => { cancelled = true; };
 }
 
 function docToStoredMessage(d: { id: string; data: () => Record<string, unknown> }): StoredMessage {
@@ -479,91 +453,49 @@ function docToStoredMessage(d: { id: string; data: () => Record<string, unknown>
 }
 
 /** Mətn mesajını düzənlə (WhatsApp — yalnız öz mesajın) */
-export async function editMessage(messageId: string, chatId: string, newText: string): Promise<void> {
-  await ensureFirebaseAuth();
+export async function editMessage(messageId: string, chatId: string, newText: string, userId: string): Promise<void> {
   const trimmed = newText.trim();
   if (!trimmed) throw new Error('Mesaj boş ola bilməz.');
-  await updateDoc(doc(db, 'private_messages', messageId), {
-    text: trimmed,
-    editedAt: Date.now(),
-  });
-  await refreshChatLastMessage(chatId);
+  await privateMessagesRequest('edit', userId, 'POST', { messageId, chatId, text: trimmed });
 }
 
-async function refreshChatLastMessage(chatId: string): Promise<void> {
-  const q = query(collection(db, 'private_messages'), where('chatId', '==', chatId));
-  const snap = await getDocs(q);
-  const msgs = snap.docs.map((d) => docToStoredMessage(d));
-  msgs.sort((a, b) => b.createdAt - a.createdAt);
-  const latest = msgs[0];
-  await setDoc(
-    doc(db, 'private_chats', chatId),
-    {
-      lastMessage: latest ? messagePreview(latest) : '',
-      lastMessageAt: latest?.createdAt ?? 0,
-      updatedAt: Date.now(),
-    },
-    { merge: true }
-  );
+/** Mesajı sil — iştirakçılardan biri silə bilər. */
+export async function deleteMessage(messageId: string, chatId: string, userId: string): Promise<void> {
+  await privateMessagesRequest('delete', userId, 'POST', { messageId, chatId });
 }
 
-/** Mesajı sil (WhatsApp — hər iki tərəfdən) */
-export async function deleteMessage(messageId: string, chatId: string): Promise<void> {
-  await ensureFirebaseAuth();
-  await deleteDoc(doc(db, 'private_messages', messageId));
-  await refreshChatLastMessage(chatId);
-}
-
-/** Söhbəti tam təmizlə */
-export async function clearChat(chatId: string): Promise<void> {
-  await ensureFirebaseAuth();
-  const q = query(collection(db, 'private_messages'), where('chatId', '==', chatId));
-  const snap = await getDocs(q);
-
-  const refs = snap.docs.map((d) => d.ref);
-  for (let i = 0; i < refs.length; i += 450) {
-    const batch = writeBatch(db);
-    refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
-    await batch.commit();
-  }
-
-  await setDoc(
-    doc(db, 'private_chats', chatId),
-    {
-      lastMessage: '',
-      lastMessageAt: 0,
-      updatedAt: Date.now(),
-    },
-    { merge: true }
-  );
+/** Söhbətdəki bütün mesajları sil. */
+export async function clearChat(chatId: string, userId: string): Promise<void> {
+  await privateMessagesRequest('clear', userId, 'POST', { chatId });
 }
 
 export async function markMessageReceived(
   messageId: string,
-  status: { deliveredAt?: number; readAt?: number }
+  status: { deliveredAt?: number; readAt?: number },
+  userId: string
 ): Promise<void> {
-  await ensureFirebaseAuth();
-  const patch: Record<string, number> = {};
-  if (status.deliveredAt) patch.deliveredAt = status.deliveredAt;
-  if (status.readAt) patch.readAt = status.readAt;
-  if (Object.keys(patch).length) await updateDoc(doc(db, 'private_messages', messageId), patch);
+  await privateMessagesRequest('status', userId, 'POST', { messageId, ...status });
 }
 
 export function listenChatMessages(
   chatId: string,
+  userId: string,
   callback: (msgs: StoredMessage[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
+  let fallbackLoaded = false;
   const q = query(collection(db, 'private_messages'), where('chatId', '==', chatId));
   return onSnapshot(q, (snap) => {
     const msgs: StoredMessage[] = [];
-    snap.forEach((d) => {
-      msgs.push(docToStoredMessage(d));
-    });
+    snap.forEach((d) => msgs.push(docToStoredMessage(d)));
     msgs.sort((a, b) => a.createdAt - b.createdAt);
     callback(msgs);
   }, (error) => {
-    console.error('[Message] message history listener failed:', error);
-    onError?.(error);
+    console.error('[Message] Firestore realtime read failed; loading via authenticated server:', error);
+    if (fallbackLoaded) return;
+    fallbackLoaded = true;
+    void privateMessagesRequest<{ messages: StoredMessage[] }>('messages', userId, 'GET', { chatId })
+      .then((result) => callback(result.messages || []))
+      .catch((serverError) => onError?.(serverError instanceof Error ? serverError : new Error(String(serverError))));
   });
 }
