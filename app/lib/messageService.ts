@@ -1,12 +1,6 @@
 import {
   collection,
   doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  writeBatch,
   query,
   where,
   onSnapshot,
@@ -15,6 +9,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/firebase';
 import { ensureFirebaseAuth, blobToDataUrl, compressImage } from './firebaseAuth';
+import type { AppUserProfile } from './socialTypes';
 
 export type MessageType = 'text' | 'audio' | 'call' | 'image' | 'video' | 'file' | 'location';
 
@@ -111,6 +106,15 @@ export interface FastSendResult {
   persist: () => Promise<StoredMessage>;
   /** Yalnız lokal UI üçün — socket-ə getmir */
   localPreviewUrl?: string;
+}
+
+export async function searchMessageUsers(queryText: string, currentUserId: string): Promise<AppUserProfile[]> {
+  const query = queryText.trim();
+  if (!query) return [];
+  const result = await privateMessagesRequest<{ users: AppUserProfile[] }>(
+    'search-users', currentUserId, 'GET', { q: query }
+  );
+  return result.users || [];
 }
 
 export function isTransferableMessageUrl(url?: string): boolean {
