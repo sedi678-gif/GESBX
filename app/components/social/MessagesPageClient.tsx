@@ -53,6 +53,7 @@ import {
 } from '@/app/lib/socialService';
 import {
   buildChatId,
+  ensurePrivateChat,
   listenUserChats,
   listenChatMessages,
   sendPrivateMessage,
@@ -708,6 +709,19 @@ export default function MessagesPageClient() {
       time: 'İndi',
     };
     setChats((prev) => (prev.some((c) => c.id === chat.id) ? prev : [chat, ...prev]));
+    const myMeta = getMyProfileMeta();
+    void ensurePrivateChat({
+      senderId: String(myId),
+      recipientId: String(u.id),
+      senderName: myMeta.name,
+      senderHandle: myMeta.handle,
+      senderAvatar: myMeta.avatar,
+      recipientName: chat.name,
+      recipientHandle: chat.username,
+      recipientAvatar: chat.avatar,
+    }).catch((err) => {
+      console.error('[Message] chat creation failed:', err);
+    });
     setSelectedChat(chat);
     setShowSearch(false);
   };
@@ -1230,7 +1244,7 @@ export default function MessagesPageClient() {
   const hasComposeText = messageText.trim().length > 0;
 
   return (
-    <div className={styles.msgHubPage}>
+    <div className={`${styles.msgHubPage} ${selectedChat ? styles.msgHubChatOpen : ''}`}>
       <header className={styles.msgHubHeader}>
         {selectedChat && (selectionMode || selectedIds.length > 0) ? (
           <MessageSelectionBar
