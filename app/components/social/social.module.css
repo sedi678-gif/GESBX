@@ -3213,3 +3213,75 @@
   overflow-x: auto !important;
   overflow-y: hidden !important;
 }
+
+
+/* Yeni mesaj paneli: sabit üç sütun — əlavə, yazı sahəsi, göndər/mikrofon. */
+.msgHubPage .messageArea {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.msgHubPage .composeBar {
+  display: grid !important;
+  grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  grid-auto-flow: row !important;
+  align-items: center !important;
+  column-gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px) * .2) !important;
+  box-sizing: border-box !important;
+}
+.msgHubPage .composeBar > .hiddenFileInput {
+  display: none !important;
+}
+.msgHubPage .composeBar > .msgComposeBtn:first-of-type {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+}
+.msgHubPage .composeBar > .composeInputWrap {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  flex: none !important;
+  overflow: visible !important;
+}
+.msgHubPage .composeBar > .composeInputWrap > .composeInput {
+  display: block !important;
+  position: static !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  margin: 0 !important;
+  padding: 0 15px !important;
+  box-sizing: border-box !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+  white-space: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  text-align: left !important;
+  font-size: 16px !important;
+  line-height: 46px !important;
+  letter-spacing: normal !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  transform: none !important;
+}
+.msgHubPage .composeBar > .msgComposeBtn:last-child {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+}
