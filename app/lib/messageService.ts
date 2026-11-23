@@ -3,6 +3,8 @@ import {
   doc,
   query,
   where,
+  orderBy,
+  limitToLast,
   onSnapshot,
   Unsubscribe,
 } from 'firebase/firestore';
@@ -528,7 +530,14 @@ export function listenChatMessages(
   onError?: (error: Error) => void
 ): Unsubscribe {
   let fallbackLoaded = false;
-  const q = query(collection(db, 'private_messages'), where('chatId', '==', chatId));
+  // Son 100 mesajı yüklə: bütün tarixçəni hər açılışda telefona endirmə.
+  // Mövcud Firestore composite index (chatId + createdAt ASC) ilə işləyir.
+  const q = query(
+    collection(db, 'private_messages'),
+    where('chatId', '==', chatId),
+    orderBy('createdAt', 'asc'),
+    limitToLast(100)
+  );
   return onSnapshot(q, (snap) => {
     const msgs: StoredMessage[] = [];
     snap.forEach((d) => msgs.push(docToStoredMessage(d)));
