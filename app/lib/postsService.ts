@@ -5,6 +5,8 @@ import {
   onSnapshot,
   query,
   where,
+  orderBy,
+  limit,
   updateDoc,
   deleteDoc,
   getDoc,
@@ -481,10 +483,10 @@ export function listenExploreFeed(
   blockedUserIds: string[] = [],
   onError?: (message: string) => void
 ): Unsubscribe {
-  // Firestore only needs its automatic single-field index here. Sorting by
-  // creation time happens locally in rankExploreFeed, avoiding a composite
-  // index deployment dependency for the public feed.
-  const q = query(collection(db, 'posts'), where('moderationStatus', '==', 'approved'));
+  // Read only the newest 100 records using the automatic createdAt single-field
+  // index, then filter approved posts locally. This avoids a composite index and
+  // prevents the Explore screen downloading the entire posts collection.
+  const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(100));
   let posts: SocialPost[] = [];
   let boosts = new Map<string, number>();
   let expireTimer: ReturnType<typeof setTimeout> | null = null;
