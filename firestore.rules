@@ -1512,7 +1512,7 @@ service cloud.firestore {
         && after.diff(before).affectedKeys().hasOnly(['status', 'updatedAt']);
     }
 
-    function isValidChallengeCloseOnFinish() {
+    function isValidChallengeCloseOnFinish(battleId) {
       let before = resource.data;
       let after = request.resource.data;
       return request.auth != null
@@ -1664,7 +1664,7 @@ service cloud.firestore {
         allow create: if isValidChallengeCreate(battleId, challengeId);
         allow update: if isValidChallengeClick(battleId, challengeId)
           || isValidChallengeExpire()
-          || isValidChallengeCloseOnFinish();
+          || isValidChallengeCloseOnFinish(battleId);
         allow delete: if false;
 
         match /clicks/{clickId} {
