@@ -228,13 +228,24 @@ async function handlePost(req, res, db, profileId, action) {
     if (Number.isFinite(Number(input.locationLng)) && Number(input.locationLng) >= -180 && Number(input.locationLng) <= 180) message.locationLng = Number(input.locationLng);
     if (['voice', 'video'].includes(input.callType)) message.callType = input.callType;
     const batch = db.batch();
+    const previousMeta = existing.exists ? (existing.data()?.participantMeta || {}) : {};
+    const senderMeta = previousMeta[senderId] || {};
+    const recipientMeta = previousMeta[recipientId] || {};
     batch.set(chatRef, {
       chatId,
       participants: [senderId, recipientId].sort(),
       participantMeta: {
-        ...(existing.data()?.participantMeta || {}),
-        [senderId]: profileMeta({ name: meta.senderName, handle: meta.senderHandle, avatar: meta.senderAvatar }),
-        [recipientId]: profileMeta({ name: meta.recipientName, handle: meta.recipientHandle, avatar: meta.recipientAvatar }),
+        ...previousMeta,
+        [senderId]: profileMeta({
+          name: meta.senderName || senderMeta.name,
+          handle: meta.senderHandle || senderMeta.handle,
+          avatar: meta.senderAvatar || senderMeta.avatar,
+        }),
+        [recipientId]: profileMeta({
+          name: meta.recipientName || recipientMeta.name,
+          handle: meta.recipientHandle || recipientMeta.handle,
+          avatar: meta.recipientAvatar || recipientMeta.avatar,
+        }),
       },
       lastMessage: messagePreview(message),
       lastMessageAt: message.createdAt,
