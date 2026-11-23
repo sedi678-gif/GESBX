@@ -45,6 +45,8 @@ export interface StoredMessage {
   callType?: 'voice' | 'video';
   callStatus?: string;
   editedAt?: number;
+  deliveredAt?: number;
+  readAt?: number;
   createdAt: number;
 }
 
@@ -196,7 +198,6 @@ export async function sendPrivateMessage(payload: ChatPayload & { text: string }
     createdAt: now,
   };
   await setDoc(msgRef, message);
-  await upsertChat(chatId, { ...payload, lastMessage: trimmed, lastMessageAt: now });
   return message;
 }
 
@@ -273,7 +274,7 @@ export async function sendMediaMessageFast(
     let blob: Blob = payload.file;
     let mime = payload.file.type;
     if (type === 'image') {
-      blob = await compressImage(payload.file);
+      blob = await compressImage(payload.file, 1920, 0.9);
       mime = 'image/jpeg';
     }
     const ext = type === 'image' ? 'jpg' : payload.file.name.split('.').pop()?.toLowerCase() || 'mp4';
@@ -449,6 +450,8 @@ function docToStoredMessage(d: { id: string; data: () => Record<string, unknown>
     callType: data.callType as 'voice' | 'video' | undefined,
     callStatus: data.callStatus as string | undefined,
     editedAt: data.editedAt as number | undefined,
+    deliveredAt: data.deliveredAt as number | undefined,
+    readAt: data.readAt as number | undefined,
     createdAt: (data.createdAt as number) || 0,
   };
 }
@@ -511,6 +514,17 @@ export async function clearChat(chatId: string): Promise<void> {
     },
     { merge: true }
   );
+}
+
+export async function markMessageReceived(
+  messageId: string,
+  status: { deliveredAt?: number; readAt?: number }
+): Promise<void> {
+  await ensureFirebaseAuth();
+  const patch: Record<string, number> = {};
+  if (status.deliveredAt) patch.deliveredAt = status.deliveredAt;
+  if (status.readAt) patch.readAt = status.readAt;
+  if (Object.keys(patch).length) await updateDoc(doc(db, 'private_messages', messageId), patch);
 }
 
 export function listenChatMessages(chatId: string, callback: (msgs: StoredMessage[]) => void): Unsubscribe {
