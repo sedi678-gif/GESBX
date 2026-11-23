@@ -957,10 +957,17 @@ export default function MessagesPageClient() {
 
   const handleBlock = async () => {
     if (!selectedChat) return;
-    await blockMessageUser(myId, selectedChat.id);
-    alert(`${selectedChat.name} bloklandı.`);
-    setShowActions(false);
-    setSelectedChat(null);
+    const blockedId = selectedChat.id;
+    try {
+      await blockMessageUser(myId, blockedId);
+      setBlockedIds((prev) => prev.includes(blockedId) ? prev : [...prev, blockedId]);
+      alert(`${selectedChat.name} bloklandı.`);
+      setShowActions(false);
+      setSelectedChat(null);
+    } catch (error) {
+      console.error('[Message] bloklama alınmadı:', error);
+      alert('İstifadəçi bloklana bilmədi.');
+    }
   };
 
   const handleReport = async () => {
