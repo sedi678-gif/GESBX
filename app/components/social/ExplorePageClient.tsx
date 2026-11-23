@@ -184,19 +184,13 @@ export default function ExplorePageClient() {
     setVideoMuted(true);
     const video = videoRef.current;
     if (!video) return;
+    // New feed item starts muted. Sound is changed only by the user's sound button,
+    // so media loading events can never silently turn it off again.
     video.muted = true;
     video.defaultMuted = true;
-    // Start each newly selected Explore video immediately, without showing
-    // the browser's paused/play overlay between feed items.
-    const start = () => {
-      video.muted = true;
-      if (video.paused) {
-        void video.play().catch((error) => console.warn('[Explore] autoplay blocked:', error));
-      }
-    };
-    if (video.readyState >= 2) start();
-    else video.addEventListener('loadeddata', start, { once: true });
-    return () => video.removeEventListener('loadeddata', start);
+    if (video.paused) {
+      void video.play().catch((error) => console.warn('[Explore] muted autoplay blocked:', error));
+    }
   }, [media?.id]);
   const currentUserId = current?.userId;
   const mediaId = media?.id;
@@ -238,9 +232,8 @@ export default function ExplorePageClient() {
     setSearchResults(results);
   };
 
-  // A swipe is handled by the feed itself; buttons and profile links keep their normal taps.
-  // Starting playback on pointer-down also gives Android WebView a user gesture
-  // to recover playback if its autoplay policy paused the video.
+  // Video taps toggle pause/play; vertical gestures still navigate the feed.
+  // Buttons and links keep their own click behavior.
   const onFeedPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.isPrimary || (e.target as HTMLElement).closest('button, a, input, select, textarea')) {
       touchStart.current = { x: 0, y: 0 };
@@ -248,11 +241,6 @@ export default function ExplorePageClient() {
     }
     touchStart.current = { x: e.clientX, y: e.clientY };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
-    const video = videoRef.current;
-    if (video?.paused) {
-      video.muted = true;
-      void video.play().catch((error) => console.warn('[Explore] playback retry failed:', error));
-    }
   };
 
   const onFeedPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -262,8 +250,20 @@ export default function ExplorePageClient() {
     const dy = start.y - e.clientY;
     touchStart.current = { x: 0, y: 0 };
 
-    // Ignore taps and diagonal movement; only deliberate vertical swipes change feed items.
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 44 || Math.abs(dx) >= Math.abs(dy)) return;
+    // A short tap toggles the current video without displaying native play controls.
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 44) {
+      const video = videoRef.current;
+      if (video) {
+        if (video.paused) {
+          void video.play().catch((error) => console.warn('[Explore] tap-to-play failed:', error));
+        } else {
+          video.pause();
+        }
+      }
+      return;
+    }
+    // Ignore diagonal movement; only deliberate vertical swipes change feed items.
+    if (Math.abs(dx) >= Math.abs(dy)) return;
     if (dy > 0) {
       // Swipe up: show the next post/video in this feed before moving to another user.
       if (current && mediaIndex < current.mediaList.length - 1) {
@@ -394,15 +394,17 @@ export default function ExplorePageClient() {
     }
   };
 
-  const toggleVideoSound = async () => {
+  const toggleVideoSound = () => {
     const video = videoRef.current;
-    const nextMuted = !videoMuted;
+    if (!video) return;
+    // Read the element's real state to avoid stale React state on rapid taps.
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
     setVideoMuted(nextMuted);
-    if (video) {
-      video.muted = nextMuted;
-      if (!nextMuted) {
-        try { await video.play(); } catch (error) { console.warn('[Explore] video playback after unmute failed:', error); }
-      }
+    if (!nextMuted) {
+      // Call play synchronously inside the user's tap so Android WebView
+      // accepts the first unmute gesture instead of requiring repeated taps.
+      void video.play().catch((error) => console.warn('[Explore] playback after unmute failed:', error));
     }
   };
 
@@ -464,19 +466,7 @@ playsInline
                   disablePictureInPicture
                   disableRemotePlayback
                   controlsList="nodownload noplaybackrate noremoteplayback"
-                  onLoadedData={(event) => {
-                    const video = event.currentTarget;
-                    video.muted = true;
-                    if (video.paused) {
-                      void video.play().catch((error) => console.warn('[Explore] autoplay blocked:', error));
-                    }
-                  }}
-                  onCanPlay={(event) => {
-                    const video = event.currentTarget;
-                    if (video.paused) {
-                      void video.play().catch((error) => console.warn('[Explore] autoplay blocked:', error));
-                    }
-                  }}
+                  onError={() => console.warn('[Explore] video source could not be decoded or loaded:', media.mediaUrl)}
                 />
                 <button type="button" onClick={() => void toggleVideoSound()} aria-label={videoMuted ? 'Səsi aç' : 'Səsi bağla'} style={{ position: 'absolute', zIndex: 7, top: 54, right: 14, width: 42, height: 42, border: '1px solid rgba(255,255,255,.35)', borderRadius: 999, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 20, display: 'grid', placeItems: 'center' }}>
                   {videoMuted ? '🔇' : '🔊'}
