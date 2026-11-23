@@ -420,6 +420,30 @@ export async function sendCallLogMessage(payload: {
   });
 }
 
+export function listenBlockedMessageUsers(
+  userId: string,
+  callback: (blockedIds: string[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  let cancelled = false;
+  void privateMessagesRequest<{ blockedIds: string[] }>('blocked', userId)
+    .then((result) => { if (!cancelled) callback(result.blockedIds || []); })
+    .catch((error) => { if (!cancelled) onError?.(error instanceof Error ? error : new Error(String(error))); });
+  return () => { cancelled = true; };
+}
+
+export async function blockMessageUser(userId: string, targetUserId: string): Promise<void> {
+  await privateMessagesRequest('block', userId, 'POST', { targetUserId });
+}
+
+export async function unblockMessageUser(userId: string, targetUserId: string): Promise<void> {
+  await privateMessagesRequest('unblock', userId, 'POST', { targetUserId });
+}
+
+export async function reportMessageUser(userId: string, targetUserId: string, reason: string): Promise<void> {
+  await privateMessagesRequest('report', userId, 'POST', { targetUserId, reason });
+}
+
 export function listenUserChats(
   userId: string,
   callback: (chats: ChatSummary[]) => void,
