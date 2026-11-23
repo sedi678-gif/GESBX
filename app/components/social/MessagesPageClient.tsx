@@ -1282,7 +1282,7 @@ export default function MessagesPageClient() {
               <IconBack />
             </button>
             <AppLink href={`/profile?user=${selectedChat.id}`} className={styles.chatHeaderProfile}>
-              <img src={selectedChat.avatar} alt="" className={styles.msgHubAvatarSm} />
+              <img src={selectedChat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatarSm} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
               <div>
                 <h1 className={styles.msgHubChatTitle}>{selectedChat.name}</h1>
                 <p className={styles.msgHubChatSub}>{selectedChat.username}</p>
@@ -1367,7 +1367,7 @@ export default function MessagesPageClient() {
               ) : (
                 mainChats.map((chat) => (
                   <div key={chat.chatId} className={styles.msgChatRow} onClick={() => setSelectedChat(chat)}>
-                    <img src={chat.avatar} alt="" className={styles.msgHubAvatar} />
+                    <img src={chat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatar} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
                     <div className={styles.msgChatBody}>
                       <div className={styles.msgChatTop}>
                         <span className={styles.msgChatName}>{chat.name}</span>
