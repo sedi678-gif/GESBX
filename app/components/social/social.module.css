@@ -3040,3 +3040,10 @@
 .mediaFramePremium {
   animation: exploreFeedRise .22s ease-out both;
 }
+
+
+/* Şərhə uzun basanda açılan seçim menyusu */
+.commentText { -webkit-touch-callout: none; touch-action: pan-y; }
+.commentContextMenu { display:flex; flex-wrap:wrap; gap:7px; margin-top:9px; padding:8px; border:1px solid rgba(167,139,250,.35); border-radius:12px; background:rgba(15,23,42,.98); box-shadow:0 8px 24px rgba(0,0,0,.28); }
+.commentContextMenu button { min-height:36px; padding:0 13px; border:1px solid rgba(148,163,184,.24); border-radius:9px; background:rgba(51,65,85,.72); color:#e2e8f0; font-size:13px; font-weight:700; cursor:pointer; }
+.commentContextMenu .commentContextDanger { color:#fda4af; border-color:rgba(251,113,133,.3); }
