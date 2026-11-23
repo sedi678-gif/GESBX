@@ -310,6 +310,7 @@ export default function MessagesPageClient() {
   } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const keepChatAtBottomRef = useRef(true);
   const deepLinkHandled = useRef(false);
   const selectedChatRef = useRef<ChatItem | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -325,6 +326,7 @@ export default function MessagesPageClient() {
 
   useEffect(() => {
     selectedChatRef.current = selectedChat;
+    keepChatAtBottomRef.current = true;
     setSelectionMode(false);
     setSelectedIds([]);
     setContextMenu(null);
@@ -662,7 +664,9 @@ export default function MessagesPageClient() {
   }, [searchParams, blockedIds, myId]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+    const el = scrollRef.current;
+    if (!el || !keepChatAtBottomRef.current) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
   }, [messages]);
 
   useEffect(() => {
@@ -1413,6 +1417,10 @@ export default function MessagesPageClient() {
           <div
             className={styles.messageScroll}
             ref={scrollRef}
+            onScroll={(event) => {
+              const el = event.currentTarget;
+              keepChatAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 96;
+            }}
             style={chatWallpaper ? {
               backgroundImage: `linear-gradient(rgba(7, 15, 25, 0.58), rgba(7, 15, 25, 0.68)), url("${chatWallpaper}")`,
               backgroundSize: 'cover',
@@ -1482,7 +1490,11 @@ export default function MessagesPageClient() {
               <IconAttach />
             </button>
             <input
+              type="text"
               className={styles.composeInput}
+              autoComplete="off"
+              autoCorrect="on"
+              spellCheck
               placeholder={
                 editingMessage
                   ? 'Mesajı düzənlə...'
