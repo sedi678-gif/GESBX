@@ -336,10 +336,10 @@ async function refreshPreview(db, chatId) {
 
 module.exports = async function privateMessages(req, res) {
   if (applyCors(req, res, 'GET, POST, OPTIONS')) return;
-  const db = getAdminFirestore();
   const action = String(req.query?.action || '');
   const profileId = text(req.method === 'GET' ? req.query?.profileId : req.body?.profileId, 20);
   try {
+    const db = getAdminFirestore();
     if (req.method === 'GET') return await handleGet(req, res, db, profileId, action);
     if (req.method === 'POST') {
       await authenticate(req, db, profileId);
