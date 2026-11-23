@@ -258,11 +258,6 @@ module.exports = async function socialLikes(req, res) {
         if (likeSnap.exists) return { liked: true, likes, alreadyLiked: true };
 
         const ownerId = String(post.userId || '');
-        const ownerRef = ownerId ? db.doc(`users/${ownerId}`) : null;
-        const counterEventRef = db.doc(`social_counter_events/like-created-${targetId}_${profileId}`);
-        const [ownerSnap, counterEventSnap] = ownerRef
-          ? await Promise.all([tx.get(ownerRef), tx.get(counterEventRef)])
-          : [null, null];
         tx.create(likeRef, {
           postId: targetId,
           userId: profileId,
@@ -270,18 +265,6 @@ module.exports = async function socialLikes(req, res) {
           createdAt: Date.now(),
         });
         tx.update(postRef, { likes: likes + 1, lastLikedBy: profileId });
-        // Update the durable profile total in the same transaction. The matching
-        // event ledger makes the Firestore trigger idempotent if it is deployed.
-        if (ownerRef && ownerSnap?.exists && !counterEventSnap?.exists) {
-          const totalLikesReceived = Math.max(0, Number(ownerSnap.data()?.likesReceived) || 0);
-          tx.update(ownerRef, { likesReceived: totalLikesReceived + 1, updatedAt: Date.now() });
-          tx.create(counterEventRef, {
-            userId: ownerId,
-            field: 'likesReceived',
-            delta: 1,
-            createdAt: Date.now(),
-          });
-        }
         return { liked: true, likes: likes + 1, alreadyLiked: false };
       });
       return sendJson(res, 200, result);
