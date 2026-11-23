@@ -2132,11 +2132,22 @@
 
 .msgHubPage .messageArea {
   background: transparent;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 130px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .msgHubPage .messageScroll {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 14px 12px 18px;
   display: flex;
   flex-direction: column;
@@ -2240,12 +2251,23 @@
   box-shadow: 0 -8px 24px rgba(34, 211, 238, 0.08);
 }
 
- .msgHubPage .composeInput {
-  flex: 1 1 0%;
+.msgHubPage .composeBar {
   width: 100%;
-  min-width: 80px;
-  writing-mode: horizontal-tb;
-  text-orientation: mixed;
+  min-width: 0;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  box-sizing: border-box;
+}
+
+.msgHubPage .composeInput {
+  display: block;
+  flex: 1 1 0px;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
   white-space: nowrap;
   direction: ltr;
   unicode-bidi: plaintext;
