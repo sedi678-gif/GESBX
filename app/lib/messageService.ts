@@ -108,6 +108,21 @@ interface ChatPayload extends ParticipantMeta {
   recipientId: string;
 }
 
+export async function ensurePrivateChat(payload: ChatPayload): Promise<void> {
+  await ensureFirebaseAuth();
+  const chatId = buildChatId(payload.senderId, payload.recipientId);
+  const chatRef = doc(db, 'private_chats', chatId);
+  const existing = await getDoc(chatRef);
+  if (existing.exists()) return;
+
+  const now = Date.now();
+  await upsertChat(chatId, {
+    ...payload,
+    lastMessage: 'Yeni söhbət',
+    lastMessageAt: now,
+  });
+}
+
 async function upsertChat(
   chatId: string,
   payload: ChatPayload & { lastMessage: string; lastMessageAt: number }
