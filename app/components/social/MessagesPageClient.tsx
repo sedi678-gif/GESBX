@@ -353,6 +353,9 @@ export default function MessagesPageClient() {
     if (!myId || myId === 'guest') return;
     return listenUserChats(myId, (summaries) => {
       setChats(summaries.map(chatSummaryToItem));
+    }, (error) => {
+      console.error('[Message] söhbət siyahısı yüklənmədi:', error);
+      alert('Söhbət siyahısı yüklənmədi. Firebase icazələrini yoxlamaq lazımdır.');
     });
   }, [myId]);
 
@@ -376,6 +379,9 @@ export default function MessagesPageClient() {
           });
         }
       }
+    }, (error) => {
+      console.error('[Message] mesaj tarixçəsi yüklənmədi:', error);
+      alert('Bu söhbətin mesajları yüklənmədi. Firebase oxuma icazəsini yoxlamaq lazımdır.');
     });
   }, [selectedChat?.chatId]);
 
@@ -696,7 +702,7 @@ export default function MessagesPageClient() {
     };
   }, []);
 
-  const startChatWithUser = (u: AppUserProfile) => {
+  const startChatWithUser = async (u: AppUserProfile) => {
     const chatId = buildChatId(myId, u.id);
     const chat: ChatItem = {
       chatId,
@@ -708,9 +714,9 @@ export default function MessagesPageClient() {
       lastMsg: 'Yeni söhbət',
       time: 'İndi',
     };
-    setChats((prev) => (prev.some((c) => c.id === chat.id) ? prev : [chat, ...prev]));
     const myMeta = getMyProfileMeta();
-    void ensurePrivateChat({
+    try {
+      await ensurePrivateChat({
       senderId: String(myId),
       recipientId: String(u.id),
       senderName: myMeta.name,
@@ -719,9 +725,13 @@ export default function MessagesPageClient() {
       recipientName: chat.name,
       recipientHandle: chat.username,
       recipientAvatar: chat.avatar,
-    }).catch((err) => {
+      });
+      setChats((prev) => (prev.some((c) => c.chatId === chat.chatId) ? prev : [chat, ...prev]));
+    } catch (err) {
       console.error('[Message] chat creation failed:', err);
-    });
+      alert('Söhbət yadda saxlanmadı. Firebase icazəsi və istifadəçi ID-sini yoxlamaq lazımdır.');
+      return;
+    }
     setSelectedChat(chat);
     setShowSearch(false);
   };
@@ -1503,26 +1513,28 @@ export default function MessagesPageClient() {
             >
               <IconAttach />
             </button>
-            <input
-              type="text"
-              className={styles.composeInput}
-              autoComplete="off"
-              autoCorrect="on"
-              spellCheck
-              placeholder={
-                editingMessage
-                  ? 'Mesajı düzənlə...'
-                  : recording
-                    ? 'Səs yazılır...'
-                    : sending
-                      ? t.messages.sending
-                      : t.messages.placeholder
-              }
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && hasComposeText && handleSend()}
-              disabled={sending || recording}
-            />
+            <div className={styles.composeInputWrap}>
+              <input
+                type="text"
+                className={styles.composeInput}
+                autoComplete="off"
+                autoCorrect="on"
+                spellCheck
+                placeholder={
+                  editingMessage
+                    ? 'Mesajı düzənlə...'
+                    : recording
+                      ? 'Səs yazılır...'
+                      : sending
+                        ? t.messages.sending
+                        : t.messages.placeholder
+                }
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && hasComposeText && handleSend()}
+                disabled={sending || recording}
+              />
+            </div>
             {hasComposeText ? (
               <button
                 type="button"
