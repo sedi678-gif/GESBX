@@ -28,7 +28,7 @@ function chatIdFor(a, b) {
 }
 
 async function authenticate(req, db, profileId) {
-  const match = header(req, 'authorization').match(/^Bearer\\s+(.+)$/i);
+  const match = header(req, 'authorization').match(/^Bearer\s+(.+)$/i);
   if (!match) throw new ApiError(401, 'AUTH_REQUIRED');
   let identity;
   try {
@@ -39,7 +39,7 @@ async function authenticate(req, db, profileId) {
   if (!identity?.uid || identity.firebase?.sign_in_provider === 'anonymous') {
     throw new ApiError(401, 'REGISTERED_ACCOUNT_REQUIRED');
   }
-  if (!/^\\d{1,20}$/.test(profileId)) throw new ApiError(400, 'PROFILE_ID_INVALID');
+  if (!/^\d{1,20}$/.test(profileId)) throw new ApiError(400, 'PROFILE_ID_INVALID');
   const profile = await db.doc(`users/${profileId}`).get();
   if (!profile.exists || profile.data()?.firebaseUid !== identity.uid) {
     throw new ApiError(403, 'PROFILE_ACCOUNT_MISMATCH');
@@ -169,7 +169,7 @@ async function handlePost(req, res, db, profileId, action) {
   if (action === 'ensure-chat' || action === 'send') {
     const senderId = text(body.senderId, 20);
     const recipientId = text(body.recipientId, 20);
-    if (senderId !== profileId || !/^\\d{1,20}$/.test(recipientId) || recipientId === senderId) {
+    if (senderId !== profileId || !/^\d{1,20}$/.test(recipientId) || recipientId === senderId) {
       throw new ApiError(403, 'CHAT_PARTICIPANTS_INVALID');
     }
     const recipientSnap = await db.doc(`users/${recipientId}`).get();
