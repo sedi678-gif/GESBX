@@ -483,10 +483,10 @@ export function listenExploreFeed(
   blockedUserIds: string[] = [],
   onError?: (message: string) => void
 ): Unsubscribe {
-  // Read only the newest 100 records using the automatic createdAt single-field
-  // index, then filter approved posts locally. This avoids a composite index and
-  // prevents the Explore screen downloading the entire posts collection.
-  const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(100));
+  // Firestore rules require the approved status to be constrained in the query.
+  // Limit the result set for faster Explore loading, then sort locally to avoid
+  // requiring a composite index.
+  const q = query(collection(db, 'posts'), where('moderationStatus', '==', 'approved'), limit(100));
   let posts: SocialPost[] = [];
   let boosts = new Map<string, number>();
   let expireTimer: ReturnType<typeof setTimeout> | null = null;
