@@ -2923,7 +2923,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
           'id', 'chatId', 'senderId', 'recipientId', 'type', 'text', 'audioUrl',
           'audioDurationMs', 'mediaUrl', 'mediaMime', 'fileName', 'locationLat',
-          'locationLng', 'callType', 'callStatus', 'editedAt', 'createdAt'
+          'locationLng', 'callType', 'callStatus', 'editedAt', 'deliveredAt', 'readAt', 'createdAt'
         ])
         && (!('text' in request.resource.data) || (request.resource.data.text is string && request.resource.data.text.size() <= 2000))
         && (!('audioUrl' in request.resource.data) || (request.resource.data.audioUrl is string && request.resource.data.audioUrl.size() <= 900000))
@@ -2938,9 +2938,20 @@ service cloud.firestore {
         && request.resource.data.senderId == resource.data.senderId
         && request.resource.data.recipientId == resource.data.recipientId
         && request.resource.data.chatId == resource.data.chatId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt'])
-        && request.resource.data.text is string
-        && request.resource.data.text.size() <= 2000;
+        && (
+          (
+            ownsProfileId(resource.data.senderId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'editedAt'])
+            && request.resource.data.text is string
+            && request.resource.data.text.size() <= 2000
+          ) || (
+            ownsProfileId(resource.data.recipientId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deliveredAt', 'readAt'])
+            && (!('deliveredAt' in request.resource.data) || request.resource.data.deliveredAt is int)
+            && (!('readAt' in request.resource.data) || request.resource.data.readAt is int)
+            && (!('readAt' in request.resource.data) || ('deliveredAt' in request.resource.data))
+          )
+        );
       allow delete: if resource.data.chatId is string && canAccessChatId(resource.data.chatId);
     }
 
