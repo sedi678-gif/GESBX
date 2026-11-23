@@ -2963,12 +2963,15 @@ service cloud.firestore {
         && ownsProfileId(request.resource.data.ownerId)
         && request.resource.data.contactId is string
         && request.resource.data.keys().hasOnly([
-          'ownerId', 'contactId', 'status', 'initiatedBy', 'createdAt', 'acceptedAt', 'declinedAt'
+          'ownerId', 'contactId', 'status', 'initiatedBy', 'createdAt', 'acceptedAt', 'declinedAt',
+          'contactName', 'contactAvatar', 'contactHandle', 'lastPreview'
         ]);
       allow update: if isSignedIn()
         && resource.data.ownerId is string
         && ownsProfileId(resource.data.ownerId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt', 'declinedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'acceptedAt', 'declinedAt', 'contactName', 'contactAvatar', 'contactHandle', 'lastPreview'
+        ]);
       allow delete: if isSignedIn()
         && resource.data.ownerId is string
         && ownsProfileId(resource.data.ownerId);
