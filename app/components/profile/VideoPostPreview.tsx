@@ -83,7 +83,6 @@ export default function VideoPostPreview({
         poster={thumbnailUrl || undefined}
         aria-hidden="true"
         muted
-        defaultMuted
         playsInline
         loop
         autoPlay={shouldLoad}
