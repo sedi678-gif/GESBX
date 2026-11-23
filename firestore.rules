@@ -2934,7 +2934,6 @@ service cloud.firestore {
         && (!('locationLng' in request.resource.data) || (request.resource.data.locationLng is number && request.resource.data.locationLng >= -180 && request.resource.data.locationLng <= 180));
       allow update: if resource.data.chatId is string
         && canAccessChatId(resource.data.chatId)
-        && ownsProfileId(resource.data.senderId)
         && request.resource.data.senderId == resource.data.senderId
         && request.resource.data.recipientId == resource.data.recipientId
         && request.resource.data.chatId == resource.data.chatId
