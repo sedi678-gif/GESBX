@@ -3161,3 +3161,55 @@
 .videoSoundToggle:active {
   transform: scale(0.94);
 }
+
+
+/* Mesaj yazma sətrinin eni mobil brauzerdə heç vaxt sıxılmasın. */
+.msgHubPage .composeBar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+.msgHubPage .composeBar > .hiddenFileInput {
+  position: fixed !important;
+  left: -10000px !important;
+  width: 1px !important;
+  height: 1px !important;
+  flex: 0 0 1px !important;
+}
+.msgHubPage .composeBar > .msgComposeBtn {
+  flex: 0 0 42px !important;
+}
+.msgHubPage .composeInputWrap {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+.msgHubPage .composeInputWrap .composeInput {
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  box-sizing: border-box !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  white-space: nowrap !important;
+  direction: ltr !important;
+  unicode-bidi: plaintext !important;
+  text-align: left !important;
+  line-height: 20px !important;
+  transform: none !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
