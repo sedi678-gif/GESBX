@@ -98,7 +98,7 @@ async function updateChat(db, senderId, recipientId, meta, preview, at, existing
   return chatId;
 }
 
-async function listChats(db, profileId) {
+async function assertNotBlocked(db, senderId, recipientId) {\n  const refs = [\n    db.doc(`blocks/${senderId}_${recipientId}`),\n    db.doc(`blocks/${recipientId}_${senderId}`),\n  ];\n  const snaps = await Promise.all(refs.map((ref) => ref.get()));\n  if (snaps.some((snap) => snap.exists && snap.data()?.removed !== true)) {\n    throw new ApiError(403, 'USER_BLOCKED');\n  }\n}\n\nasync function listChats(db, profileId) {
   const snap = await db.collection('private_chats')
     .where('participants', 'array-contains', profileId).get();
   const result = [];
@@ -256,7 +256,7 @@ async function handlePost(req, res, db, profileId, action) {
     return sendJson(res, 200, { message });
   }
 
-  if (action === 'edit') {
+  if (action === 'block' || action === 'unblock') {\n    const targetUserId = text(body.targetUserId, 20);\n    if (!/^\\d{1,20}$/.test(targetUserId) || targetUserId === profileId) throw new ApiError(400, 'BLOCK_TARGET_INVALID');\n    const target = await db.doc(`users/${targetUserId}`).get();\n    if (!target.exists) throw new ApiError(404, 'USER_NOT_FOUND');\n    const ref = db.doc(`blocks/${profileId}_${targetUserId}`);\n    await ref.set({ blockerId: profileId, blockedId: targetUserId, createdAt: Date.now(), removed: action === 'unblock' });\n    return sendJson(res, 200, { success: true });\n  }\n\n  if (action === 'report') {\n    const targetUserId = text(body.targetUserId, 20);\n    const reason = text(body.reason, 1000);\n    if (!/^\\d{1,20}$/.test(targetUserId) || targetUserId === profileId || !reason) throw new ApiError(400, 'REPORT_FIELDS_INVALID');\n    await db.collection('reports').add({ reporterId: profileId, targetUserId, reason, type: 'message', createdAt: Date.now(), status: 'pending' });\n    return sendJson(res, 200, { success: true });\n  }\n\n  if (action === 'edit') {
     const messageId = text(body.messageId, 180);
     const nextText = text(body.text, 2000);
     if (!ID_PATTERN.test(messageId) || !nextText) throw new ApiError(400, 'MESSAGE_EDIT_INVALID');
