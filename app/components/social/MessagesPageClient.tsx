@@ -44,9 +44,6 @@ import {
 import { listenCallHistory, CallHistoryItem } from '@/app/lib/callHistoryService';
 import { TEEN_SAFETY_RULES, getCallSettings } from '@/app/lib/callSettings';
 import {
-  blockUser,
-  reportContent,
-  listenBlockedUsers,
   isBlocked,
   getUserProfile,
 } from '@/app/lib/socialService';
@@ -56,6 +53,9 @@ import {
   listenUserChats,
   listenChatMessages,
   searchMessageUsers,
+  listenBlockedMessageUsers,
+  blockMessageUser,
+  reportMessageUser,
   sendPrivateMessage,
   sendAudioMessageFast,
   sendMediaMessageFast,
@@ -336,7 +336,7 @@ export default function MessagesPageClient() {
 
   useEffect(() => {
     if (!myId || myId === 'guest') return;
-    return listenBlockedUsers(myId, setBlockedIds);
+    return listenBlockedMessageUsers(myId, setBlockedIds, (error) => console.error('[Message] blok siyahısı yüklənmədi:', error));
   }, [myId]);
 
   useEffect(() => {
@@ -957,7 +957,7 @@ export default function MessagesPageClient() {
 
   const handleBlock = async () => {
     if (!selectedChat) return;
-    await blockUser(myId, selectedChat.id);
+    await blockMessageUser(myId, selectedChat.id);
     alert(`${selectedChat.name} bloklandı.`);
     setShowActions(false);
     setSelectedChat(null);
@@ -965,12 +965,7 @@ export default function MessagesPageClient() {
 
   const handleReport = async () => {
     if (!selectedChat || !reportReason.trim()) return;
-    await reportContent({
-      reporterId: myId,
-      targetUserId: selectedChat.id,
-      reason: reportReason,
-      type: 'message',
-    });
+    await reportMessageUser(myId, selectedChat.id, reportReason);
     alert('Şikayət qeydə alındı.');
     setReportReason('');
     setShowActions(false);
