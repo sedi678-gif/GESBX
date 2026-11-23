@@ -12,32 +12,6 @@ service cloud.firestore {
     // İndi default DENY-dir: aydın `match` bloku olmayan hər yol bağlıdır.
     // Siyahı isə “hassas yol” siyahısı kimi saxlanılır ki, server tərəfində
     // hansı kolleksiyaların mütləq qorunmalı olduğu görünsün.
-    function isSensitivePath(path) {
-      return path.size() > 0 && (
-        path[0] == 'battles' ||
-        path[0] == 'alliance_battle_cooldowns' ||
-        path[0] == 'battle_card_costs' ||
-        path[0] == 'server_clock' ||
-        path[0] == 'leaderboard_daily' ||
-        path[0] == 'leaderboard_weekly' ||
-        path[0] == 'leaderboard_state' ||
-        path[0] == 'leaderboard_resets' ||
-        path[0] == 'leaderboard_archives' ||
-        path[0] == 'leaderboard_awards' ||
-        path[0] == 'alliances' ||
-        path[0] == 'arena_matches' ||
-        path[0] == 'arena_rewards' ||
-        path[0] == 'arena_reward_settlements' ||
-        path[0] == 'reel_signal_events' ||
-        path[0] == 'user_profile_scores' ||
-        path[0] == 'admin_commands' ||
-        path[0] == 'private_messages' ||
-        path[0] == 'private_chats' ||
-        path[0] == 'global_chat' ||
-        path[0] == 'users' ||
-        path[0] == 'reports'
-      );
-    }
 
     function isSignedIn() {
       return request.auth != null;
@@ -125,25 +99,6 @@ service cloud.firestore {
         );
     }
 
-    function isBattleEventType(t) {
-      return t in [
-        'battle_created',
-        'player_joined',
-        'player_left',
-        'loadout_locked',
-        'card_played',
-        'energy_changed',
-        'card_blocked',
-        'card_countered',
-        'click_started',
-        'click_completed',
-        'damage_applied',
-        'score_changed',
-        'turn_started',
-        'turn_timeout',
-        'battle_finished'
-      ];
-    }
 
     function isValidOpenBattleCreate() {
       let d = request.resource.data;
@@ -571,12 +526,10 @@ service cloud.firestore {
               ? before.defenderAllianceId
               : null
         )
-        && after.winnerSide == (
-          atk > def
-            ? 'attacker'
-            : def > atk
-              ? 'defender'
-              : null
+        && (
+          (atk > def && after.winnerSide == 'attacker')
+          || (def > atk && after.winnerSide == 'defender')
+          || (atk == def && after.winnerSide == null)
         )
         && after.finishedAt == request.time
         && after.diff(before).affectedKeys().hasOnly([
@@ -682,10 +635,6 @@ service cloud.firestore {
         && ids[3] != ids[4];
     }
 
-    function playerOwnsLoadoutCard(p, cardId) {
-      return (p.keys().hasAny(['battleCards']) && cardId in p.battleCards && p.battleCards[cardId] is int && p.battleCards[cardId] >= 1)
-        || (p.keys().hasAny(['loadoutCards']) && cardId in p.loadoutCards && p.loadoutCards[cardId] is int && p.loadoutCards[cardId] >= 1);
-    }
 
     function playerOwnsLoadout(playerId, ids) {
       return request.auth != null && playerId is string && playerId.size() > 0 && isValidLoadoutCardList(ids);
@@ -1550,7 +1499,7 @@ service cloud.firestore {
         && after.diff(before).affectedKeys().hasOnly(['currentClicks', 'status', 'updatedAt']);
     }
 
-    function isValidChallengeExpire(battleId, challengeId) {
+    function isValidChallengeExpire() {
       let before = resource.data;
       let after = request.resource.data;
       return request.auth != null
@@ -1563,7 +1512,7 @@ service cloud.firestore {
         && after.diff(before).affectedKeys().hasOnly(['status', 'updatedAt']);
     }
 
-    function isValidChallengeCloseOnFinish(battleId, challengeId) {
+    function isValidChallengeCloseOnFinish() {
       let before = resource.data;
       let after = request.resource.data;
       return request.auth != null
@@ -1714,8 +1663,8 @@ service cloud.firestore {
           );
         allow create: if isValidChallengeCreate(battleId, challengeId);
         allow update: if isValidChallengeClick(battleId, challengeId)
-          || isValidChallengeExpire(battleId, challengeId)
-          || isValidChallengeCloseOnFinish(battleId, challengeId);
+          || isValidChallengeExpire()
+          || isValidChallengeCloseOnFinish();
         allow delete: if false;
 
         match /clicks/{clickId} {
@@ -2023,20 +1972,6 @@ service cloud.firestore {
         : 'FREE';
     }
 
-    function isValidVipProPurchase() {
-      let before = resource.data;
-      let after = request.resource.data;
-      let beforeManat = before.keys().hasAny(['manat']) && before.manat is int ? before.manat : 0;
-      return currentUserPlan(before) != 'VIP_PRO'
-        && after.userPlan == 'VIP_PRO'
-        && after.hasVipPass == true
-        && after.isVipLifetime == true
-        && after.proPanelActive == true
-        && after.manat is int
-        && after.manat == beforeManat - 30
-        && after.manat >= 0
-        && after.coins == after.manat;
-    }
 
     function isValidProPanelToggle() {
       let before = resource.data;
@@ -2284,15 +2219,8 @@ service cloud.firestore {
       return id in ['sehrbaz', '2x', 'qaya', 'casus', 'duman', 'joker', 'guzgu', 'qul', 'tikanli', 'usyan', 'ogru', 'felaket', 'qutb'];
     }
 
-    function arenaFreshCard(card) {
-      return card.keys().hasAll(['cardId', 'maxUses', 'used', 'remaining'])
-        && arenaKnownCard(card.cardId)
-        && card.maxUses == 3
-        && card.used == 0
-        && card.remaining == 3;
-    }
 
-    function isValidArenaLoadoutLock() {
+    function isValidArenaLoadoutLock(matchId) {
       let before = resource.data;
       let after = request.resource.data;
       return request.auth != null
@@ -2333,7 +2261,7 @@ service cloud.firestore {
         );
     }
 
-    function isValidArenaClickerUsyanPlay() {
+    function isValidArenaClickerUsyanPlay(matchId) {
       let before = resource.data;
       let after = request.resource.data;
       return request.auth != null
@@ -2401,7 +2329,7 @@ service cloud.firestore {
         ]);
     }
 
-    function isValidArenaCardPlay() {
+    function isValidArenaCardPlay(matchId) {
       let before = resource.data;
       let after = request.resource.data;
       let pid = before.currentTurn;
@@ -2577,9 +2505,9 @@ service cloud.firestore {
         && request.resource.data.matchId == matchId;
       allow update: if isValidArenaTimeout()
         || isValidArenaAction()
-        || isValidArenaLoadoutLock()
-        || isValidArenaCardPlay()
-        || isValidArenaClickerUsyanPlay()
+        || isValidArenaLoadoutLock(matchId)
+        || isValidArenaCardPlay(matchId)
+        || isValidArenaClickerUsyanPlay(matchId)
         || isValidArenaSeatJoin()
         || isValidArenaClickShare()
         || isValidArenaReactionClick()
