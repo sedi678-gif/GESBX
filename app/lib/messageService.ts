@@ -422,7 +422,11 @@ export async function sendCallLogMessage(payload: {
   });
 }
 
-export function listenUserChats(userId: string, callback: (chats: ChatSummary[]) => void): Unsubscribe {
+export function listenUserChats(
+  userId: string,
+  callback: (chats: ChatSummary[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const q = query(collection(db, 'private_chats'), where('participants', 'array-contains', userId));
   return onSnapshot(q, (snap) => {
     const chats: ChatSummary[] = [];
@@ -443,6 +447,9 @@ export function listenUserChats(userId: string, callback: (chats: ChatSummary[])
     });
     chats.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
     callback(chats);
+  }, (error) => {
+    console.error('[Message] chat list listener failed:', error);
+    onError?.(error);
   });
 }
 
@@ -542,7 +549,11 @@ export async function markMessageReceived(
   if (Object.keys(patch).length) await updateDoc(doc(db, 'private_messages', messageId), patch);
 }
 
-export function listenChatMessages(chatId: string, callback: (msgs: StoredMessage[]) => void): Unsubscribe {
+export function listenChatMessages(
+  chatId: string,
+  callback: (msgs: StoredMessage[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
   const q = query(collection(db, 'private_messages'), where('chatId', '==', chatId));
   return onSnapshot(q, (snap) => {
     const msgs: StoredMessage[] = [];
@@ -551,5 +562,8 @@ export function listenChatMessages(chatId: string, callback: (msgs: StoredMessag
     });
     msgs.sort((a, b) => a.createdAt - b.createdAt);
     callback(msgs);
+  }, (error) => {
+    console.error('[Message] message history listener failed:', error);
+    onError?.(error);
   });
 }
