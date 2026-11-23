@@ -659,14 +659,18 @@ export default function MessagesPageClient() {
     deepLinkHandled.current = true;
 
     void (async () => {
-      const profile = await getUserProfile(targetId);
-      if (profile) {
-        startChatWithUser(profile);
-        return;
+      try {
+        const profile = await getUserProfile(targetId);
+        if (profile) {
+          await startChatWithUser(profile);
+          return;
+        }
+        const users = await searchMessageUsers(targetId, myId);
+        const u = users.find((x) => x.id === targetId) || users[0];
+        if (u) await startChatWithUser(u);
+      } catch (error) {
+        console.error('[Message] keçid söhbəti açıla bilmədi:', error);
       }
-      const users = await searchMessageUsers(targetId, myId);
-      const u = users.find((x) => x.id === targetId) || users[0];
-      if (u) startChatWithUser(u);
     })();
   }, [searchParams, blockedIds, myId]);
 
@@ -1106,8 +1110,13 @@ export default function MessagesPageClient() {
   };
 
   const runSearch = async () => {
-    const results = await searchMessageUsers(searchQuery, myId);
-    setSearchResults(results.filter((u) => !isBlocked(blockedIds, u.id)));
+    try {
+      const results = await searchMessageUsers(searchQuery, myId);
+      setSearchResults(results.filter((u) => !isBlocked(blockedIds, u.id)));
+    } catch (error) {
+      console.error('[Message] istifadəçi axtarışı alınmadı:', error);
+      alert('İstifadəçi axtarışı alınmadı: ' + (error instanceof Error ? error.message : 'SERVER_ERROR'));
+    }
   };
 
   const handleMediaSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
