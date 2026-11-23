@@ -130,12 +130,39 @@ async function listChats(db, profileId) {
     });
   });
   result.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
-  return result;
+
+  // Köhnə söhbətlərdə participantMeta avatar saxlamaya bilər.
+  // Profil fotosunu users və legacy players kolleksiyasından bərpa et.
+  const visible = result.slice(0, 100);
+  const refs = visible.flatMap((chat) => [
+    db.doc(`users/${chat.otherUserId}`),
+    db.doc(`players/${chat.otherUserId}`),
+  ]);
+  if (refs.length) {
+    const profiles = await db.getAll(...refs);
+    visible.forEach((chat, index) => {
+      const user = profiles[index * 2]?.data() || {};
+      const player = profiles[index * 2 + 1]?.data() || {};
+      chat.otherUserName = chat.otherUserName !== 'İstifadəçi'
+        ? chat.otherUserName
+        : text(user.name || player.name, 100) || 'İstifadəçi';
+      chat.otherUserHandle = chat.otherUserHandle || text(user.handle || player.handle, 80);
+      chat.otherUserAvatar = chat.otherUserAvatar
+        || text(user.avatar || user.photoURL || user.photoUrl || user.userAvatar
+          || player.avatar || player.photoURL || player.photoUrl || player.userAvatar, 1500);
+    });
+  }
+  return visible;
 }
 
 async function listMessages(db, chatId) {
+  // Firestore indeksində chatId + createdAt ASC artıq mövcuddur.
+  // Son 100 mesajı oxu, böyük söhbətlərin açılışını yüngülləşdir.
   const snap = await db.collection('private_messages')
-    .where('chatId', '==', chatId).get();
+    .where('chatId', '==', chatId)
+    .orderBy('createdAt', 'asc')
+    .limitToLast(100)
+    .get();
   return snap.docs.map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
     .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
 }
