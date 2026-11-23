@@ -24,9 +24,7 @@ const onLikeCreated = onDocumentCreated('post_likes/{likeId}', async (event) => 
   if (!like || typeof like.postId !== 'string') return;
   const post = await db.doc(`posts/${like.postId}`).get();
   if (!post.exists) return;
-  // The API may already have committed this deterministic ledger atomically
-  // with the like. Reusing the like document ID prevents double counting.
-  await applyCounterEvent(`like-created-${event.params.likeId}`, post.data().userId, 'likesReceived', 1);
+  await applyCounterEvent(`like-created-${event.id}`, post.data().userId, 'likesReceived', 1);
 });
 
 const onLikeDeleted = onDocumentDeleted('post_likes/{likeId}', async (event) => {
