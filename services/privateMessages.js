@@ -278,7 +278,7 @@ async function handlePost(req, res, db, profileId, action) {
 
   if (action === 'block' || action === 'unblock') {
     const targetUserId = text(body.targetUserId, 20);
-    if (!/^\\d{1,20}$/.test(targetUserId) || targetUserId === profileId) throw new ApiError(400, 'BLOCK_TARGET_INVALID');
+    if (!/^\d{1,20}$/.test(targetUserId) || targetUserId === profileId) throw new ApiError(400, 'BLOCK_TARGET_INVALID');
     const target = await db.doc(`users/${targetUserId}`).get();
     if (!target.exists) throw new ApiError(404, 'USER_NOT_FOUND');
     const ref = db.doc(`blocks/${profileId}_${targetUserId}`);
@@ -289,7 +289,7 @@ async function handlePost(req, res, db, profileId, action) {
   if (action === 'report') {
     const targetUserId = text(body.targetUserId, 20);
     const reason = text(body.reason, 1000);
-    if (!/^\\d{1,20}$/.test(targetUserId) || targetUserId === profileId || !reason) throw new ApiError(400, 'REPORT_FIELDS_INVALID');
+    if (!/^\d{1,20}$/.test(targetUserId) || targetUserId === profileId || !reason) throw new ApiError(400, 'REPORT_FIELDS_INVALID');
     await db.collection('reports').add({ reporterId: profileId, targetUserId, reason, type: 'message', createdAt: Date.now(), status: 'pending' });
     return sendJson(res, 200, { success: true });
   }
