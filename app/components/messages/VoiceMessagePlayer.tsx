@@ -106,8 +106,18 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
           </svg>
         )}
       </button>
-      <div className={styles.voiceMsgTrack} aria-hidden>
-        <div className={styles.voiceMsgFill} style={{ width: `${Math.min(100, progress * 100)}%` }} />
+      <div className={styles.voiceMsgWaveform} aria-hidden>
+        {Array.from({ length:  30 }, (_, index) => {
+          const height = 24 + ((index * 17 + 11) % 67);
+          const played = index / 30 <= progress;
+          return (
+            <span
+              key={index}
+              className={`${styles.voiceMsgWaveBar} ${played ? styles.voiceMsgWaveBarPlayed : ''} ${playing ? styles.voiceMsgWaveBarPlaying : ''}`}
+              style={{ height: `${height}%`, animationDelay: `${(index % 9) * 55}ms` }}
+            />
+          );
+        })}
       </div>
       <span className={styles.voiceMsgDuration}>
         {playing ? formatClock(currentSec) : totalLabel}
