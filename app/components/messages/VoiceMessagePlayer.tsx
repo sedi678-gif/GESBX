@@ -27,6 +27,9 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentSec, setCurrentSec] = useState(0);
+  const [waveform, setWaveform] = useState<number[]>(
+    () => Array.from({ length: 36 }, (_, index) => 18 + ((index * 29 + 13) % 72))
+  );
 
   const syncProgress = useCallback(() => {
     const el = audioRef.current;
@@ -40,6 +43,60 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
     setProgress(0);
     setCurrentSec(0);
   }, [src]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let audioContext: AudioContext | null = null;
+
+    const loadWaveform = async () => {
+      try {
+        const response = await fetch(src);
+        if (!response.ok) throw new Error(`Audio waveform fetch failed: ${response.status}`);
+        const bytes = await response.arrayBuffer();
+        const AudioContextClass = window.AudioContext ||
+          (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) throw new Error('AudioContext is unavailable');
+
+        audioContext = new AudioContextClass();
+        const decoded = await audioContext.decodeAudioData(bytes);
+        if (cancelled) return;
+
+        const channel = decoded.getChannelData(0);
+        const bars = 36;
+        const blockSize = Math.max(1, Math.floor(channel.length / bars));
+        const peaks = Array.from({ length: bars }, (_, index) => {
+          const start = index * blockSize;
+          const end = Math.min(channel.length, start + blockSize);
+          let sum = 0;
+          for (let i = start; i < end; i += 1) sum += channel[i] * channel[i];
+          const rms = Math.sqrt(sum / Math.max(1, end - start));
+          return rms;
+        });
+        const maxPeak = Math.max(...peaks, 0.0001);
+        setWaveform(peaks.map((peak) => Math.max(9, Math.round((peak / maxPeak) * 100))));
+      } catch (error) {
+        console.warn('[VoiceMessage] Real waveform unavailable; using visual fallback.', error);
+        if (!cancelled) {
+          setWaveform(Array.from({ length: 36 }, (_, index) => 18 + ((index * 29 + 13) % 72)));
+        }
+      } finally {
+        if (audioContext && audioContext.state !== 'closed') {
+          void audioContext.close().catch(() => undefined);
+        }
+      }
+    };
+
+    setWaveform(Array.from({ length: 36 }, (_, index) => 18 + ((index * 29 + 13) % 72)));
+    void loadWaveform();
+    return () => {
+      cancelled = true;
+      if (audioContext && audioContext.state !== 'closed') {
+        void audioContext.close().catch(() => undefined);
+      }
+    };
+  }, [src]);
+
+
 
   useEffect(() => {
     const el = audioRef.current;
@@ -107,9 +164,8 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
         )}
       </button>
       <div className={styles.voiceMsgWaveform} aria-hidden>
-        {Array.from({ length:  30 }, (_, index) => {
-          const height = 24 + ((index * 17 + 11) % 67);
-          const played = index / 30 <= progress;
+        {waveform.map((height, index) => {
+          const played = index / waveform.length <= progress;
           return (
             <span
               key={index}
