@@ -150,15 +150,16 @@ module.exports = async function socialLikes(req, res) {
       if (!postSnap.exists) throw new ApiError(404, 'POST_NOT_FOUND');
       if (String(postSnap.data().userId || '') !== profileId) throw new ApiError(403, 'POST_OWNER_REQUIRED');
 
-      const [commentsSnap, postLikesSnap, commentLikesSnap, mediaSnap] = await Promise.all([
+      const [commentsSnap, commentLikesSnap, mediaSnap] = await Promise.all([
         db.collection('post_comments').where('postId', '==', targetId).get(),
-        db.collection('post_likes').where('postId', '==', targetId).get(),
         db.collection('post_comment_likes').where('postId', '==', targetId).get(),
         postRef.collection('media').get(),
       ]);
+      // Keep post_likes as durable engagement history. Profile likesReceived
+      // is an account-level total and must not disappear when a 24h post expires
+      // or its owner manually deletes the post.
       const refs = [
         ...commentsSnap.docs.map((item) => item.ref),
-        ...postLikesSnap.docs.map((item) => item.ref),
         ...commentLikesSnap.docs.map((item) => item.ref),
         ...mediaSnap.docs.map((item) => item.ref),
         postRef,
@@ -252,15 +253,24 @@ module.exports = async function socialLikes(req, res) {
         const likeRef = db.doc(`post_likes/${targetId}_${profileId}`);
         const [postSnap, likeSnap] = await Promise.all([tx.get(postRef), tx.get(likeRef)]);
         if (!postSnap.exists) throw new ApiError(404, 'POST_NOT_FOUND');
-        const likes = Math.max(0, Number(postSnap.data().likes) || 0);
+        const post = postSnap.data() || {};
+        const likes = Math.max(0, Number(post.likes) || 0);
         if (likeSnap.exists) return { liked: true, likes, alreadyLiked: true };
+
+        const ownerId = String(post.userId || '');
+        const ownerRef = ownerId ? db.doc(`users/${ownerId}`) : null;
+        const ownerSnap = ownerRef ? await tx.get(ownerRef) : null;
         tx.create(likeRef, {
           postId: targetId,
           userId: profileId,
-          ownerId: String(postSnap.data().userId || ''),
+          ownerId,
           createdAt: Date.now(),
         });
         tx.update(postRef, { likes: likes + 1, lastLikedBy: profileId });
+        if (ownerRef && ownerSnap?.exists) {
+          const totalLikesReceived = Math.max(0, Number(ownerSnap.data()?.likesReceived) || 0);
+          tx.update(ownerRef, { likesReceived: totalLikesReceived + 1 });
+        }
         return { liked: true, likes: likes + 1, alreadyLiked: false };
       });
       return sendJson(res, 200, result);
