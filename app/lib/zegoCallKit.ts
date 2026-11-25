@@ -1,8 +1,7 @@
 'use client';
 
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/firebase';
+import { auth } from '@/firebase';
 import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
   ensureZegoConfig,
@@ -57,6 +56,9 @@ let hangupInFlight = false;
 let remoteZimUsers = new Set<string>();
 let remoteRoomPeers = 0;
 
+// Zəng dəvəti gedərkən otaq tokenini əvvəlcədən alırıq ki, qəbul ediləndə gözləmə olmasın.
+const mediaTokenCache = new Map<string, { promise: Promise<string>; expiresAt: number }>();
+
 type ZimUser = { userID: string; userName?: string };
 type ZimLike = {
   callInvite: (
@@ -110,31 +112,64 @@ async function generateTestKitToken(
     throw new Error('Zego userID boşdur.');
   }
 
-  const fromServer = await fetchZegoTokenFromServer({ roomId: rid, userId: uid, userName: userName || uid });
-  if (fromServer) return fromServer;
-
-  throw new Error('Zəng tokeni alınmadı: Cloud Function token imzalamalıdır.');
+  return prefetchZegoToken({ roomId: rid, userId: uid, userName: userName || uid });
 }
 
-/** Cloud Function-dan hazır Zego tokeni. */
+/** Zəng qəbul edilməmişdən əvvəl tokeni paralel hazırlayırıq. */
+function prefetchZegoToken(input: {
+  roomId: string;
+  userId: string;
+  userName: string;
+}): Promise<string> {
+  const key = `${input.userId}:${input.roomId}`;
+  const cached = mediaTokenCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.promise;
+
+  const promise = fetchZegoTokenFromServer(input).then((token) => {
+    if (!token) throw new Error('Zəng tokeni boş qaytarıldı.');
+    return token;
+  }).catch((error) => {
+    mediaTokenCache.delete(key);
+    throw error;
+  });
+  mediaTokenCache.set(key, { promise, expiresAt: Date.now() + 50 * 60 * 1000 });
+  return promise;
+}
+
+/** Vercel API-dən Firebase Auth ilə təsdiqlənmiş Zego tokeni. */
 async function fetchZegoTokenFromServer(input: {
   roomId: string;
   userId: string;
   userName: string;
 }): Promise<string | null> {
   try {
-    const callable = httpsCallable<typeof input, { token?: string }>(functions, 'createZegoToken');
-    const { data } = await callable(input);
-    const token = String(data.token ?? '').trim();
+    const user = auth.currentUser;
+    if (!user) throw new Error('Firebase istifadəçi sessiyası tapılmadı.');
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/paypal?handler=zego-token', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roomId: input.roomId, userId: input.userId }),
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const reason = typeof data?.error === 'string' ? data.error : `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    const token = String(data?.token ?? '').trim();
     return token || null;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Cloud Function əlçatan deyil.';
+    const message = error instanceof Error ? error.message : 'Vercel token API əlçatan deyil.';
     throw new Error(`Zego tokeni alına bilmədi: ${message}`);
   }
 }
 
 /**
- * Token Cloud Function üçün public konfiqurasiya mövcuddurmu?
+ * Token API üçün public konfiqurasiya mövcuddurmu?
  *
  * Bu yoxlama vacibdir: brauzerdə `serverSecret` saxlanılmadığı üçün token yalnız
  * serverdə imzalana bilər. Funksiya yoxdursa zəng başlamaz — istifadəçi səbəbi görsün,
@@ -144,7 +179,7 @@ let tokenServiceState: boolean | null = null;
 
 async function isZegoTokenServiceAvailable(): Promise<boolean> {
   if (tokenServiceState != null) return tokenServiceState;
-  // Callable Functions are invoked with the real user's auth/App Check context when a token is requested.
+  // Vercel API verifies the Firebase ID token before signing a ZEGO token.
   tokenServiceState = getZegoAppId() > 0;
   return tokenServiceState;
 }
@@ -413,6 +448,11 @@ function bindZimListeners(zim: ZimLike) {
     pendingRoomId = payload?.roomId || toZegoRoomId(callID, 'c_');
     pendingSessionId = payload?.sessionId || '';
     pendingCallType = callType;
+    // İstifadəçi qəbul düyməsinə basana qədər token hazır olsun.
+    if (activeUserId) {
+      void prefetchZegoToken({ roomId: pendingRoomId, userId: activeUserId, userName: activeUserName || activeUserId })
+        .catch((err) => console.warn('[Zego] incoming token prefetch:', err));
+    }
     if (pendingSessionId) watchSession(pendingSessionId);
     showIncomingCallNotification(inviter.userName || inviter.userID, callType);
     setCallUiState({
@@ -473,9 +513,9 @@ function mediaRoomConfig(
 ) {
   return {
     container: getOrCreateZegoStage(),
-    maxUsers: 9,
+    maxUsers: 2,
     scenario: {
-      mode: ZegoUIKitPrebuilt.GroupCall,
+      mode: ZegoUIKitPrebuilt.OneONoneCall,
       config: { role: ZegoUIKitPrebuilt.Host },
     },
     turnOnMicrophoneWhenJoining: true,
@@ -514,7 +554,6 @@ async function joinMediaRoom(roomId: string, callType: CallType): Promise<void> 
   leaveMediaRoom(false, false);
   releaseMicForZego();
   void unlockCallAudio();
-  await new Promise((r) => setTimeout(r, 120));
 
   /* Eyni user iki Express-ə login ola bilməz — siqnal instance-ı bağla, ZIM qalsın. */
   if (zpInstance) {
@@ -523,12 +562,11 @@ async function joinMediaRoom(roomId: string, callType: CallType): Promise<void> 
   }
 
   const { ZegoUIKitPrebuilt } = await loadZegoUIKit();
-  const kitToken = await generateTestKitToken(
-    ZegoUIKitPrebuilt,
-    rid,
-    uid,
-    String(activeUserName || uid)
-  );
+  const kitToken = await prefetchZegoToken({
+    roomId: rid,
+    userId: uid,
+    userName: String(activeUserName || uid),
+  });
   const zp = ZegoUIKitPrebuilt.create(kitToken);
   patchJoinRoom(zp);
   applyLiveStageStyle(getOrCreateZegoStage());
@@ -747,6 +785,12 @@ export async function sendZegoCallInvitation(
     });
   } else {
     patchCallUiState({ cancel: hangupOutgoing, hint: undefined });
+  }
+
+  // Media tokeni zəng siqnalı ilə paralel alırıq; cavab gələnədək hazır olacaq.
+  if (activeUserId) {
+    void prefetchZegoToken({ roomId, userId: activeUserId, userName: activeUserName || activeUserId })
+      .catch((err) => patchCallUiState({ hint: err instanceof Error ? err.message : 'Zəng tokeni alınmadı.' }));
   }
 
   const zim = await waitForZim(zp);

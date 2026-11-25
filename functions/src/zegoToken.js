@@ -1,12 +1,14 @@
 /* eslint @typescript-eslint/no-require-imports: off */
 const { getFirestore } = require('firebase-admin/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { defineSecret } = require('firebase-functions/params');
+const { defineSecret, defineString } = require('firebase-functions/params');
 const { FieldValue } = require('firebase-admin/firestore');
 const { makeToken04 } = require('./zegoTokenFormat');
 
 const db = getFirestore();
 const ZEGO_SERVER_SECRET = defineSecret('ZEGO_SERVER_SECRET');
+// Firebase Functions own environment: Vercel variables are not visible inside Cloud Functions.
+const ZEGO_APP_ID = defineString('ZEGO_APP_ID');
 const REGION = 'us-central1';
 const TOKEN_TTL_SEC = 3600;
 
@@ -27,7 +29,7 @@ exports.createZegoToken = onCall(
     if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Giriş tələb olunur.');
     const requestedUserId = String(request.data?.userId || '').trim();
     const roomId = String(request.data?.roomId || '').trim();
-    const appId = Number(process.env.ZEGO_APP_ID || 0);
+    const appId = Number(ZEGO_APP_ID.value() || 0);
     const secret = ZEGO_SERVER_SECRET.value().trim();
     if (!requestedUserId || requestedUserId.length > 120 || !roomId || roomId.length > 64) {
       throw new HttpsError('invalid-argument', 'Zego userId və roomId etibarsızdır.');
