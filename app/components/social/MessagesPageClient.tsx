@@ -1711,7 +1711,7 @@ export default function MessagesPageClient() {
       )}
 
       {showSearch && (
-        <div className={styles.modalOverlay} onClick={() => setShowSearch(false)}>
+        <div className={styles.modalOverlay} onClick={() => { setShowSearch(false); setForwardingMessage(null); }}>
           <div className={styles.modalSheet} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>{forwardingMessage ? 'Mesajı kimə ötürək?' : t.messages.search}</h2>
             <input className={styles.input} placeholder={t.messages.searchPlaceholder} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -1725,6 +1725,11 @@ export default function MessagesPageClient() {
                 </div>
               </div>
             ))}
+            {forwardingMessage && (
+              <button type="button" className={styles.secondaryBtn} onClick={() => { setForwardingMessage(null); setShowSearch(false); }}>
+                Ləğv et
+              </button>
+            )}
           </div>
         </div>
       )}
