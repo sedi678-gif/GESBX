@@ -58,6 +58,7 @@ import {
   reportMessageUser,
   sendPrivateMessage,
   toggleMessageReaction,
+  toggleMessagePin,
   forwardPrivateMessage,
   setPrivateChatArchived,
   sendAudioMessageFast,
@@ -1188,6 +1189,17 @@ export default function MessagesPageClient() {
     }
   };
 
+  const handlePinMessage = async (message: StoredMessage) => {
+    setContextMenu(null);
+    try {
+      const pinnedBy = await toggleMessagePin(message.id, message.chatId, String(myId));
+      setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, pinnedBy } : item));
+    } catch (error) {
+      console.error('[Message] pin failed:', error);
+      alert('Mesaj sabitlənmədi: ' + (error instanceof Error ? error.message : 'SERVER_ERROR'));
+    }
+  };
+
   const handleReactMessage = async (message: StoredMessage, emoji: string) => {
     setContextMenu(null);
     try {
@@ -1628,6 +1640,7 @@ export default function MessagesPageClient() {
                 onGutterLongPress={enterSelection}
                 onToggleSelect={toggleSelect}
               >
+                {m.pinnedBy?.includes(String(myId)) && <span className={styles.messagePinnedLabel}>📌 Sabitlənib</span>}
                 <MessageBubble m={m} myId={myId} onOpenMedia={handleOpenMedia} />
                 {m.reactions && Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).length > 0 && (
                   <div className={styles.messageReactions}>
@@ -1830,6 +1843,7 @@ export default function MessagesPageClient() {
           anchor={contextMenu.anchor}
           myId={myId}
           onEdit={() => handleStartEdit(contextMenu.message)}
+          onPin={() => void handlePinMessage(contextMenu.message)}
           onReply={() => { setReplyTarget(contextMenu.message); setContextMenu(null); }}
           onForward={() => { setForwardingMessage(contextMenu.message); setSearchQuery(''); setSearchResults([]); setShowSearch(true); setContextMenu(null); }}
           onReact={(emoji) => void handleReactMessage(contextMenu.message, emoji)}
