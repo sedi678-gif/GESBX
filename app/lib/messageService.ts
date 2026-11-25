@@ -575,24 +575,47 @@ export function listenChatMessages(
   callback: (msgs: StoredMessage[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  let fallbackLoaded = false;
-  // Son 100 mesajı yüklə: bütün tarixçəni hər açılışda telefona endirmə.
-  // Mövcud Firestore composite index (chatId + createdAt ASC) ilə işləyir.
-  const q = query(
-    collection(db, 'private_messages'),
-    where('chatId', '==', chatId)
-  );
-  return onSnapshot(q, (snap) => {
-    const msgs: StoredMessage[] = [];
-    snap.forEach((d) => msgs.push(docToStoredMessage(d)));
-    msgs.sort((a, b) => a.createdAt - b.createdAt);
-    callback(msgs.slice(-100));
-  }, (error) => {
-    console.error('[Message] Firestore realtime read failed; loading via authenticated server:', error);
-    if (fallbackLoaded) return;
-    fallbackLoaded = true;
-    void privateMessagesRequest<{ messages: StoredMessage[] }>('messages', userId, 'GET', { chatId })
-      .then((result) => callback(result.messages || []))
-      .catch((serverError) => onError?.(serverError instanceof Error ? serverError : new Error(String(serverError))));
-  });
+  let cancelled = false;
+  let loading = false;
+  let lastSignature = '';
+
+  // Mesaj tarixçəsini əvvəlcə təsdiqlənmiş server API-sindən alırıq.
+  // Beləliklə Firestore client qaydaları/indeksləri tarixçənin açılmasını bloklamır.
+  const load = async () => {
+    if (cancelled || loading) return;
+    loading = true;
+    try {
+      const result = await privateMessagesRequest<{ messages: StoredMessage[] }>(
+        'messages', userId, 'GET', { chatId }
+      );
+      if (cancelled) return;
+      const messages = (result.messages || [])
+        .map((message) => ({
+          ...message,
+          id: String(message.id || ''),
+          chatId: String(message.chatId || chatId),
+          createdAt: Number(message.createdAt) || 0,
+        }))
+        .filter((message) => message.id && message.chatId === chatId)
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .slice(-100);
+      const signature = messages.map((message) => `${message.id}:${message.editedAt || 0}:${message.readAt || 0}:${message.deliveredAt || 0}`).join('|');
+      if (signature !== lastSignature) {
+        lastSignature = signature;
+        callback(messages);
+      }
+    } catch (error) {
+      if (!cancelled) onError?.(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      loading = false;
+    }
+  };
+
+  void load();
+  // Socket hadisəsi itərsə tarixçəni yeniləmək üçün ehtiyat sinxronizasiya.
+  const interval = setInterval(() => { void load(); }, 12_000);
+  return () => {
+    cancelled = true;
+    clearInterval(interval);
+  };
 }
