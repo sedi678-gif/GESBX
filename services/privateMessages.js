@@ -91,6 +91,7 @@ async function updateChat(db, senderId, recipientId, meta, preview, at, existing
     chatId,
     participants,
     participantMeta: { ...oldMeta, [senderId]: sender, [recipientId]: recipient },
+    hiddenBy: [],
     lastMessage: preview,
     lastMessageAt: at,
     updatedAt: at,
@@ -112,11 +113,15 @@ async function assertNotBlocked(db, senderId, recipientId) {
 
 async function listChats(db, profileId) {
   const snap = await db.collection('private_chats')
-    .where('participants', 'array-contains', profileId).get();
+    .where('participants', 'array-contains', profileId)
+    .limit(100)
+    .get();
   const result = [];
   snap.forEach((doc) => {
     const data = doc.data() || {};
     const participants = Array.isArray(data.participants) ? data.participants.map(String) : [];
+    const hiddenBy = Array.isArray(data.hiddenBy) ? data.hiddenBy.map(String) : [];
+    if (hiddenBy.includes(profileId)) return;
     const otherId = participants.find((id) => id !== profileId) || '';
     if (!otherId) return;
     const meta = data.participantMeta?.[otherId] || {};
@@ -135,14 +140,15 @@ async function listChats(db, profileId) {
 
   // Köhnə söhbətlərdə participantMeta avatar saxlamaya bilər.
   // Profil fotosunu users və legacy players kolleksiyasından bərpa et.
-  const visible = result.slice(0, 100);
-  const refs = visible.flatMap((chat) => [
+  const visible = result;
+  const needsLookup = visible.filter((chat) => chat.otherUserName === 'İstifadəçi' || !chat.otherUserAvatar);
+  const refs = needsLookup.flatMap((chat) => [
     db.doc(`users/${chat.otherUserId}`),
     db.doc(`players/${chat.otherUserId}`),
   ]);
   if (refs.length) {
     const profiles = await db.getAll(...refs);
-    visible.forEach((chat, index) => {
+    needsLookup.forEach((chat, index) => {
       const user = profiles[index * 2]?.data() || {};
       const player = profiles[index * 2 + 1]?.data() || {};
       chat.otherUserName = chat.otherUserName !== 'İstifadəçi'
@@ -304,6 +310,7 @@ async function handlePost(req, res, db, profileId, action) {
     batch.set(chatRef, {
       chatId,
       participants: [senderId, recipientId].sort(),
+      hiddenBy: [],
       participantMeta: {
         ...previousMeta,
         [senderId]: profileMeta({
@@ -324,6 +331,17 @@ async function handlePost(req, res, db, profileId, action) {
     batch.create(messageRef, message);
     await batch.commit();
     return sendJson(res, 200, { message });
+  }
+
+  if (action === 'delete-chat') {
+    const chatId = text(body.chatId, 180);
+    const chat = await requireChat(db, chatId, profileId);
+    const hiddenBy = Array.isArray(chat.data.hiddenBy) ? chat.data.hiddenBy.map(String) : [];
+    await chat.ref.set({
+      hiddenBy: [...new Set([...hiddenBy, profileId])],
+      updatedAt: Date.now(),
+    }, { merge: true });
+    return sendJson(res, 200, { success: true });
   }
 
   if (action === 'archive-chat' || action === 'unarchive-chat') {
