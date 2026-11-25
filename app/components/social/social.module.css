@@ -3312,3 +3312,67 @@
   writing-mode: horizontal-tb !important;
   text-orientation: mixed !important;
 }
+
+
+/* GESBX messenger interaction layer: replies, reactions and forwarding */
+.messageQuickReactions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 7px 8px 9px;
+  border-bottom: 1px solid rgba(148, 163, 184, .18);
+}
+.messageQuickReactions button,
+.messageReactions button {
+  border: 1px solid rgba(103, 232, 249, .28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, .82);
+  color: #f8fafc;
+  min-width: 32px;
+  min-height: 30px;
+  cursor: pointer;
+}
+.messageQuickReactions button { font-size: 18px; }
+.messageReplyQuote {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 7px;
+  padding: 6px 9px;
+  border-left: 3px solid #8b5cf6;
+  border-radius: 7px;
+  background: rgba(99, 102, 241, .13);
+  max-width: 100%;
+  overflow: hidden;
+}
+.messageReplyQuote strong { color: #a5b4fc; font-size: 10px; }
+.messageReplyQuote span {
+  color: rgba(248, 250, 252, .88);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.messageForwarded {
+  margin-bottom: 4px;
+  color: #a5b4fc;
+  font-size: 10px;
+  font-style: italic;
+}
+.messageReactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 3px 4px 0;
+}
+.messageReactions button {
+  min-height: 24px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+.messageReactions .messageReactionActive {
+  border-color: #a78bfa;
+  background: rgba(124, 58, 237, .28);
+  color: #fff;
+}
