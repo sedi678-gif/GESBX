@@ -570,12 +570,14 @@ export async function clearChat(chatId: string, userId: string): Promise<void> {
   await privateMessagesRequest('clear', userId, 'POST', { chatId });
 }
 
-export async function markMessageReceived(
-  messageId: string,
+export async function markMessagesReceived(
+  chatId: string,
+  messageIds: string[],
   status: { deliveredAt?: number; readAt?: number },
   userId: string
 ): Promise<void> {
-  await privateMessagesRequest('status', userId, 'POST', { messageId, ...status });
+  if (!messageIds.length) return;
+  await privateMessagesRequest('status-bulk', userId, 'POST', { chatId, messageIds, ...status });
 }
 
 export async function setPrivateChatArchived(chatId: string, userId: string, archived: boolean): Promise<void> {
