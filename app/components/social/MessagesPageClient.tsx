@@ -364,7 +364,6 @@ export default function MessagesPageClient() {
   const recordStreamRef = useRef<MediaStream | null>(null);
   const recordChunksRef = useRef<Blob[]>([]);
   const recordStartRef = useRef(0);
-  const micHoldRef = useRef(false);
   const recordPendingStopRef = useRef(false);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -933,12 +932,10 @@ export default function MessagesPageClient() {
   const micLockedRef = useRef(false);
   const micWasRecordingAtPressRef = useRef(false);
   const micPointerStartYRef = useRef<number | null>(null);
-  const micSuppressClickRef = useRef(false);
 
   const onMicHoldStart = (e: React.PointerEvent) => {
     if (sending || messageText.trim()) return;
     e.preventDefault();
-    micSuppressClickRef.current = true;
     micPressStartedAtRef.current = Date.now();
     micWasRecordingAtPressRef.current = Boolean(recording || mediaRecorderRef.current);
     micPointerStartYRef.current = e.clientY;
@@ -963,10 +960,7 @@ export default function MessagesPageClient() {
   };
 
   const onMicClick = () => {
-    if (micSuppressClickRef.current) {
-      micSuppressClickRef.current = false;
-      return;
-    }
+    // Klaviatura ilə aktivləşdirmə üçün əlçatanlıq ehtiyatı.
     if (recording || mediaRecorderRef.current) stopRecording();
     else if (!sending && !messageText.trim()) void startRecording();
   };
@@ -1830,7 +1824,7 @@ export default function MessagesPageClient() {
                 onPointerUp={onMicHoldEnd}
                 onPointerCancel={onMicHoldEnd}
                 onPointerLeave={onMicHoldEnd}
-                onClick={onMicClick}
+                onClick={(event) => { if (event.detail === 0) onMicClick(); }}
                 disabled={sending}
                 title="Toxunaraq başlat, yenidən toxunaraq göndər; basıb saxla və yuxarı sürüşdürərək kilidlə"
                 aria-label="Səs mesajı yaz"
