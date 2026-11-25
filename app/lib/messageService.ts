@@ -23,6 +23,7 @@ export interface ChatSummary {
   otherUserAvatar: string;
   lastMessage: string;
   lastMessageAt: number;
+  archived?: boolean;
 }
 
 export interface StoredMessage {
@@ -498,6 +499,9 @@ function docToStoredMessage(d: { id: string; data: () => Record<string, unknown>
     editedAt: data.editedAt as number | undefined,
     deliveredAt: data.deliveredAt as number | undefined,
     readAt: data.readAt as number | undefined,
+    replyTo: data.replyTo as StoredMessage['replyTo'],
+    forwardedFrom: data.forwardedFrom as StoredMessage['forwardedFrom'],
+    reactions: data.reactions as StoredMessage['reactions'],
     createdAt: (data.createdAt as number) || 0,
   };
 }
@@ -563,6 +567,10 @@ export async function markMessageReceived(
   await privateMessagesRequest('status', userId, 'POST', { messageId, ...status });
 }
 
+export async function setPrivateChatArchived(chatId: string, userId: string, archived: boolean): Promise<void> {
+  await privateMessagesRequest(archived ? 'archive-chat' : 'unarchive-chat', userId, 'POST', { chatId });
+}
+
 export function listenChatMessages(
   chatId: string,
   userId: string,
@@ -574,15 +582,13 @@ export function listenChatMessages(
   // Mövcud Firestore composite index (chatId + createdAt ASC) ilə işləyir.
   const q = query(
     collection(db, 'private_messages'),
-    where('chatId', '==', chatId),
-    orderBy('createdAt', 'asc'),
-    limitToLast(100)
+    where('chatId', '==', chatId)
   );
   return onSnapshot(q, (snap) => {
     const msgs: StoredMessage[] = [];
     snap.forEach((d) => msgs.push(docToStoredMessage(d)));
     msgs.sort((a, b) => a.createdAt - b.createdAt);
-    callback(msgs);
+    callback(msgs.slice(-100));
   }, (error) => {
     console.error('[Message] Firestore realtime read failed; loading via authenticated server:', error);
     if (fallbackLoaded) return;
