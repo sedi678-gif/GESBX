@@ -1458,20 +1458,22 @@ export default function MessagesPageClient() {
             <button type="button" className={styles.msgHubIconBtn} onClick={() => setSelectedChat(null)} aria-label="Geri">
               <IconBack />
             </button>
-            <AppLink href={`/profile?user=${selectedChat.id}`} className={styles.chatHeaderProfile}>
-              <img src={selectedChat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatarSm} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
-              <div>
-                <h1 className={styles.msgHubChatTitle}>{selectedChat.name}</h1>
-                <p className={styles.msgHubChatSub}>{selectedChat.username}</p>
-                {isAndroidApp && topPinnedMessage && (
-                  <button type="button" className={styles.androidPinnedPreview} onClick={jumpToPinnedMessage} title="Sabitlənmiş mesaja keç">
-                    <span aria-hidden>📌</span>
-                    <span className={styles.androidPinnedPreviewText}>{topPinnedMessage.text || messagePreview(topPinnedMessage)}</span>
-                    <span aria-hidden>›</span>
-                  </button>
-                )}
-              </div>
-            </AppLink>
+            <div className={styles.androidChatIdentity}>
+              <AppLink href={`/profile?user=${selectedChat.id}`} className={styles.chatHeaderProfile}>
+                <img src={selectedChat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatarSm} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
+                <div>
+                  <h1 className={styles.msgHubChatTitle}>{selectedChat.name}</h1>
+                  <p className={styles.msgHubChatSub}>{selectedChat.username}</p>
+                </div>
+              </AppLink>
+              {isAndroidApp && topPinnedMessage && (
+                <button type="button" className={styles.androidPinnedPreview} onClick={jumpToPinnedMessage} title="Sabitlənmiş mesaja keç">
+                  <span aria-hidden>📌</span>
+                  <span className={styles.androidPinnedPreviewText}>{topPinnedMessage.text || messagePreview(topPinnedMessage)}</span>
+                  <span aria-hidden>›</span>
+                </button>
+              )}
+            </div>
             <div className={styles.headerActions}>
               <button type="button" className={`${styles.msgHubIconBtn} ${styles.msgHubIconBtnAccent}`} onClick={() => void handleStartCall('voice')} aria-label={t.messages.voiceCall} title={t.messages.voiceCall}>
                 <IconPhone />
