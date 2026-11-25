@@ -168,7 +168,7 @@ export function getAppSocket(): Socket | null {
           callback({});
           return;
         }
-        void currentUser.getIdToken().then((token) => callback({ token })).catch(() => callback({}));
+        void currentUser.getIdToken(true).then((token) => callback({ token })).catch(() => callback({}));
       },
 
       secure: url.startsWith('https://'),
