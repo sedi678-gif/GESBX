@@ -1,8 +1,9 @@
 .overlay {
-  --wa-panel: #1c272d;
-  --wa-btn: #2a3942;
+  --wa-panel: rgba(19, 28, 58, .94);
+  --wa-btn: rgba(45, 55, 92, .95);
   --hangup: #f15c6d;
-  --green: #25d366;
+  --accept: #6366f1;
+  --accept-glow: rgba(99, 102, 241, .38);
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -13,7 +14,7 @@
   flex-direction: column;
   overflow: hidden;
   color: #fff;
-  background: #0b141a;
+  background: radial-gradient(ellipse at 50% 10%, #172554 0%, #090d1e 54%, #050713 100%);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -227,8 +228,9 @@
 }
 
 .circleAccept {
-  background: var(--green);
-  color: #04210c;
+  background: linear-gradient(145deg, #6366f1, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 0 24px var(--accept-glow);
 }
 
 .label {
