@@ -20,15 +20,16 @@ function formatClock(seconds: number): string {
 interface VoiceMessagePlayerProps {
   src: string;
   durationMs?: number;
+  waveform?: number[];
 }
 
-export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlayerProps) {
+export default function VoiceMessagePlayer({ src, durationMs, waveform: savedWaveform }: VoiceMessagePlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentSec, setCurrentSec] = useState(0);
   const [playbackRate, setPlaybackRate] = useState<1 | 1.5 | 2>(1);
-  const [waveform, setWaveform] = useState<number[]>(() => Array(36).fill(5));
+  const [waveform, setWaveform] = useState<number[]>(() => savedWaveform?.length ? savedWaveform : Array(36).fill(5));
 
   const syncProgress = useCallback(() => {
     const el = audioRef.current;
@@ -45,6 +46,10 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
   }, [src]);
 
   useEffect(() => {
+    if (savedWaveform && savedWaveform.length > 0) {
+      setWaveform(savedWaveform);
+      return;
+    }
     let cancelled = false;
     let audioContext: AudioContext | null = null;
 
@@ -94,7 +99,7 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
         void audioContext.close().catch(() => undefined);
       }
     };
-  }, [src]);
+  }, [src, savedWaveform]);
 
 
 
