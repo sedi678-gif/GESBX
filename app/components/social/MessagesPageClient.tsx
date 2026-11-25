@@ -1420,6 +1420,15 @@ export default function MessagesPageClient() {
   };
 
   const hasComposeText = messageText.trim().length > 0;
+  const topPinnedMessage = [...messages]
+    .filter((message) => (message.pinnedBy?.length || 0) > 0)
+    .sort((a, b) => b.createdAt - a.createdAt)[0] || null;
+  const jumpToPinnedMessage = () => {
+    if (!topPinnedMessage || !scrollRef.current) return;
+    const target = Array.from(scrollRef.current.querySelectorAll<HTMLElement>('[data-message-id]'))
+      .find((element) => element.dataset.messageId === topPinnedMessage.id);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   return (
     <div className={`${styles.msgHubPage} ${selectedChat ? styles.msgHubChatOpen : ''} ${isAndroidApp ? styles.androidMessenger : ''}`}>
@@ -1454,6 +1463,13 @@ export default function MessagesPageClient() {
               <div>
                 <h1 className={styles.msgHubChatTitle}>{selectedChat.name}</h1>
                 <p className={styles.msgHubChatSub}>{selectedChat.username}</p>
+                {isAndroidApp && topPinnedMessage && (
+                  <button type="button" className={styles.androidPinnedPreview} onClick={jumpToPinnedMessage} title="Sabitlənmiş mesaja keç">
+                    <span aria-hidden>📌</span>
+                    <span className={styles.androidPinnedPreviewText}>{topPinnedMessage.text || messagePreview(topPinnedMessage)}</span>
+                    <span aria-hidden>›</span>
+                  </button>
+                )}
               </div>
             </AppLink>
             <div className={styles.headerActions}>
@@ -1685,7 +1701,7 @@ export default function MessagesPageClient() {
                 {m.reactions && Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).length > 0 && (
                   <div className={styles.messageReactions}>
                     {Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) => (
-                      <button key={emoji} type="button" className={ids.includes(String(myId)) ? styles.messageReactionActive : ''} onClick={() => void handleReactMessage(m, emoji)}>
+                      <button key={emoji} type="button" className={ids.includes(String(myId)) ? styles.messageReactionActive : ''} onClick={() => void handleReactMessage(m, emoji)} onContextMenu={(event) => { if (ids.includes(String(myId))) { event.preventDefault(); void handleReactMessage(m, emoji); } }}>
                         {emoji} {ids.length}
                       </button>
                     ))}
@@ -1780,7 +1796,7 @@ export default function MessagesPageClient() {
               >
                 <IconSend />
               </button>
-            ) : (
+            ) : !isAndroidApp ? (
               <button
                 type="button"
                 className={`${styles.msgComposeBtn} ${styles.msgComposeMicBtn} ${recording ? styles.recordingActive : ''}`}
@@ -1795,7 +1811,7 @@ export default function MessagesPageClient() {
               >
                 <IconMic />
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       )}
