@@ -128,6 +128,7 @@ async function listChats(db, profileId) {
       otherUserAvatar: text(meta.avatar, 1500),
       lastMessage: text(data.lastMessage, 2000),
       lastMessageAt: Number(data.lastMessageAt) || 0,
+      archived: Array.isArray(data.archivedBy) && data.archivedBy.map(String).includes(profileId),
     });
   });
   result.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
@@ -161,11 +162,10 @@ async function listMessages(db, chatId) {
   // Son 100 mesajı oxu, böyük söhbətlərin açılışını yüngülləşdir.
   const snap = await db.collection('private_messages')
     .where('chatId', '==', chatId)
-    .orderBy('createdAt', 'asc')
-    .limitToLast(100)
     .get();
   return snap.docs.map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
-    .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
+    .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0))
+    .slice(-100);
 }
 
 async function handleGet(req, res, db, profileId, action) {
@@ -323,6 +323,17 @@ async function handlePost(req, res, db, profileId, action) {
     batch.create(messageRef, message);
     await batch.commit();
     return sendJson(res, 200, { message });
+  }
+
+  if (action === 'archive-chat' || action === 'unarchive-chat') {
+    const chatId = text(body.chatId, 180);
+    const chat = await requireChat(db, chatId, profileId);
+    const archivedBy = Array.isArray(chat.data.archivedBy) ? chat.data.archivedBy.map(String) : [];
+    const next = action === 'archive-chat'
+      ? [...new Set([...archivedBy, profileId])]
+      : archivedBy.filter((id) => id !== profileId);
+    await chat.ref.set({ archivedBy: next, updatedAt: Date.now() }, { merge: true });
+    return sendJson(res, 200, { archived: action === 'archive-chat' });
   }
 
   if (action === 'react') {
