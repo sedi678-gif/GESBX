@@ -323,6 +323,15 @@ export function waitForAppSocket(userId?: string, timeoutMs = 12_000): Promise<S
 
 
 
+export async function refreshAppSocketAuth(): Promise<void> {
+  const currentUser = auth.currentUser;
+  if (currentUser) await currentUser.getIdToken(true);
+  const s = getAppSocket();
+  if (!s) return;
+  if (s.connected) s.disconnect();
+  s.connect();
+}
+
 export function isAppSocketConnected(): boolean {
 
   return Boolean(socket?.connected);
