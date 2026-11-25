@@ -339,17 +339,24 @@ async function handlePost(req, res, db, profileId, action) {
     if (!snap.exists || snap.data()?.chatId !== chatId) {
       throw new ApiError(404, 'MESSAGE_NOT_FOUND');
     }
-    const current = snap.data()?.reactions && typeof snap.data().reactions === 'object'
-      ? snap.data().reactions : {};
-    const users = Array.isArray(current[emoji]) ? current[emoji].map(String) : [];
-    const nextUsers = users.includes(profileId)
-      ? users.filter((id) => id !== profileId)
-      : [...users, profileId];
-    const next = { ...current };
-    if (nextUsers.length) next[emoji] = nextUsers;
-    else delete next[emoji];
-    await ref.update({ reactions: next });
-    return sendJson(res, 200, { reactions: next });
+    const reactions = await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(ref);
+      if (!fresh.exists || fresh.data()?.chatId !== chatId) {
+        throw new ApiError(404, 'MESSAGE_NOT_FOUND');
+      }
+      const current = fresh.data()?.reactions && typeof fresh.data().reactions === 'object'
+        ? fresh.data().reactions : {};
+      const users = Array.isArray(current[emoji]) ? current[emoji].map(String) : [];
+      const nextUsers = users.includes(profileId)
+        ? users.filter((id) => id !== profileId)
+        : [...users, profileId];
+      const next = { ...current };
+      if (nextUsers.length) next[emoji] = nextUsers;
+      else delete next[emoji];
+      transaction.update(ref, { reactions: next });
+      return next;
+    });
+    return sendJson(res, 200, { reactions });
   }
 
   if (action === 'forward') {
