@@ -1833,12 +1833,10 @@ export default function MessagesPageClient() {
               >
                 <IconSend />
               </button>
-            ) : recording ? (
-              <button type="button" className={`${styles.msgComposeBtn} ${styles.msgComposeSendBtn}`} onClick={stopRecording} aria-label="Səs yazısını göndər" title="Yazını bitir və göndər"><IconSend /></button>
             ) : (
               <button
                 type="button"
-                className={`${styles.msgComposeBtn} ${styles.msgComposeMicBtn}`}
+                className={`${styles.msgComposeBtn} ${styles.msgComposeMicBtn} ${recording ? styles.msgComposeMicRecording : ''}`}
                 onPointerDown={onMicHoldStart}
                 onPointerMove={onMicPointerMove}
                 onPointerUp={onMicHoldEnd}
