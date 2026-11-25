@@ -322,6 +322,7 @@ export default function MessagesPageClient() {
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordElapsed, setRecordElapsed] = useState(0);
+  const [recordingLocked, setRecordingLocked] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
   const [inboxTab, setInboxTab] = useState<InboxTab>('chats');
   const [showCallSettings, setShowCallSettings] = useState(false);
@@ -939,6 +940,7 @@ export default function MessagesPageClient() {
   const recordCancelledRef = useRef(false);
 
   const onMicHoldStart = (e: React.PointerEvent) => {
+    if (recordingLocked) return;
     if (sending || messageText.trim()) return;
     e.preventDefault();
     micPressStartedAtRef.current = Date.now();
@@ -951,10 +953,23 @@ export default function MessagesPageClient() {
 
   const onMicPointerMove = (e: React.PointerEvent) => {
     if (micPointerStartXRef.current === null || micPointerStartYRef.current === null) return;
-    // Sola sürüşdür: səs yazısını ləğv et, heç kimə göndərmə.
-    if (micPointerStartXRef.current - e.clientX > 72) {
+    const deltaX = micPointerStartXRef.current - e.clientX;
+    const deltaY = micPointerStartYRef.current - e.clientY;
+
+    // Sola sürüşdürmək yazını ləğv edir.
+    if (deltaX > 72 && Math.abs(deltaX) > Math.abs(deltaY)) {
       recordCancelledRef.current = true;
+      setRecordingLocked(false);
+      micPointerStartXRef.current = null;
+      micPointerStartYRef.current = null;
+      micPressStartedAtRef.current = 0;
       stopRecording();
+      return;
+    }
+
+    // Yuxarı sürüşdürmək yazını kilidləyir; barmağı buraxmaq yazını dayandırmır.
+    if (deltaY > 62 && deltaY > Math.abs(deltaX)) {
+      setRecordingLocked(true);
       micPointerStartXRef.current = null;
       micPointerStartYRef.current = null;
       micPressStartedAtRef.current = 0;
@@ -973,16 +988,31 @@ export default function MessagesPageClient() {
   const onMicCancel = () => {
     if (micPointerStartXRef.current === null) return;
     recordCancelledRef.current = true;
+    setRecordingLocked(false);
     micPointerStartXRef.current = null;
     micPointerStartYRef.current = null;
     micPressStartedAtRef.current = 0;
     stopRecording();
   };
 
-  const onMicClick = () => {
-    // Klaviatura ilə istifadə: Enter/Space yazını başladır və növbəti aktivləşdirmə göndərir.
-    if (recording || mediaRecorderRef.current) stopRecording();
-    else if (!sending && !messageText.trim()) void startRecording();
+  const cancelLockedRecording = () => {
+    recordCancelledRef.current = true;
+    setRecordingLocked(false);
+    stopRecording();
+  };
+
+  const onMicClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (recordingLocked) {
+      event.preventDefault();
+      stopRecording();
+      setRecordingLocked(false);
+      return;
+    }
+    // Klaviatura ilə istifadə üçün ehtiyat idarəetmə.
+    if (event.detail === 0) {
+      if (recording || mediaRecorderRef.current) stopRecording();
+      else if (!sending && !messageText.trim()) void startRecording();
+    }
   };
 
   const handleStartCall = async (callType: CallType) => {
@@ -1747,12 +1777,6 @@ export default function MessagesPageClient() {
               </ChatMessageRow>
             ))}
           </div>
-          {recording && (
-            <div className={styles.voiceRecordingBar}>
-              <span className={styles.voiceRecDot} aria-hidden />
-              🎤 Səs yazılır · {recordElapsed}s — buraxın və ya mikrofona toxunun
-            </div>
-          )}
           {replyTarget && !editingMessage && (
             <div className={styles.editBanner}>
               <span>↩️ Cavab: {replyTarget.text || messagePreview(replyTarget)}</span>
@@ -1798,30 +1822,40 @@ export default function MessagesPageClient() {
             >
               <IconAttach />
             </button>
-            <div className={styles.composeInputWrap} dir="ltr">
-              <input
-                type="text"
-                dir="ltr"
-                inputMode="text"
-                enterKeyHint="send"
-                className={styles.composeInput}
-                autoComplete="off"
-                autoCorrect="on"
-                spellCheck
-                placeholder={
-                  editingMessage
-                    ? 'Mesajı düzənlə...'
-                    : recording
-                      ? 'Səs yazılır...'
-                      : sending
-                        ? t.messages.sending
-                        : t.messages.placeholder
-                }
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && hasComposeText && handleSend()}
-                disabled={sending || recording}
-              />
+            <div className={`${styles.composeInputWrap} ${recording ? styles.voiceComposeActive : ''}`} dir="ltr">
+              {recording ? (
+                <div className={styles.voiceComposeVisual} aria-live="polite">
+                  {recordingLocked && (
+                    <button type="button" className={styles.voiceTrashBtn} onClick={cancelLockedRecording} aria-label="Səs yazısını sil" title="Səs yazısını sil">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3" /></svg>
+                    </button>
+                  )}
+                  <span className={styles.voiceRecDot} aria-hidden />
+                  <span className={styles.voiceElapsed}>{recordElapsed}s</span>
+                  <div className={styles.voiceWave} aria-label="Səs yazılır">
+                    {Array.from({ length: 28 }, (_, i) => (
+                      <i key={i} style={{ animationDelay: `${(i % 9) * -0.11}s` }} />
+                    ))}
+                  </div>
+                  <span className={styles.voiceGestureHint}>{recordingLocked ? 'Kilidləndi' : '← Sil · ↑ Kilidlə'}</span>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  dir="ltr"
+                  inputMode="text"
+                  enterKeyHint="send"
+                  className={styles.composeInput}
+                  autoComplete="off"
+                  autoCorrect="on"
+                  spellCheck
+                  placeholder={editingMessage ? 'Mesajı düzənlə...' : sending ? t.messages.sending : t.messages.placeholder}
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && hasComposeText && handleSend()}
+                  disabled={sending}
+                />
+              )}
             </div>
             {hasComposeText ? (
               <button
@@ -1842,10 +1876,10 @@ export default function MessagesPageClient() {
                 onPointerMove={onMicPointerMove}
                 onPointerUp={onMicHoldEnd}
                 onPointerCancel={onMicCancel}
-                onClick={(event) => { if (event.detail === 0) onMicClick(); }}
+                onClick={onMicClick}
                 disabled={sending}
-                title="Basılı saxlayın, buraxanda göndərilir. Sola sürüşdürəndə ləğv olunur."
-                aria-label="Səs yaz: buraxanda göndər, sola sürüşdürəndə ləğv et"
+                title={recordingLocked ? "Səs yazısını göndər" : "Basılı saxlayın; sola sürüşdürüb silin və ya yuxarı sürüşdürüb kilidləyin"}
+                aria-label={recordingLocked ? "Səs yazısını göndər" : "Səs yaz: buraxanda göndər, sola sil, yuxarı kilidlə"}
               >
                 <IconMic />
               </button>
