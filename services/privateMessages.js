@@ -287,6 +287,11 @@ async function handlePost(req, res, db, profileId, action) {
       }
     }
     if (Number.isFinite(Number(input.audioDurationMs))) message.audioDurationMs = Math.max(0, Math.min(600000, Number(input.audioDurationMs)));
+    if (Array.isArray(input.audioWaveform)) {
+      message.audioWaveform = input.audioWaveform
+        .slice(0, 36)
+        .map((value) => Math.max(5, Math.min(100, Math.round(Number(value) || 5))));
+    }
     if (Number.isFinite(Number(input.locationLat)) && Number(input.locationLat) >= -90 && Number(input.locationLat) <= 90) message.locationLat = Number(input.locationLat);
     if (Number.isFinite(Number(input.locationLng)) && Number(input.locationLng) >= -180 && Number(input.locationLng) <= 180) message.locationLng = Number(input.locationLng);
     if (['voice', 'video'].includes(input.callType)) message.callType = input.callType;

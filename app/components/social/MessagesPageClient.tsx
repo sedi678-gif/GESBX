@@ -216,7 +216,7 @@ function MessageBubble({
       <div className={cls}>
         <ReplyQuote m={m} myId={myId} />
         {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
-        <VoiceMessagePlayer src={m.audioUrl} durationMs={m.audioDurationMs} />
+        <VoiceMessagePlayer src={m.audioUrl} durationMs={m.audioDurationMs} waveform={m.audioWaveform} />
         <div className={styles.bubbleMeta}>🎤 Səs mesajı · {timeLabel} {statusMark && <span className={statusClass}>{statusMark}</span>}</div>
       </div>
     );
@@ -322,6 +322,7 @@ export default function MessagesPageClient() {
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordElapsed, setRecordElapsed] = useState(0);
+  const [recordingWaveform, setRecordingWaveform] = useState<number[]>(() => Array(28).fill(4));
   const [recordingLocked, setRecordingLocked] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
   const [inboxTab, setInboxTab] = useState<InboxTab>('chats');
@@ -367,6 +368,10 @@ export default function MessagesPageClient() {
   const recordStartRef = useRef(0);
   const recordPendingStopRef = useRef(false);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingAudioContextRef = useRef<AudioContext | null>(null);
+  const recordingAnalyserRef = useRef<AnalyserNode | null>(null);
+  const recordingVisualFrameRef = useRef<number | null>(null);
+  const recordingSamplesRef = useRef<number[]>([]);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -547,19 +552,33 @@ export default function MessagesPageClient() {
     [applyIncomingMessage, relayPrivateMessage, trackMessageContact, getMessageTransferUrl]
   );
 
+  const stopRecordingVisualizer = useCallback(() => {
+    if (recordingVisualFrameRef.current !== null) {
+      cancelAnimationFrame(recordingVisualFrameRef.current);
+      recordingVisualFrameRef.current = null;
+    }
+    recordingAnalyserRef.current = null;
+    const context = recordingAudioContextRef.current;
+    recordingAudioContextRef.current = null;
+    if (context && context.state !== 'closed') void context.close().catch(() => undefined);
+    setRecordingWaveform(Array(28).fill(4));
+  }, []);
+
   const cleanupRecordingStream = useCallback(() => {
+    stopRecordingVisualizer();
     recordStreamRef.current?.getTracks().forEach((track) => track.stop());
     recordStreamRef.current = null;
     mediaRecorderRef.current = null;
     recordChunksRef.current = [];
     setRecording(false);
-  }, []);
+  }, [stopRecordingVisualizer]);
 
   const finalizeVoiceRecording = useCallback(
     async (recorder: MediaRecorder, mimeType: string) => {
       mediaRecorderRef.current = null;
       setRecording(false);
       setRecordingLocked(false);
+      stopRecordingVisualizer();
 
       recordStreamRef.current?.getTracks().forEach((track) => track.stop());
       recordStreamRef.current = null;
@@ -573,6 +592,16 @@ export default function MessagesPageClient() {
       if (wasCancelled) return;
 
       const durationMs = Math.max(0, Date.now() - recordStartRef.current);
+      const samples = recordingSamplesRef.current;
+      const waveformBars = 36;
+      const audioWaveform = samples.length
+        ? Array.from({ length: waveformBars }, (_, index) => {
+            const start = Math.floor((index * samples.length) / waveformBars);
+            const end = Math.max(start + 1, Math.floor(((index + 1) * samples.length) / waveformBars));
+            return Math.max(5, Math.min(100, Math.round(Math.max(...samples.slice(start, end), 0))));
+          })
+        : Array(waveformBars).fill(5);
+      recordingSamplesRef.current = [];
       const chat = selectedChatRef.current;
 
       if (!chat) {
@@ -600,6 +629,7 @@ export default function MessagesPageClient() {
         type: 'audio',
         audioUrl: previewUrl,
         audioDurationMs: durationMs,
+        audioWaveform,
         createdAt: Date.now(),
       };
 
@@ -611,6 +641,7 @@ export default function MessagesPageClient() {
           recipientId: String(chat.id),
           audioBlob: blob,
           durationMs,
+          audioWaveform,
           senderName: myMeta.name,
           senderHandle: myMeta.handle,
           senderAvatar: myMeta.avatar,
@@ -630,7 +661,7 @@ export default function MessagesPageClient() {
         URL.revokeObjectURL(previewUrl);
       }
     },
-    [myId, applyIncomingMessage, dispatchFastMessage]
+    [myId, applyIncomingMessage, dispatchFastMessage, stopRecordingVisualizer]
   );
 
   const stopRecording = useCallback(() => {
@@ -900,10 +931,48 @@ export default function MessagesPageClient() {
       }
 
       recordStreamRef.current = stream;
-      const recorder = new MediaRecorder(
-        stream,
-        MediaRecorder.isTypeSupported(mimeType) ? { mimeType } : undefined
-      );
+      recordingSamplesRef.current = [];
+
+      // Mikrofonun real amplitudasını ölç: danışıqda dalğa qalxır, sükutda sakit qalır.
+      try {
+        const AudioContextClass = window.AudioContext ||
+          (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          const audioContext = new AudioContextClass();
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.72;
+          audioContext.createMediaStreamSource(stream).connect(analyser);
+          recordingAudioContextRef.current = audioContext;
+          recordingAnalyserRef.current = analyser;
+          const samples = new Uint8Array(analyser.fftSize);
+          let lastPaint = 0;
+          const drawMicWave = (now: number) => {
+            if (recordingAnalyserRef.current !== analyser) return;
+            recordingVisualFrameRef.current = requestAnimationFrame(drawMicWave);
+            if (now - lastPaint < 85) return;
+            lastPaint = now;
+            analyser.getByteTimeDomainData(samples);
+            let energy = 0;
+            for (let i = 0; i < samples.length; i += 1) {
+              const centered = (samples[i] - 128) / 128;
+              energy += centered * centered;
+            }
+            const rms = Math.sqrt(energy / samples.length);
+            const level = Math.max(5, Math.min(100, Math.round(5 + rms * 650)));
+            recordingSamplesRef.current.push(level);
+            setRecordingWaveform((previous) => [...previous.slice(1), Math.max(4, Math.round(level * 0.27))]);
+          };
+          if (audioContext.state === 'suspended') void audioContext.resume().catch(() => undefined);
+          recordingVisualFrameRef.current = requestAnimationFrame(drawMicWave);
+        }
+      } catch (visualError) {
+        console.warn('[VoiceMessage] Live microphone waveform unavailable:', visualError);
+      }
+
+      const recorderOptions: MediaRecorderOptions = {};
+      if (MediaRecorder.isTypeSupported(mimeType)) recorderOptions.mimeType = mimeType;
+      const recorder = new MediaRecorder(stream, recorderOptions);
       recordChunksRef.current = [];
       recordStartRef.current = Date.now();
 
@@ -1839,8 +1908,8 @@ export default function MessagesPageClient() {
                   <span className={styles.voiceRecDot} aria-hidden />
                   <span className={styles.voiceElapsed}>{recordElapsed}s</span>
                   <div className={styles.voiceWave} aria-label="Səs yazılır">
-                    {Array.from({ length: 28 }, (_, i) => (
-                      <i key={i} style={{ animationDelay: `${(i % 9) * -0.11}s` }} />
+                    {recordingWaveform.map((height, i) => (
+                      <i key={i} style={{ height: `${height}px` }} />
                     ))}
                   </div>
                   <span className={styles.voiceGestureHint}>{recordingLocked ? 'Kilidləndi' : '← Sil · ↑ Kilidlə'}</span>

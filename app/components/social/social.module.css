@@ -728,14 +728,7 @@
   opacity: 0.95;
 }
 
-.voiceMsgWaveBarPlaying {
-  animation: voiceWavePulse 650ms ease-in-out infinite alternate;
-}
-
-@keyframes voiceWavePulse {
-  from { transform: scaleY(0.58); }
-  to { transform: scaleY(1); }
-}
+.voiceMsgWaveBarPlaying { animation: none !important; }
 
 .messageStatus {
   margin-left: 3px;
@@ -3811,14 +3804,11 @@
   display: block;
   width: 3px;
   min-width: 2px;
-  height: 7px;
+  height: 4px;
   border-radius: 5px;
   background: linear-gradient(180deg, #67e8f9, #a78bfa);
-  animation: gesbxVoiceWave .62s ease-in-out infinite alternate;
-}
-@keyframes gesbxVoiceWave {
-  from { height: 4px; opacity: .55; }
-  to { height: 25px; opacity: 1; }
+  animation: none !important;
+  transition: height 85ms linear;
 }
 .msgHubPage .voiceGestureHint {
   flex: 0 0 auto;

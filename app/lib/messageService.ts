@@ -33,6 +33,7 @@ export interface StoredMessage {
   text?: string;
   audioUrl?: string;
   audioDurationMs?: number;
+  audioWaveform?: number[];
   mediaUrl?: string;
   mediaMime?: string;
   fileName?: string;
@@ -260,7 +261,7 @@ export async function sendPrivateMessage(payload: ChatPayload & { id?: string; t
 }
 
 export async function sendAudioMessageFast(
-  payload: ChatPayload & { audioBlob: Blob; durationMs: number }
+  payload: ChatPayload & { audioBlob: Blob; durationMs: number; audioWaveform?: number[] }
 ): Promise<FastSendResult> {
   const chatId = buildChatId(payload.senderId, payload.recipientId);
   const now = Date.now();
@@ -280,6 +281,7 @@ export async function sendAudioMessageFast(
     type: 'audio',
     audioUrl: socketUrl || localPreviewUrl!,
     audioDurationMs: payload.durationMs,
+    audioWaveform: payload.audioWaveform,
     createdAt: now,
   };
 

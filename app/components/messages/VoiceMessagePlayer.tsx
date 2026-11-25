@@ -20,17 +20,16 @@ function formatClock(seconds: number): string {
 interface VoiceMessagePlayerProps {
   src: string;
   durationMs?: number;
+  waveform?: number[];
 }
 
-export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlayerProps) {
+export default function VoiceMessagePlayer({ src, durationMs, waveform: savedWaveform }: VoiceMessagePlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentSec, setCurrentSec] = useState(0);
   const [playbackRate, setPlaybackRate] = useState<1 | 1.5 | 2>(1);
-  const [waveform, setWaveform] = useState<number[]>(
-    () => Array.from({ length: 36 }, (_, index) => 18 + ((index * 29 + 13) % 72))
-  );
+  const [waveform, setWaveform] = useState<number[]>(() => savedWaveform?.length ? savedWaveform : Array(36).fill(5));
 
   const syncProgress = useCallback(() => {
     const el = audioRef.current;
@@ -47,6 +46,10 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
   }, [src]);
 
   useEffect(() => {
+    if (savedWaveform && savedWaveform.length > 0) {
+      setWaveform(savedWaveform);
+      return;
+    }
     let cancelled = false;
     let audioContext: AudioContext | null = null;
 
@@ -75,11 +78,11 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
           return rms;
         });
         const maxPeak = Math.max(...peaks, 0.0001);
-        setWaveform(peaks.map((peak) => Math.max(9, Math.round((peak / maxPeak) * 100))));
+        setWaveform(peaks.map((peak) => Math.max(5, Math.round((peak / maxPeak) * 100))));
       } catch (error) {
         console.warn('[VoiceMessage] Real waveform unavailable; using visual fallback.', error);
         if (!cancelled) {
-          setWaveform(Array.from({ length: 36 }, (_, index) => 18 + ((index * 29 + 13) % 72)));
+          setWaveform(Array(36).fill(5));
         }
       } finally {
         if (audioContext && audioContext.state !== 'closed') {
@@ -88,7 +91,7 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
       }
     };
 
-    setWaveform(Array.from({ length: 36 }, (_, index) => 18 + ((index * 29 + 13) % 72)));
+    setWaveform(Array(36).fill(5));
     void loadWaveform();
     return () => {
       cancelled = true;
@@ -96,7 +99,7 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
         void audioContext.close().catch(() => undefined);
       }
     };
-  }, [src]);
+  }, [src, savedWaveform]);
 
 
 
@@ -180,8 +183,8 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
           return (
             <span
               key={index}
-              className={`${styles.voiceMsgWaveBar} ${played ? styles.voiceMsgWaveBarPlayed : ''} ${playing ? styles.voiceMsgWaveBarPlaying : ''}`}
-              style={{ height: `${height}%`, animationDelay: `${(index % 9) * 55}ms` }}
+              className={`${styles.voiceMsgWaveBar} ${played ? styles.voiceMsgWaveBarPlayed : ''}`}
+              style={{ height: `${height}%` }}
             />
           );
         })}
