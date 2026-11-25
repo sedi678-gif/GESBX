@@ -580,6 +580,10 @@ export async function markMessagesReceived(
   await privateMessagesRequest('status-bulk', userId, 'POST', { chatId, messageIds, ...status });
 }
 
+export async function deletePrivateChat(chatId: string, userId: string): Promise<void> {
+  await privateMessagesRequest('delete-chat', userId, 'POST', { chatId });
+}
+
 export async function setPrivateChatArchived(chatId: string, userId: string, archived: boolean): Promise<void> {
   await privateMessagesRequest(archived ? 'archive-chat' : 'unarchive-chat', userId, 'POST', { chatId });
 }
