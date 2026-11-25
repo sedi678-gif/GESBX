@@ -1144,37 +1144,6 @@ export default function MessagesPageClient() {
     clearSelection();
   }, [clearSelection, getSelectedMessages]);
 
-  const shareSelected = useCallback(async () => {
-    const texts = getSelectedMessages()
-      .map((m) => m.text || messagePreview(m))
-      .join('\n');
-    if (!texts) return;
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: texts });
-      } catch {
-        /* cancelled */
-      }
-    } else {
-      await copySelectedText();
-    }
-    clearSelection();
-  }, [clearSelection, copySelectedText, getSelectedMessages]);
-
-  const forwardSelected = useCallback(async () => {
-    const texts = getSelectedMessages()
-      .map((m) => m.text || messagePreview(m))
-      .join('\n');
-    if (!texts) return;
-    try {
-      await navigator.clipboard.writeText(texts);
-      alert('Mesaj kopyalandı — başqa söhbətə yapışdırıb göndərə bilərsən.');
-    } catch {
-      alert('Ötürmə mümkün olmadı');
-    }
-    clearSelection();
-  }, [clearSelection, getSelectedMessages]);
-
   const deleteSelected = useCallback(async () => {
     if (!selectedChat || selectedIds.length === 0) return;
     if (!window.confirm(`${selectedIds.length} mesaj silinsin?`)) return;
@@ -1585,7 +1554,7 @@ export default function MessagesPageClient() {
                     {!chatSelectionMode && (
                       <button
                         type="button"
-                        className={styles.secondaryBtn}
+                        className={styles.chatArchiveAction}
                         aria-label={`${chat.name} söhbətini arxivlə`}
                         title="Söhbəti arxivlə"
                         onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}
