@@ -3615,3 +3615,54 @@
 .androidMessenger .messageSelectGutter {
   touch-action: pan-y;
 }
+
+
+/* Messaging behavior must not depend on the viewer's Android WebView user-agent. */
+.msgHubChatOpen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+  box-sizing: border-box;
+}
+.msgHubChatOpen > .msgHubHeader {
+  flex: 0 0 auto;
+}
+.msgHubChatOpen .messageArea {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  overflow: hidden;
+}
+.msgHubChatOpen .messageScroll {
+  display: flex;
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+.msgHubChatOpen .composeBar {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.msgHubChatOpen .messageBubbleCol,
+.msgHubChatOpen .messageRow {
+  touch-action: pan-y !important;
+}
+.msgHubPage .msgComposeMicBtn {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
