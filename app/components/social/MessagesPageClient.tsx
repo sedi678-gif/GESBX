@@ -559,6 +559,7 @@ export default function MessagesPageClient() {
     async (recorder: MediaRecorder, mimeType: string) => {
       mediaRecorderRef.current = null;
       setRecording(false);
+      setRecordingLocked(false);
 
       recordStreamRef.current?.getTracks().forEach((track) => track.stop());
       recordStreamRef.current = null;
@@ -938,9 +939,11 @@ export default function MessagesPageClient() {
   const micPointerStartXRef = useRef<number | null>(null);
   const micPointerStartYRef = useRef<number | null>(null);
   const recordCancelledRef = useRef(false);
+  const micGestureHandledRef = useRef(false);
 
   const onMicHoldStart = (e: React.PointerEvent) => {
-    if (recordingLocked) return;
+    if (recordingLocked) { micGestureHandledRef.current = false; return; }
+    micGestureHandledRef.current = false;
     if (sending || messageText.trim()) return;
     e.preventDefault();
     micPressStartedAtRef.current = Date.now();
@@ -970,6 +973,7 @@ export default function MessagesPageClient() {
     // Yuxarı sürüşdürmək yazını kilidləyir; barmağı buraxmaq yazını dayandırmır.
     if (deltaY > 62 && deltaY > Math.abs(deltaX)) {
       setRecordingLocked(true);
+      micGestureHandledRef.current = true;
       micPointerStartXRef.current = null;
       micPointerStartYRef.current = null;
       micPressStartedAtRef.current = 0;
@@ -979,6 +983,7 @@ export default function MessagesPageClient() {
   const onMicHoldEnd = (e: React.PointerEvent) => {
     if (micPointerStartXRef.current === null) return;
     e.preventDefault();
+    micGestureHandledRef.current = true;
     micPointerStartXRef.current = null;
     micPointerStartYRef.current = null;
     micPressStartedAtRef.current = 0;
@@ -1002,6 +1007,7 @@ export default function MessagesPageClient() {
   };
 
   const onMicClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (micGestureHandledRef.current) { micGestureHandledRef.current = false; return; }
     if (recordingLocked) {
       event.preventDefault();
       stopRecording();
