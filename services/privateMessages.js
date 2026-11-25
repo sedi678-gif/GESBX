@@ -538,6 +538,39 @@ async function handlePost(req, res, db, profileId, action) {
     return sendJson(res, 200, { success: true });
   }
 
+  if (action === 'status-bulk') {
+    const chatId = text(body.chatId, 180);
+    const messageIds = Array.isArray(body.messageIds)
+      ? [...new Set(body.messageIds.map((id) => text(id, 180)).filter((id) => ID_PATTERN.test(id)))].slice(0, 100)
+      : [];
+    if (!messageIds.length) return sendJson(res, 200, { updated: 0 });
+    await requireChat(db, chatId, profileId);
+    const refs = messageIds.map((id) => db.doc(`private_messages/${id}`));
+    const snaps = await Promise.all(refs.map((ref) => ref.get()));
+    const now = Date.now();
+    const patch = {};
+    if (Number(body.deliveredAt) > 0) patch.deliveredAt = Number(body.deliveredAt);
+    if (Number(body.readAt) > 0) {
+      patch.readAt = Number(body.readAt);
+      patch.deliveredAt = patch.deliveredAt || now;
+    }
+    const batch = db.batch();
+    let updated = 0;
+    snaps.forEach((snap) => {
+      if (!snap.exists || snap.data()?.chatId !== chatId || snap.data()?.recipientId !== profileId) return;
+      const current = snap.data() || {};
+      const next = {};
+      if (patch.deliveredAt && !current.deliveredAt) next.deliveredAt = patch.deliveredAt;
+      if (patch.readAt && !current.readAt) next.readAt = patch.readAt;
+      if (Object.keys(next).length) {
+        batch.update(snap.ref, next);
+        updated += 1;
+      }
+    });
+    if (updated) await batch.commit();
+    return sendJson(res, 200, { updated });
+  }
+
   if (action === 'status') {
     const messageId = text(body.messageId, 180);
     const ref = db.doc(`private_messages/${messageId}`);
