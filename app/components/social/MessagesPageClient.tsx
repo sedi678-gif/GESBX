@@ -519,13 +519,27 @@ export default function MessagesPageClient() {
         relayPrivateMessage(recipientId, instant);
       }
 
+      // Səs üçün socket ötürməsini diskə/serverə yazılma ilə paralel apar.
+      // Kiçik audio faylı hazır olan kimi qarşı tərəfə çatır; upload-u gözləmir.
+      let transferredOverSocket = false;
+      const transferReady = result.transfer
+        ? result.transfer.then((transferMessage) => {
+            if (transferMessage) {
+              transferredOverSocket = true;
+              relayPrivateMessage(recipientId, transferMessage);
+            }
+            return transferMessage;
+          })
+        : Promise.resolve(null);
+
       void trackMessageContact(recipientId, preview);
 
       void persist()
-        .then((final) => {
+        .then(async (final) => {
+          const transferMessage = await transferReady;
           const finalUrl = getMessageTransferUrl(final);
           const instantUrl = getMessageTransferUrl(instant);
-          if (!isTransferableMessageUrl(instantUrl) || finalUrl !== instantUrl) {
+          if (!transferredOverSocket && (!isTransferableMessageUrl(instantUrl) || finalUrl !== instantUrl)) {
             relayPrivateMessage(recipientId, final);
           }
           setMessages((prev) => {
@@ -840,6 +854,9 @@ export default function MessagesPageClient() {
         } : undefined,
       };
       setMessages((prev) => [...prev, optimisticMessage]);
+      // Socket vasitəsilə dərhal çatdır; serverdə saxlanma arxa planda davam edir.
+      // Eyni ID istifadə olunduğu üçün sonrakı server cavabı mesajı dublikat etmir.
+      relayMessage(String(selectedChat.id), optimisticMessage);
       const message = await sendPrivateMessage({
         id: optimisticId,
         senderId: String(myId),
@@ -862,13 +879,17 @@ export default function MessagesPageClient() {
 
       setMessages((prev) => prev.map((item) => item.id === optimisticId ? message : item));
       setReplyTarget(null);
-      relayMessage(String(selectedChat.id), message);
       void trackMessageContact(selectedChat.id, text).catch((contactError) => {
         console.warn('[Message] contact tracking failed:', contactError);
       });
     } catch (err) {
       console.error(err);
-      if (optimisticId) setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
+      if (optimisticId) {
+        const failedId = optimisticId;
+        const failedChatId = buildChatId(String(myId), String(selectedChat.id));
+        setMessages((prev) => prev.filter((item) => item.id !== failedId));
+        emitChatDelete(String(selectedChat.id), { chatId: failedChatId, messageId: failedId });
+      }
       alert((editingMessage ? 'Mesaj düzənlənmədi: ' : 'Mesaj göndərilmədi: ') + (err instanceof Error ? err.message : 'SERVER_ERROR'));
       setMessageText(text);
     } finally {
