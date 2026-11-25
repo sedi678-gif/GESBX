@@ -330,6 +330,7 @@ export default function MessagesPageClient() {
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([]);
   const [listSearch, setListSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [isAndroidApp, setIsAndroidApp] = useState(false);
   const [chatSelectionMode, setChatSelectionMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
 
@@ -349,6 +350,11 @@ export default function MessagesPageClient() {
     type: 'image' | 'video' | 'file';
     fileName?: string;
   } | null>(null);
+
+  useEffect(() => {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    setIsAndroidApp(/Android/i.test(ua) && /GesbxNative/i.test(ua));
+  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const keepChatAtBottomRef = useRef(true);
@@ -1416,14 +1422,18 @@ export default function MessagesPageClient() {
   const hasComposeText = messageText.trim().length > 0;
 
   return (
-    <div className={`${styles.msgHubPage} ${selectedChat ? styles.msgHubChatOpen : ''}`}>
+    <div className={`${styles.msgHubPage} ${selectedChat ? styles.msgHubChatOpen : ''} ${isAndroidApp ? styles.androidMessenger : ''}`}>
       <header className={styles.msgHubHeader}>
         {selectedChat && (selectionMode || selectedIds.length > 0) ? (
           <MessageSelectionBar
+            android={isAndroidApp}
             count={selectedIds.length}
             onCancel={clearSelection}
-            onCopy={() => void copySelectedText()}
+            onReply={() => { const message = getSelectedMessages()[0]; if (message) setReplyTarget(message); clearSelection(); }}
+            onPin={() => { const message = getSelectedMessages()[0]; if (message) void handlePinMessage(message); clearSelection(); }}
             onDelete={() => void deleteSelected()}
+            onForward={() => { const message = getSelectedMessages()[0]; if (message) { setForwardingMessage(message); setSearchQuery(''); setSearchResults([]); setShowSearch(true); } clearSelection(); }}
+            onMore={() => void copySelectedText()}
           />
         ) : chatSelectionMode && !selectedChat ? (
           <div className={styles.selectionBar}>
@@ -1466,8 +1476,8 @@ export default function MessagesPageClient() {
               <p className={styles.msgHubSubtitle}>13+ · Təhlükəsiz söhbət</p>
             </div>
             <div className={styles.headerActions}>
-              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setShowArchived((v) => !v); cancelChatSelection(); }} title="Arxiv" aria-label="Arxiv">{`Arxiv (${archivedChats.length})`}</button>
-              <button type="button" className={styles.msgHubIconBtn} onClick={() => { if (chatSelectionMode) { cancelChatSelection(); } else { setSelectedChat(null); setInboxTab('chats'); setChatSelectionMode(true); setSelectedChatIds([]); } }} title="Söhbətləri seç" aria-label="Söhbətləri seç">{chatSelectionMode ? 'Ləğv et' : 'Söhbət seç'}</button>
+              {!isAndroidApp && <button type="button" className={styles.msgHubIconBtn} onClick={() => { setShowArchived((v) => !v); cancelChatSelection(); }} title="Arxiv" aria-label="Arxiv">{`Arxiv (${archivedChats.length})`}</button>}
+              {!isAndroidApp && <button type="button" className={styles.msgHubIconBtn} onClick={() => { if (chatSelectionMode) { cancelChatSelection(); } else { setSelectedChat(null); setInboxTab('chats'); setChatSelectionMode(true); setSelectedChatIds([]); } }} title="Söhbətləri seç" aria-label="Söhbətləri seç">{chatSelectionMode ? 'Ləğv et' : 'Söhbət seç'}</button>}
               <button type="button" className={styles.msgHubIconBtn} onClick={() => setShowCallSettings(true)} title="Zəng parametrləri" aria-label="Zəng parametrləri">
                 <IconSettings />
               </button>
@@ -1519,17 +1529,24 @@ export default function MessagesPageClient() {
                   <span className={styles.msgRequestChevron}>›</span>
                 </button>
               )}
+              {isAndroidApp && !showArchived && archivedChats.length > 0 && (
+                <button type="button" className={styles.androidArchiveEntry} onClick={() => { setShowArchived(true); cancelChatSelection(); }}>
+                  <span className={styles.androidArchiveIcon}>▣</span>
+                  <span className={styles.androidArchiveText}><strong>Arxivləşdirilmiş</strong><small>{archivedChats.length} söhbət</small></span>
+                  <span className={styles.androidArchiveChevron}>›</span>
+                </button>
+              )}
               {showArchived ? (
                 <>
-                  <div className={styles.msgChatTop}><strong>Arxivlənmiş söhbətlər</strong><button type="button" className={styles.secondaryBtn} onClick={() => setShowArchived(false)}>Geri</button></div>
+                  <div className={styles.msgChatTop}><strong>Arxivləşdirilmiş</strong><button type="button" className={styles.secondaryBtn} onClick={() => { setShowArchived(false); cancelChatSelection(); }}>Geri</button></div>
                   {archivedChats.length === 0 ? <div className={styles.msgEmpty}><p>Arxiv boşdur</p></div> : archivedChats.map((chat) => (
-                    <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ''}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : (setSelectedChat(chat), setShowArchived(false))} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
+                    <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ''}`} onContextMenu={(event) => { if (isAndroidApp) { event.preventDefault(); setChatSelectionMode(true); toggleChatSelection(chat.chatId); } }} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : (setSelectedChat(chat), setShowArchived(false))} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
                       {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(e) => { e.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
                       <div className={styles.msgChatBody}>
                         <div className={styles.msgChatTop}><span className={styles.msgChatName}>{chat.name}</span><span className={styles.msgChatTime}>{chat.time}</span></div>
                         <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                       </div>
-                      {!chatSelectionMode && <button type="button" className={styles.secondaryBtn} onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, false); }}>Arxivdən çıxar</button>}
+
                     </div>
                   ))}
                 </>
@@ -1541,7 +1558,7 @@ export default function MessagesPageClient() {
                 </div>
               ) : (
                 mainChats.map((chat) => (
-                  <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ""}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : setSelectedChat(chat)} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
+                  <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ""}`} onContextMenu={(event) => { if (isAndroidApp) { event.preventDefault(); setChatSelectionMode(true); toggleChatSelection(chat.chatId); } }} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : setSelectedChat(chat)} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
                     {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(event) => { event.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
                     <img src={chat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatar} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
                     <div className={styles.msgChatBody}>
@@ -1559,7 +1576,7 @@ export default function MessagesPageClient() {
                         title="Söhbəti arxivlə"
                         onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}
                       >
-                        ↓ Arxivlə
+                        {isAndroidApp ? '↓' : '↓ Arxivlə'}
                       </button>
                     )}
 
