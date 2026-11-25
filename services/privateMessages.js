@@ -164,15 +164,23 @@ async function listChats(db, profileId) {
 }
 
 async function listMessages(db, chatId) {
-  // Yalnız son 100 yazışmanı serverdə sırala və oxu; bütün söhbəti endirmə.
-  const snap = await db.collection('private_messages')
-    .where('chatId', '==', chatId)
-    .orderBy('createdAt', 'desc')
-    .limit(100)
-    .get();
-  return snap.docs
-    .map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
-    .reverse();
+  const collection = db.collection('private_messages');
+  try {
+    // Composite index mövcuddursa yalnız ən son 100 mesaj oxunur.
+    const snap = await collection.where('chatId', '==', chatId)
+      .orderBy('createdAt', 'desc').limit(100).get();
+    return snap.docs
+      .map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
+      .reverse();
+  } catch (error) {
+    // Index hələ Firebase-ə deploy edilməyibsə tarixçə yenə açılsın.
+    if (!['failed-precondition', 'FAILED_PRECONDITION'].includes(String(error?.code || ''))) throw error;
+    const fallback = await collection.where('chatId', '==', chatId).get();
+    return fallback.docs
+      .map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
+      .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0))
+      .slice(-100);
+  }
 }
 
 async function handleGet(req, res, db, profileId, action) {
