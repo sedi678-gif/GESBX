@@ -399,11 +399,12 @@ export default function MessagesPageClient() {
   }, [myId]);
 
   useEffect(() => {
-    if (!selectedChat?.chatId) {
+    const activeChatId = selectedChat?.chatId;
+    if (!activeChatId) {
       setMessages([]);
       return;
     }
-    return listenChatMessages(selectedChat.chatId, String(myId), (nextMessages) => {
+    return listenChatMessages(activeChatId, String(myId), (nextMessages) => {
       setMessages(nextMessages);
       const visible = typeof document !== 'undefined' && document.visibilityState === 'visible';
       const unread = nextMessages.filter((message) =>
@@ -412,7 +413,7 @@ export default function MessagesPageClient() {
       if (unread.length) {
         const status: { deliveredAt?: number; readAt?: number } = { deliveredAt: Date.now() };
         if (visible) status.readAt = Date.now();
-        void markMessagesReceived(selectedChat.chatId, unread.map((message) => message.id), status, String(myId))
+        void markMessagesReceived(activeChatId, unread.map((message) => message.id), status, String(myId))
           .catch((err) => console.warn('[Message] bulk status update failed:', err));
       }
     }, (error) => {
