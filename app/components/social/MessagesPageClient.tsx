@@ -1997,7 +1997,7 @@ export default function MessagesPageClient() {
         </div>
       )}
 
-      <AppBottomNav activeTab="messages" />
+      {!selectedChat && <AppBottomNav activeTab="messages" />}
     </div>
   );
 }
