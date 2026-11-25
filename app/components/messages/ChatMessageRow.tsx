@@ -47,6 +47,7 @@ export default function ChatMessageRow({
 
   return (
     <div
+      data-message-id={message.id}
       className={`${styles.messageRow} ${mine ? styles.messageRowMine : styles.messageRowTheirs} ${
         selected ? styles.messageRowSelected : ''
       }`}
