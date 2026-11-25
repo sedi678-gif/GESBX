@@ -626,7 +626,7 @@ export function listenChatMessages(
 
   void load();
   // Socket hadisəsi itərsə tarixçəni yeniləmək üçün ehtiyat sinxronizasiya.
-  const interval = setInterval(() => { void load(); }, 12_000);
+  const interval = setInterval(() => { void load(); }, 30_000);
   return () => {
     cancelled = true;
     clearInterval(interval);
