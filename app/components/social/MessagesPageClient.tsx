@@ -1426,6 +1426,7 @@ export default function MessagesPageClient() {
       <header className={styles.msgHubHeader}>
         {selectedChat && (selectionMode || selectedIds.length > 0) ? (
           <MessageSelectionBar
+            android={isAndroidApp}
             count={selectedIds.length}
             onCancel={clearSelection}
             onReply={() => { const message = getSelectedMessages()[0]; if (message) setReplyTarget(message); clearSelection(); }}
