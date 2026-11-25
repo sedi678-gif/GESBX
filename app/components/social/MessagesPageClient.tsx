@@ -1836,7 +1836,8 @@ export default function MessagesPageClient() {
             ) : (
               <button
                 type="button"
-                className={`${styles.msgComposeBtn} ${styles.msgComposeMicBtn} ${recording ? styles.msgComposeMicRecording : ''}`}
+                className={`${styles.msgComposeBtn} ${styles.msgComposeMicBtn}`}
+                style={{ touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }}
                 onPointerDown={onMicHoldStart}
                 onPointerMove={onMicPointerMove}
                 onPointerUp={onMicHoldEnd}
