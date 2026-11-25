@@ -931,6 +931,7 @@ export default function MessagesPageClient() {
 
   const micPressStartedAtRef = useRef(0);
   const micLockedRef = useRef(false);
+  const micWasRecordingAtPressRef = useRef(false);
   const micPointerStartYRef = useRef<number | null>(null);
   const micSuppressClickRef = useRef(false);
 
@@ -939,6 +940,7 @@ export default function MessagesPageClient() {
     e.preventDefault();
     micSuppressClickRef.current = true;
     micPressStartedAtRef.current = Date.now();
+    micWasRecordingAtPressRef.current = Boolean(recording || mediaRecorderRef.current);
     micPointerStartYRef.current = e.clientY;
     micLockedRef.current = false;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
@@ -956,7 +958,8 @@ export default function MessagesPageClient() {
     micPointerStartYRef.current = null;
     micPressStartedAtRef.current = 0;
     if (micLockedRef.current) return;
-    if (heldFor >= 220) stopRecording();
+    if (micWasRecordingAtPressRef.current || heldFor >= 220) stopRecording();
+    micWasRecordingAtPressRef.current = false;
   };
 
   const onMicClick = () => {
