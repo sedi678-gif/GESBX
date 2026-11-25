@@ -1519,7 +1519,7 @@ export default function MessagesPageClient() {
                         <div className={styles.msgChatTop}><span className={styles.msgChatName}>{chat.name}</span><span className={styles.msgChatTime}>{chat.time}</span></div>
                         <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                       </div>
-                      <button type="button" className={styles.secondaryBtn} onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, false); }}>Arxivdən çıxar</button>
+                      {!chatSelectionMode && <button type="button" className={styles.secondaryBtn} onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, false); }}>Arxivdən çıxar</button>}
                     </div>
                   ))}
                 </>
