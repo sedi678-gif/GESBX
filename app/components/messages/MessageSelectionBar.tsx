@@ -5,6 +5,7 @@ import styles from '@/app/components/social/social.module.css';
 
 interface MessageSelectionBarProps {
   count: number;
+  android?: boolean;
   onCancel: () => void;
   onReply: () => void;
   onPin: () => void;
@@ -14,9 +15,21 @@ interface MessageSelectionBarProps {
 }
 
 export default function MessageSelectionBar({
-  count, onCancel, onReply, onPin, onDelete, onForward, onMore,
+  count, android = false, onCancel, onReply, onPin, onDelete, onForward, onMore,
 }: MessageSelectionBarProps) {
   const single = count === 1;
+  if (!android) {
+    return (
+      <header className={styles.selectionBar}>
+        <button type="button" className={styles.selectionBarBtn} onClick={onCancel} aria-label="Ləğv et">✕</button>
+        <span className={styles.selectionBarCount}>{count} mesaj</span>
+        <div className={styles.selectionBarActions}>
+          <button type="button" className={styles.selectionBarBtn} onClick={onMore} disabled={!count}>📋 Kopyala</button>
+          <button type="button" className={`${styles.selectionBarBtn} ${styles.selectionBarDanger}`} onClick={onDelete} disabled={!count}>🗑️ Sil</button>
+        </div>
+      </header>
+    );
+  }
   return (
     <header className={styles.selectionBar} aria-label="Seçilmiş mesaj əməliyyatları">
       <button type="button" className={styles.selectionBarBtn} onClick={onCancel} aria-label="Seçimi ləğv et">‹</button>
