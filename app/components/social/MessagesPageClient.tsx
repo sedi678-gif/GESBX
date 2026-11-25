@@ -77,6 +77,7 @@ import {
 } from '@/app/lib/messageService';
 import {
   onChatError,
+  refreshAppSocketAuth,
   emitChatDelete,
   emitChatClear,
   emitChatEdit,
@@ -654,6 +655,10 @@ export default function MessagesPageClient() {
       applyIncomingMessage(message);
     });
     const unsubErrors = onChatError((payload) => {
+      if (/private message.*expired|expired.*private message/i.test(payload.message || '')) {
+        void refreshAppSocketAuth().catch((error) => console.warn('[Message] socket re-auth failed:', error));
+        return;
+      }
       if (payload.message) alert(payload.message);
     });
     const unsubDelete = onChatDelete(({ chatId, messageId }) => {
