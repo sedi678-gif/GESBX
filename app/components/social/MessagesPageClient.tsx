@@ -327,6 +327,8 @@ export default function MessagesPageClient() {
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([]);
   const [listSearch, setListSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [chatSelectionMode, setChatSelectionMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
 
   const [showSearch, setShowSearch] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -976,6 +978,26 @@ export default function MessagesPageClient() {
 
   const archivedChats = chats.filter((c) => c.isArchived && !isBlocked(blockedIds, c.id));
 
+  const toggleChatSelection = (chatId: string) => {
+    setSelectedChatIds((prev) => prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId]);
+  };
+
+  const cancelChatSelection = () => { setChatSelectionMode(false); setSelectedChatIds([]); };
+
+  const archiveSelectedChats = async (archived: boolean) => {
+    const targets = chats.filter((chat) => selectedChatIds.includes(chat.chatId));
+    for (const chat of targets) {
+      try {
+        await setPrivateChatArchived(chat.chatId, String(myId), archived);
+      } catch (error) {
+        console.error('[Message] bulk archive failed:', chat.chatId, error);
+        alert(`${chat.name}: arxiv əməliyyatı alınmadı.`);
+      }
+    }
+    setChats((prev) => prev.map((chat) => selectedChatIds.includes(chat.chatId) ? { ...chat, isArchived: archived } : chat));
+    cancelChatSelection();
+  };
+
   const handleArchiveChat = async (chat: ChatItem, archived: boolean) => {
     try {
       await setPrivateChatArchived(chat.chatId, String(myId), archived);
@@ -1411,7 +1433,8 @@ export default function MessagesPageClient() {
               <p className={styles.msgHubSubtitle}>13+ · Təhlükəsiz söhbət</p>
             </div>
             <div className={styles.headerActions}>
-              <button type="button" className={styles.msgHubIconBtn} onClick={() => setShowArchived((v) => !v)} title="Arxiv" aria-label="Arxiv">{`Arxiv (${archivedChats.length})`}</button>
+              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setShowArchived((v) => !v); cancelChatSelection(); }} title="Arxiv" aria-label="Arxiv">{`Arxiv (${archivedChats.length})`}</button>
+              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setChatSelectionMode(true); setSelectedChatIds([]); }} title="Söhbətləri seç" aria-label="Söhbətləri seç">Seç</button>
               <button type="button" className={styles.msgHubIconBtn} onClick={() => setShowCallSettings(true)} title="Zəng parametrləri" aria-label="Zəng parametrləri">
                 <IconSettings />
               </button>
@@ -1467,8 +1490,9 @@ export default function MessagesPageClient() {
                 <>
                   <div className={styles.msgChatTop}><strong>Arxivlənmiş söhbətlər</strong><button type="button" className={styles.secondaryBtn} onClick={() => setShowArchived(false)}>Geri</button></div>
                   {archivedChats.length === 0 ? <div className={styles.msgEmpty}><p>Arxiv boşdur</p></div> : archivedChats.map((chat) => (
-                    <div key={chat.chatId} className={styles.msgChatRow}>
-                      <div className={styles.msgChatBody} onClick={() => { setSelectedChat(chat); setShowArchived(false); }}>
+                    <div key={chat.chatId} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ''}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : (setSelectedChat(chat), setShowArchived(false))}>
+                      {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(e) => { e.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
+                      <div className={styles.msgChatBody}>
                         <div className={styles.msgChatTop}><span className={styles.msgChatName}>{chat.name}</span><span className={styles.msgChatTime}>{chat.time}</span></div>
                         <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                       </div>
@@ -1485,6 +1509,7 @@ export default function MessagesPageClient() {
               ) : (
                 mainChats.map((chat) => (
                   <div key={chat.chatId} className={styles.msgChatRow} onClick={() => setSelectedChat(chat)}>
+                    {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(event) => { event.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
                     <img src={chat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatar} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
                     <div className={styles.msgChatBody}>
                       <div className={styles.msgChatTop}>
@@ -1493,7 +1518,7 @@ export default function MessagesPageClient() {
                       </div>
                       <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                     </div>
-                    <button type="button" className={styles.msgHubIconBtn} aria-label="Arxivlə" title="Arxivlə" onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}>↓</button>
+                    {!chatSelectionMode && <button type="button" className={styles.msgHubIconBtn} aria-label="Arxivlə" title="Arxivlə" onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}>↓</button>}
                   </div>
                 ))
               )}
