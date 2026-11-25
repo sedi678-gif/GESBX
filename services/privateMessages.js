@@ -15,6 +15,7 @@ function text(value, max = 2000) {
 }
 
 function messagePreview(message) {
+  if (message.forwardedFrom) return `↪️ ${messagePreview({ ...message, forwardedFrom: null })}`;
   if (message.type === 'audio') return '🎤 Səs mesajı';
   if (message.type === 'image') return '📷 Şəkil';
   if (message.type === 'video') return '🎬 Video';
@@ -354,7 +355,7 @@ async function handlePost(req, res, db, profileId, action) {
   if (action === 'forward') {
     const sourceMessageId = text(body.messageId, 180);
     const targetUserId = text(body.targetUserId, 20);
-    if (!ID_PATTERN.test(sourceMessageId) || !/^\\d{1,20}$/.test(targetUserId) || targetUserId === profileId) {
+    if (!ID_PATTERN.test(sourceMessageId) || !/^\d{1,20}$/.test(targetUserId) || targetUserId === profileId) {
       throw new ApiError(400, 'MESSAGE_FORWARD_INVALID');
     }
     const sourceRef = db.doc(`private_messages/${sourceMessageId}`);
