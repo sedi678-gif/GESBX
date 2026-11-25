@@ -27,6 +27,7 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentSec, setCurrentSec] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState<1 | 1.5 | 2>(1);
   const [waveform, setWaveform] = useState<number[]>(
     () => Array.from({ length: 36 }, (_, index) => 18 + ((index * 29 + 13) % 72))
   );
@@ -42,6 +43,7 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
     setPlaying(false);
     setProgress(0);
     setCurrentSec(0);
+    setPlaybackRate(1);
   }, [src]);
 
   useEffect(() => {
@@ -129,6 +131,15 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
     };
   }, [src, syncProgress]);
 
+  useEffect(() => {
+    const el = audioRef.current;
+    if (el) el.playbackRate = playbackRate;
+  }, [playbackRate, src]);
+
+  const cyclePlaybackRate = () => {
+    setPlaybackRate((current) => current === 1 ? 1.5 : current === 1.5 ? 2 : 1);
+  };
+
   const togglePlay = () => {
     const el = audioRef.current;
     if (!el) return;
@@ -178,6 +189,15 @@ export default function VoiceMessagePlayer({ src, durationMs }: VoiceMessagePlay
       <span className={styles.voiceMsgDuration}>
         {playing ? formatClock(currentSec) : totalLabel}
       </span>
+      <button
+        type="button"
+        className={styles.voiceMsgSpeedBtn}
+        onClick={cyclePlaybackRate}
+        aria-label={`Dinləmə sürəti ${playbackRate}x. Dəyişmək üçün toxunun.`}
+        title="Dinləmə sürətini dəyiş"
+      >
+        {playbackRate}x
+      </button>
     </div>
   );
 }
