@@ -5,7 +5,6 @@ import { useUser } from '@/context/UserContext';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
 import { AllianceBrainProvider } from '@/app/components/alliance/AllianceBrainContext';
 import { CallProvider } from '@/context/CallContext';
-import ZegoBootstrap from '@/app/components/ZegoBootstrap';
 
 /** Tətbiq səviyyəsində tək mərkəzi beyin — bütün səhifələr eyni state paylaşır */
 export default function AppBrainProvider({ children }: { children: React.ReactNode }) {
@@ -15,7 +14,6 @@ export default function AppBrainProvider({ children }: { children: React.ReactNo
   return (
     <AllianceBrainProvider userId={userId} userName={userName} firebaseUid={user?.uid ?? null}>
       <CallProvider>
-        <ZegoBootstrap />
         {children}
       </CallProvider>
     </AllianceBrainProvider>
