@@ -1645,7 +1645,7 @@ export default function MessagesPageClient() {
                 onGutterLongPress={enterSelection}
                 onToggleSelect={toggleSelect}
               >
-                {m.pinnedBy?.includes(String(myId)) && <span className={styles.messagePinnedLabel}>📌 Sabitlənib</span>}
+                {(m.pinnedBy?.length || 0) > 0 && <span className={styles.messagePinnedLabel}>📌 Sabitlənib</span>}
                 <MessageBubble m={m} myId={myId} onOpenMedia={handleOpenMedia} />
                 {m.reactions && Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).length > 0 && (
                   <div className={styles.messageReactions}>
@@ -1854,8 +1854,26 @@ export default function MessagesPageClient() {
           onReact={(emoji) => void handleReactMessage(contextMenu.message, emoji)}
           onDelete={() => void handleDeleteMessage(contextMenu.message)}
           onCopy={() => {
-            const t = contextMenu.message.text || messagePreview(contextMenu.message);
-            void navigator.clipboard.writeText(t);
+            const value = contextMenu.message.text || messagePreview(contextMenu.message);
+            if (navigator.clipboard?.writeText) {
+              void navigator.clipboard.writeText(value).catch(() => {
+                const field = document.createElement('textarea');
+                field.value = value;
+                field.style.position = 'fixed';
+                field.style.opacity = '0';
+                document.body.appendChild(field);
+                field.select();
+                try { document.execCommand('copy'); } finally { field.remove(); }
+              });
+            } else {
+              const field = document.createElement('textarea');
+              field.value = value;
+              field.style.position = 'fixed';
+              field.style.opacity = '0';
+              document.body.appendChild(field);
+              field.select();
+              try { document.execCommand('copy'); } finally { field.remove(); }
+            }
             setContextMenu(null);
           }}
           onClose={() => setContextMenu(null)}
