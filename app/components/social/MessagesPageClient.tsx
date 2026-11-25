@@ -287,6 +287,8 @@ function MessageBubble({
 
   return (
     <div className={cls}>
+      <ReplyQuote m={m} myId={myId} />
+      {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
       <span className={styles.bubbleText}>{m.text}</span>
       <div className={styles.bubbleTime}>
         {timeLabel}
