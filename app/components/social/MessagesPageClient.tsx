@@ -906,10 +906,9 @@ export default function MessagesPageClient() {
       }
 
       recordStreamRef.current = stream;
-      const recorder = new MediaRecorder(
-        stream,
-        MediaRecorder.isTypeSupported(mimeType) ? { mimeType } : undefined
-      );
+      const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 32_000 };
+      if (MediaRecorder.isTypeSupported(mimeType)) recorderOptions.mimeType = mimeType;
+      const recorder = new MediaRecorder(stream, recorderOptions);
       recordChunksRef.current = [];
       recordStartRef.current = Date.now();
 
