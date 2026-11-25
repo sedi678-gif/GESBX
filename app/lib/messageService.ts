@@ -43,6 +43,7 @@ export interface StoredMessage {
   replyTo?: { id: string; senderId: string; type: MessageType; text: string };
   forwardedFrom?: { senderId: string; senderName: string };
   reactions?: Record<string, string[]>;
+  pinnedBy?: string[];
   editedAt?: number;
   deliveredAt?: number;
   readAt?: number;
@@ -62,27 +63,33 @@ async function privateMessagesRequest<T = any>(
   payload: Record<string, unknown> = {}
 ): Promise<T> {
   const user = await ensureFirebaseAuth();
-  if (!user) throw new Error('Mesaj serverinə qoşulmaq üçün hesaba daxil olun.');
-  const token = await user.getIdToken();
+  if (!user || user.isAnonymous) throw new Error('Mesaj serverinə qoşulmaq üçün qeydiyyatdan keçmiş hesaba daxil olun.');
   const params = new URLSearchParams({ handler: 'messages', action, profileId: String(profileId) });
-  const options: RequestInit = {
-    method,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    cache: 'no-store',
-  };
   if (method === 'GET') {
     Object.entries(payload).forEach(([key, value]) => {
       if (value !== undefined && value !== null) params.set(key, String(value));
     });
-  } else {
-    options.body = JSON.stringify({ ...payload, profileId: String(profileId) });
   }
-  const response = await fetch(`/api/paypal?${params.toString()}`, options);
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const code = String(result.error || 'PRIVATE_MESSAGES_FAILED');
-    throw new Error(code);
+  const body = method === 'POST' ? JSON.stringify({ ...payload, profileId: String(profileId) }) : undefined;
+
+  const send = async (forceRefresh: boolean) => {
+    const token = await user.getIdToken(forceRefresh);
+    return fetch(`/api/paypal?${params.toString()}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body,
+      cache: 'no-store',
+    });
+  };
+
+  let response = await send(false);
+  let result = await response.json().catch(() => ({}));
+  // Firebase ID token müddəti bitibsə, bir dəfə yenilə və sorğunu təkrar et.
+  if (response.status === 401 && ['AUTH_TOKEN_INVALID', 'AUTH_REQUIRED'].includes(String(result.error || ''))) {
+    response = await send(true);
+    result = await response.json().catch(() => ({}));
   }
+  if (!response.ok) throw new Error(String(result.error || 'PRIVATE_MESSAGES_FAILED'));
   return result as T;
 }
 
@@ -500,11 +507,17 @@ function docToStoredMessage(d: { id: string; data: () => Record<string, unknown>
     replyTo: data.replyTo as StoredMessage['replyTo'],
     forwardedFrom: data.forwardedFrom as StoredMessage['forwardedFrom'],
     reactions: data.reactions as StoredMessage['reactions'],
+    pinnedBy: Array.isArray(data.pinnedBy) ? data.pinnedBy.map(String) : [],
     createdAt: (data.createdAt as number) || 0,
   };
 }
 
 /** Mətn mesajını düzənlə (WhatsApp — yalnız öz mesajın) */
+export async function toggleMessagePin(messageId: string, chatId: string, userId: string): Promise<string[]> {
+  const result = await privateMessagesRequest<{ pinnedBy: string[] }>('pin', userId, 'POST', { messageId, chatId });
+  return result.pinnedBy || [];
+}
+
 export async function toggleMessageReaction(
   messageId: string,
   chatId: string,
