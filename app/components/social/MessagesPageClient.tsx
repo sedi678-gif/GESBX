@@ -61,6 +61,7 @@ import {
   toggleMessagePin,
   forwardPrivateMessage,
   setPrivateChatArchived,
+  deletePrivateChat,
   sendAudioMessageFast,
   sendMediaMessageFast,
   sendFileMessageFast,
@@ -988,6 +989,24 @@ export default function MessagesPageClient() {
 
   const cancelChatSelection = () => { setChatSelectionMode(false); setSelectedChatIds([]); };
 
+  const deleteSelectedChats = async () => {
+    const targets = chats.filter((chat) => selectedChatIds.includes(chat.chatId));
+    if (!targets.length) return;
+    if (!window.confirm(`${targets.length} söhbət siyahıdan silinsin? Mesajlar qarşı tərəfdə qalacaq.`)) return;
+    const removed = new Set<string>();
+    for (const chat of targets) {
+      try {
+        await deletePrivateChat(chat.chatId, String(myId));
+        removed.add(chat.chatId);
+      } catch (error) {
+        console.error('[Message] chat delete failed:', chat.chatId, error);
+        alert(`${chat.name}: söhbət silinmədi: ${error instanceof Error ? error.message : 'SERVER_ERROR'}`);
+      }
+    }
+    setChats((prev) => prev.filter((chat) => !removed.has(chat.chatId)));
+    cancelChatSelection();
+  };
+
   const archiveSelectedChats = async (archived: boolean) => {
     const targets = chats.filter((chat) => selectedChatIds.includes(chat.chatId));
     const succeeded = new Set<string>();
@@ -1414,17 +1433,14 @@ export default function MessagesPageClient() {
             count={selectedIds.length}
             onCancel={clearSelection}
             onDelete={() => void deleteSelected()}
-            onCopy={() => void copySelectedText()}
-            onForward={() => void forwardSelected()}
-            onShare={() => void shareSelected()}
           />
         ) : chatSelectionMode && !selectedChat ? (
           <div className={styles.selectionBar}>
             <button type="button" className={styles.selectionBarBtn} onClick={cancelChatSelection}>✕</button>
             <strong className={styles.selectionBarCount}>{selectedChatIds.length} söhbət</strong>
             <div className={styles.selectionBarActions}>
-              <button type="button" className={styles.selectionBarBtn} onClick={() => void archiveSelectedChats(true)} disabled={!selectedChatIds.length}>↓ Arxivlə</button>
-              {showArchived && <button type="button" className={styles.selectionBarBtn} onClick={() => void archiveSelectedChats(false)} disabled={!selectedChatIds.length}>Arxivdən çıxar</button>}
+              <button type="button" className={styles.selectionBarBtn} onClick={() => void archiveSelectedChats(!showArchived)} disabled={!selectedChatIds.length}>{showArchived ? 'Arxivdən çıxar' : '↓ Arxivlə'}</button>
+              <button type="button" className={styles.selectionBarBtn} onClick={() => void deleteSelectedChats()} disabled={!selectedChatIds.length} title="Söhbətləri sil">🗑️</button>
             </div>
           </div>
         ) : selectedChat ? (
@@ -1460,7 +1476,7 @@ export default function MessagesPageClient() {
             </div>
             <div className={styles.headerActions}>
               <button type="button" className={styles.msgHubIconBtn} onClick={() => { setShowArchived((v) => !v); cancelChatSelection(); }} title="Arxiv" aria-label="Arxiv">{`Arxiv (${archivedChats.length})`}</button>
-              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setSelectedChat(null); setChatSelectionMode(true); setSelectedChatIds([]); }} title="Söhbətləri seç" aria-label="Söhbətləri seç">Seç</button>
+              <button type="button" className={styles.msgHubIconBtn} onClick={() => { if (chatSelectionMode) { cancelChatSelection(); } else { setSelectedChat(null); setInboxTab('chats'); setChatSelectionMode(true); setSelectedChatIds([]); } }} title="Söhbətləri seç" aria-label="Söhbətləri seç">{chatSelectionMode ? 'Ləğv et' : 'Söhbət seç'}</button>
               <button type="button" className={styles.msgHubIconBtn} onClick={() => setShowCallSettings(true)} title="Zəng parametrləri" aria-label="Zəng parametrləri">
                 <IconSettings />
               </button>
@@ -1516,7 +1532,7 @@ export default function MessagesPageClient() {
                 <>
                   <div className={styles.msgChatTop}><strong>Arxivlənmiş söhbətlər</strong><button type="button" className={styles.secondaryBtn} onClick={() => setShowArchived(false)}>Geri</button></div>
                   {archivedChats.length === 0 ? <div className={styles.msgEmpty}><p>Arxiv boşdur</p></div> : archivedChats.map((chat) => (
-                    <div key={chat.chatId} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ''}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : (setSelectedChat(chat), setShowArchived(false))}>
+                    <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ''}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : (setSelectedChat(chat), setShowArchived(false))} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
                       {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(e) => { e.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
                       <div className={styles.msgChatBody}>
                         <div className={styles.msgChatTop}><span className={styles.msgChatName}>{chat.name}</span><span className={styles.msgChatTime}>{chat.time}</span></div>
@@ -1534,7 +1550,7 @@ export default function MessagesPageClient() {
                 </div>
               ) : (
                 mainChats.map((chat) => (
-                  <div key={chat.chatId} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ""}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : setSelectedChat(chat)}>
+                  <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ""}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : setSelectedChat(chat)} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
                     {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(event) => { event.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
                     <img src={chat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatar} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
                     <div className={styles.msgChatBody}>
