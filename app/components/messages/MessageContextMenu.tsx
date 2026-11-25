@@ -9,6 +9,7 @@ export interface MessageContextMenuProps {
   anchor: DOMRect;
   myId: string;
   onEdit?: () => void;
+  onPin?: () => void;
   onReply?: () => void;
   onForward?: () => void;
   onReact?: (emoji: string) => void;
@@ -24,6 +25,7 @@ export default function MessageContextMenu({
   anchor,
   myId,
   onEdit,
+  onPin,
   onReply,
   onForward,
   onReact,
@@ -52,6 +54,7 @@ export default function MessageContextMenu({
             </button>
           ))}
         </div>
+        {onPin && <button type="button" className={styles.contextMenuItem} onClick={onPin}>{message.pinnedBy?.includes(myId) ? '📌 Sabitləməni götür' : '📌 Sabitlə'}</button>}
         {onReply && <button type="button" className={styles.contextMenuItem} onClick={onReply}>↩️ Cavabla</button>}
         {onForward && <button type="button" className={styles.contextMenuItem} onClick={onForward}>↗️ Ötür</button>}
         {canCopy && <button type="button" className={styles.contextMenuItem} onClick={onCopy}>📋 Kopyala</button>}
