@@ -1529,7 +1529,7 @@ export default function MessagesPageClient() {
                   <span className={styles.msgRequestChevron}>›</span>
                 </button>
               )}
-              {!showArchived && archivedChats.length > 0 && (
+              {isAndroidApp && !showArchived && archivedChats.length > 0 && (
                 <button type="button" className={styles.androidArchiveEntry} onClick={() => { setShowArchived(true); cancelChatSelection(); }}>
                   <span className={styles.androidArchiveIcon}>▣</span>
                   <span className={styles.androidArchiveText}><strong>Arxivləşdirilmiş</strong><small>{archivedChats.length} söhbət</small></span>
@@ -1576,7 +1576,7 @@ export default function MessagesPageClient() {
                         title="Söhbəti arxivlə"
                         onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}
                       >
-                        ↓
+                        {isAndroidApp ? '↓' : '↓ Arxivlə'}
                       </button>
                     )}
 
