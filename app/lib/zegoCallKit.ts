@@ -146,7 +146,7 @@ async function fetchZegoTokenFromServer(input: {
     const user = auth.currentUser;
     if (!user) throw new Error('Firebase istifadəçi sessiyası tapılmadı.');
     const idToken = await user.getIdToken();
-    const response = await fetch('/api/zego/token', {
+    const response = await fetch('/api/zego-token', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${idToken}`,
