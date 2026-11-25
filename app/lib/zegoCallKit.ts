@@ -1,8 +1,7 @@
 'use client';
 
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/firebase';
+import { auth } from '@/firebase';
 import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
   ensureZegoConfig,
@@ -137,25 +136,40 @@ function prefetchZegoToken(input: {
   return promise;
 }
 
-/** Cloud Function-dan hazır Zego tokeni. */
+/** Vercel API-dən Firebase Auth ilə təsdiqlənmiş Zego tokeni. */
 async function fetchZegoTokenFromServer(input: {
   roomId: string;
   userId: string;
   userName: string;
 }): Promise<string | null> {
   try {
-    const callable = httpsCallable<typeof input, { token?: string }>(functions, 'createZegoToken');
-    const { data } = await callable(input);
-    const token = String(data.token ?? '').trim();
+    const user = auth.currentUser;
+    if (!user) throw new Error('Firebase istifadəçi sessiyası tapılmadı.');
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/zego/token', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ roomId: input.roomId, userId: input.userId }),
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const reason = typeof data?.error === 'string' ? data.error : `HTTP ${response.status}`;
+      throw new Error(reason);
+    }
+    const token = String(data?.token ?? '').trim();
     return token || null;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Cloud Function əlçatan deyil.';
+    const message = error instanceof Error ? error.message : 'Vercel token API əlçatan deyil.';
     throw new Error(`Zego tokeni alına bilmədi: ${message}`);
   }
 }
 
 /**
- * Token Cloud Function üçün public konfiqurasiya mövcuddurmu?
+ * Token API üçün public konfiqurasiya mövcuddurmu?
  *
  * Bu yoxlama vacibdir: brauzerdə `serverSecret` saxlanılmadığı üçün token yalnız
  * serverdə imzalana bilər. Funksiya yoxdursa zəng başlamaz — istifadəçi səbəbi görsün,
@@ -165,7 +179,7 @@ let tokenServiceState: boolean | null = null;
 
 async function isZegoTokenServiceAvailable(): Promise<boolean> {
   if (tokenServiceState != null) return tokenServiceState;
-  // Callable Functions are invoked with the real user's auth/App Check context when a token is requested.
+  // Vercel API verifies the Firebase ID token before signing a ZEGO token.
   tokenServiceState = getZegoAppId() > 0;
   return tokenServiceState;
 }
