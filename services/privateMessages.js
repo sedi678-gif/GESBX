@@ -174,7 +174,7 @@ async function listMessages(db, chatId) {
       .reverse();
   } catch (error) {
     // Index hələ Firebase-ə deploy edilməyibsə tarixçə yenə açılsın.
-    if (!['failed-precondition', 'FAILED_PRECONDITION'].includes(String(error?.code || ''))) throw error;
+    if (Number(error?.code) !== 9 && !['failed-precondition', 'FAILED_PRECONDITION'].includes(String(error?.code || ''))) throw error;
     const fallback = await collection.where('chatId', '==', chatId).get();
     return fallback.docs
       .map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
