@@ -57,6 +57,8 @@ import {
   blockMessageUser,
   reportMessageUser,
   sendPrivateMessage,
+  toggleMessageReaction,
+  forwardPrivateMessage,
   sendAudioMessageFast,
   sendMediaMessageFast,
   sendFileMessageFast,
@@ -170,6 +172,23 @@ function openMessageAsset(m: StoredMessage): void {
   }
 }
 
+function ReplyQuote({ m, myId }: { m: StoredMessage; myId: string }) {
+  if (!m.replyTo) return null;
+  const who = m.replyTo.senderId === myId ? 'Öz mesajınız' : 'Cavab verilən mesaj';
+  const preview = m.replyTo.text || (
+    m.replyTo.type === 'image' ? '📷 Şəkil' :
+    m.replyTo.type === 'video' ? '🎬 Video' :
+    m.replyTo.type === 'audio' ? '🎤 Səs mesajı' :
+    m.replyTo.type === 'file' ? '📎 Fayl' : 'Mesaj'
+  );
+  return (
+    <div className={styles.messageReplyQuote}>
+      <strong>{who}</strong>
+      <span>{preview}</span>
+    </div>
+  );
+}
+
 function MessageBubble({
   m,
   myId,
@@ -189,6 +208,8 @@ function MessageBubble({
   if (m.type === 'audio' && m.audioUrl) {
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <VoiceMessagePlayer src={m.audioUrl} durationMs={m.audioDurationMs} />
         <div className={styles.bubbleMeta}>🎤 Səs mesajı · {timeLabel} {statusMark && <span className={statusClass}>{statusMark}</span>}</div>
       </div>
@@ -198,6 +219,8 @@ function MessageBubble({
   if ((m.type === 'image' || m.type === 'video') && m.mediaUrl) {
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <button
           type="button"
           className={styles.mediaOpenBtn}
@@ -223,6 +246,8 @@ function MessageBubble({
     const ext = (m.fileName || '').split('.').pop()?.toUpperCase() || 'FILE';
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <button
           type="button"
           className={styles.waDocCard}
@@ -245,6 +270,8 @@ function MessageBubble({
     const mapsUrl = m.mediaUrl || `https://www.google.com/maps?q=${m.locationLat},${m.locationLng}`;
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={styles.waLocationCard}>
           <img src={staticMapUrl(m.locationLat, m.locationLng)} alt="Xəritə" className={styles.waLocationMap} />
           <span className={styles.waLocationLabel}>📍 {m.text || 'Konum'}</span>
@@ -304,6 +331,8 @@ export default function MessagesPageClient() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ message: StoredMessage; anchor: DOMRect } | null>(null);
   const [editingMessage, setEditingMessage] = useState<StoredMessage | null>(null);
+  const [replyTarget, setReplyTarget] = useState<StoredMessage | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<StoredMessage | null>(null);
   const [mediaViewer, setMediaViewer] = useState<{
     url: string;
     type: 'image' | 'video' | 'file';
@@ -780,8 +809,15 @@ export default function MessagesPageClient() {
         recipientName: selectedChat.name,
         recipientHandle: selectedChat.username,
         recipientAvatar: selectedChat.avatar,
+        replyTo: replyTarget ? {
+          id: replyTarget.id,
+          senderId: replyTarget.senderId,
+          type: replyTarget.type,
+          text: replyTarget.text || '',
+        } : undefined,
       });
 
+      setReplyTarget(null);
       relayMessage(String(selectedChat.id), message);
       void trackMessageContact(selectedChat.id, text).catch((contactError) => {
         console.warn('[Message] contact tracking failed:', contactError);
@@ -1108,6 +1144,54 @@ export default function MessagesPageClient() {
     } catch (err) {
       console.error('[Message] clear chat failed:', err);
       alert('Söhbət təmizlənə bilmədi.');
+    }
+  };
+
+  const handleReactMessage = async (message: StoredMessage, emoji: string) => {
+    setContextMenu(null);
+    try {
+      const reactions = await toggleMessageReaction(message.id, message.chatId, emoji, String(myId));
+      setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, reactions } : item));
+    } catch (error) {
+      console.error('[Message] reaction failed:', error);
+      alert('Reaksiya göndərilmədi.');
+    }
+  };
+
+  const handleForwardToUser = async (user: AppUserProfile) => {
+    if (!forwardingMessage) return;
+    const myMeta = getMyProfileMeta();
+    try {
+      const forwarded = await forwardPrivateMessage({
+        messageId: forwardingMessage.id,
+        targetUserId: String(user.id),
+        senderId: String(myId),
+        senderName: myMeta.name,
+        senderHandle: myMeta.handle,
+        senderAvatar: myMeta.avatar,
+        forwardedFromName: forwardingMessage.senderId === String(myId)
+          ? myMeta.name
+          : (selectedChat?.name || 'İstifadəçi'),
+      });
+      relayPrivateMessage(String(user.id), forwarded);
+      const targetChat: ChatItem = {
+        chatId: forwarded.chatId,
+        id: String(user.id),
+        name: [user.name, user.surname].filter(Boolean).join(' ') || user.handle || 'İstifadəçi',
+        username: user.handle || '',
+        avatar: user.avatar || DEFAULT_AVATAR,
+        isOnline: false,
+        lastMsg: messagePreview(forwarded),
+        time: formatTime(forwarded.createdAt),
+      };
+      setChats((prev) => [targetChat, ...prev.filter((chat) => chat.chatId !== targetChat.chatId)]);
+      setForwardingMessage(null);
+      setShowSearch(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (error) {
+      console.error('[Message] forward failed:', error);
+      alert('Mesaj ötürülmədi: ' + (error instanceof Error ? error.message : 'SERVER_ERROR'));
     }
   };
 
@@ -1476,6 +1560,15 @@ export default function MessagesPageClient() {
                 onToggleSelect={toggleSelect}
               >
                 <MessageBubble m={m} myId={myId} onOpenMedia={handleOpenMedia} />
+                {m.reactions && Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).length > 0 && (
+                  <div className={styles.messageReactions}>
+                    {Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) => (
+                      <button key={emoji} type="button" className={ids.includes(String(myId)) ? styles.messageReactionActive : ''} onClick={() => void handleReactMessage(m, emoji)}>
+                        {emoji} {ids.length}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </ChatMessageRow>
             ))}
           </div>
@@ -1483,6 +1576,12 @@ export default function MessagesPageClient() {
             <div className={styles.voiceRecordingBar}>
               <span className={styles.voiceRecDot} aria-hidden />
               🎤 Səs yazılır · {recordElapsed}s — buraxın və ya mikrofona toxunun
+            </div>
+          )}
+          {replyTarget && !editingMessage && (
+            <div className={styles.editBanner}>
+              <span>↩️ Cavab: {replyTarget.text || messagePreview(replyTarget)}</span>
+              <button type="button" onClick={() => setReplyTarget(null)}>Ləğv</button>
             </div>
           )}
           {editingMessage && (
@@ -1614,11 +1713,11 @@ export default function MessagesPageClient() {
       {showSearch && (
         <div className={styles.modalOverlay} onClick={() => setShowSearch(false)}>
           <div className={styles.modalSheet} onClick={(e) => e.stopPropagation()}>
-            <h2 className={styles.modalTitle}>{t.messages.search}</h2>
+            <h2 className={styles.modalTitle}>{forwardingMessage ? 'Mesajı kimə ötürək?' : t.messages.search}</h2>
             <input className={styles.input} placeholder={t.messages.searchPlaceholder} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             <button type="button" className={styles.primaryBtn} onClick={runSearch}>{t.messages.searchBtn}</button>
             {searchResults.map((u) => (
-              <div key={u.id} className={styles.userResult} onClick={() => startChatWithUser(u)}>
+              <div key={u.id} className={styles.userResult} onClick={() => forwardingMessage ? void handleForwardToUser(u) : void startChatWithUser(u)}>
                 <img src={u.avatar || DEFAULT_AVATAR} alt="" className={styles.avatar} />
                 <div>
                   <div style={{ fontWeight: 800 }}>{u.name} {u.surname}</div>
@@ -1657,6 +1756,9 @@ export default function MessagesPageClient() {
           anchor={contextMenu.anchor}
           myId={myId}
           onEdit={() => handleStartEdit(contextMenu.message)}
+          onReply={() => { setReplyTarget(contextMenu.message); setContextMenu(null); }}
+          onForward={() => { setForwardingMessage(contextMenu.message); setSearchQuery(''); setSearchResults([]); setShowSearch(true); setContextMenu(null); }}
+          onReact={(emoji) => void handleReactMessage(contextMenu.message, emoji)}
           onDelete={() => void handleDeleteMessage(contextMenu.message)}
           onCopy={() => {
             const t = contextMenu.message.text || messagePreview(contextMenu.message);
