@@ -3591,3 +3591,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+.androidMessenger .androidChatIdentity {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+}
+.androidMessenger .androidChatIdentity .chatHeaderProfile {
+  flex: 0 1 auto;
+  min-height: 40px;
+}
