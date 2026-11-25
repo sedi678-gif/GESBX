@@ -69,7 +69,7 @@ import {
   clearChat,
   editMessage,
   messagePreview,
-  markMessageReceived,
+  markMessagesReceived,
   isTransferableMessageUrl,
   type FastSendResult,
   ChatSummary,
@@ -405,17 +405,14 @@ export default function MessagesPageClient() {
     return listenChatMessages(selectedChat.chatId, String(myId), (nextMessages) => {
       setMessages(nextMessages);
       const visible = typeof document !== 'undefined' && document.visibilityState === 'visible';
-      const now = Date.now();
-      for (const message of nextMessages) {
-        if (message.recipientId !== String(myId)) continue;
-        const status: { deliveredAt?: number; readAt?: number } = {};
-        if (!message.deliveredAt) status.deliveredAt = now;
-        if (visible && !message.readAt) status.readAt = now;
-        if (Object.keys(status).length) {
-          void markMessageReceived(message.id, status, String(myId)).catch((err) => {
-            console.warn('[Message] status update failed:', err);
-          });
-        }
+      const unread = nextMessages.filter((message) =>
+        message.recipientId === String(myId) && (!message.deliveredAt || (visible && !message.readAt))
+      );
+      if (unread.length) {
+        const status: { deliveredAt?: number; readAt?: number } = { deliveredAt: Date.now() };
+        if (visible) status.readAt = Date.now();
+        void markMessagesReceived(selectedChat.chatId, unread.map((message) => message.id), status, String(myId))
+          .catch((err) => console.warn('[Message] bulk status update failed:', err));
       }
     }, (error) => {
       console.error('[Message] mesaj tarixçəsi yüklənmədi:', error);
