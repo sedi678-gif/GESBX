@@ -3605,3 +3605,13 @@
   flex: 0 1 auto;
   min-height: 40px;
 }
+
+.androidMessenger .messageBubbleCol {
+  touch-action: pan-y !important;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.androidMessenger .messageRow,
+.androidMessenger .messageSelectGutter {
+  touch-action: pan-y;
+}
