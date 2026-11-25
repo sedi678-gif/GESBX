@@ -1496,7 +1496,7 @@ export default function MessagesPageClient() {
                         <div className={styles.msgChatTop}><span className={styles.msgChatName}>{chat.name}</span><span className={styles.msgChatTime}>{chat.time}</span></div>
                         <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                       </div>
-                      <button type="button" className={styles.secondaryBtn} onClick={() => void handleArchiveChat(chat, false)}>Arxivdən çıxar</button>
+                      <button type="button" className={styles.secondaryBtn} onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, false); }}>Arxivdən çıxar</button>
                     </div>
                   ))}
                 </>
@@ -1508,7 +1508,7 @@ export default function MessagesPageClient() {
                 </div>
               ) : (
                 mainChats.map((chat) => (
-                  <div key={chat.chatId} className={styles.msgChatRow} onClick={() => setSelectedChat(chat)}>
+                  <div key={chat.chatId} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ""}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : setSelectedChat(chat)}>
                     {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(event) => { event.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
                     <img src={chat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatar} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
                     <div className={styles.msgChatBody}>
