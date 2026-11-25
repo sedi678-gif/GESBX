@@ -1401,6 +1401,15 @@ export default function MessagesPageClient() {
             onForward={() => void forwardSelected()}
             onShare={() => void shareSelected()}
           />
+        ) : chatSelectionMode && !selectedChat ? (
+          <div className={styles.selectionBar}>
+            <button type="button" className={styles.selectionBarBtn} onClick={cancelChatSelection}>✕</button>
+            <strong className={styles.selectionBarCount}>{selectedChatIds.length} söhbət</strong>
+            <div className={styles.selectionBarActions}>
+              <button type="button" className={styles.selectionBarBtn} onClick={() => void archiveSelectedChats(true)} disabled={!selectedChatIds.length}>↓ Arxivlə</button>
+              {showArchived && <button type="button" className={styles.selectionBarBtn} onClick={() => void archiveSelectedChats(false)} disabled={!selectedChatIds.length}>Arxivdən çıxar</button>}
+            </div>
+          </div>
         ) : selectedChat ? (
           <>
             <button type="button" className={styles.msgHubIconBtn} onClick={() => setSelectedChat(null)} aria-label="Geri">
