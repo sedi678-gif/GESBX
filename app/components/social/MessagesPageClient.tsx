@@ -987,15 +987,17 @@ export default function MessagesPageClient() {
 
   const archiveSelectedChats = async (archived: boolean) => {
     const targets = chats.filter((chat) => selectedChatIds.includes(chat.chatId));
+    const succeeded = new Set<string>();
     for (const chat of targets) {
       try {
         await setPrivateChatArchived(chat.chatId, String(myId), archived);
+        succeeded.add(chat.chatId);
       } catch (error) {
         console.error('[Message] bulk archive failed:', chat.chatId, error);
-        alert(`${chat.name}: arxiv əməliyyatı alınmadı.`);
+        alert(`${chat.name}: arxiv əməliyyatı alınmadı: ${error instanceof Error ? error.message : 'SERVER_ERROR'}`);
       }
     }
-    setChats((prev) => prev.map((chat) => selectedChatIds.includes(chat.chatId) ? { ...chat, isArchived: archived } : chat));
+    setChats((prev) => prev.map((chat) => succeeded.has(chat.chatId) ? { ...chat, isArchived: archived } : chat));
     cancelChatSelection();
   };
 
@@ -1455,7 +1457,7 @@ export default function MessagesPageClient() {
             </div>
             <div className={styles.headerActions}>
               <button type="button" className={styles.msgHubIconBtn} onClick={() => { setShowArchived((v) => !v); cancelChatSelection(); }} title="Arxiv" aria-label="Arxiv">{`Arxiv (${archivedChats.length})`}</button>
-              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setChatSelectionMode(true); setSelectedChatIds([]); }} title="Söhbətləri seç" aria-label="Söhbətləri seç">Seç</button>
+              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setSelectedChat(null); setChatSelectionMode(true); setSelectedChatIds([]); }} title="Söhbətləri seç" aria-label="Söhbətləri seç">Seç</button>
               <button type="button" className={styles.msgHubIconBtn} onClick={() => setShowCallSettings(true)} title="Zəng parametrləri" aria-label="Zəng parametrləri">
                 <IconSettings />
               </button>
@@ -1539,7 +1541,7 @@ export default function MessagesPageClient() {
                       </div>
                       <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                     </div>
-                    {!chatSelectionMode && <button type="button" className={styles.msgHubIconBtn} aria-label="Arxivlə" title="Arxivlə" onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}>↓</button>}
+
                   </div>
                 ))
               )}
