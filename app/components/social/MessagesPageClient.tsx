@@ -1453,6 +1453,7 @@ export default function MessagesPageClient() {
           <MessageSelectionBar
             count={selectedIds.length}
             onCancel={clearSelection}
+            onCopy={() => void copySelectedText()}
             onDelete={() => void deleteSelected()}
           />
         ) : chatSelectionMode && !selectedChat ? (
@@ -1581,6 +1582,17 @@ export default function MessagesPageClient() {
                       </div>
                       <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                     </div>
+                    {!chatSelectionMode && (
+                      <button
+                        type="button"
+                        className={styles.secondaryBtn}
+                        aria-label={`${chat.name} söhbətini arxivlə`}
+                        title="Söhbəti arxivlə"
+                        onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}
+                      >
+                        ↓ Arxivlə
+                      </button>
+                    )}
 
                   </div>
                 ))
