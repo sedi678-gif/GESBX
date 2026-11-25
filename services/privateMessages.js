@@ -158,14 +158,15 @@ async function listChats(db, profileId) {
 }
 
 async function listMessages(db, chatId) {
-  // Firestore indeksində chatId + createdAt ASC artıq mövcuddur.
-  // Son 100 mesajı oxu, böyük söhbətlərin açılışını yüngülləşdir.
+  // Yalnız son 100 yazışmanı serverdə sırala və oxu; bütün söhbəti endirmə.
   const snap = await db.collection('private_messages')
     .where('chatId', '==', chatId)
+    .orderBy('createdAt', 'desc')
+    .limit(100)
     .get();
-  return snap.docs.map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
-    .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0))
-    .slice(-100);
+  return snap.docs
+    .map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
+    .reverse();
 }
 
 async function handleGet(req, res, db, profileId, action) {
@@ -334,6 +335,25 @@ async function handlePost(req, res, db, profileId, action) {
       : archivedBy.filter((id) => id !== profileId);
     await chat.ref.set({ archivedBy: next, updatedAt: Date.now() }, { merge: true });
     return sendJson(res, 200, { archived: action === 'archive-chat' });
+  }
+
+  if (action === 'pin') {
+    const messageId = text(body.messageId, 180);
+    const chatId = text(body.chatId, 180);
+    if (!ID_PATTERN.test(messageId)) throw new ApiError(400, 'MESSAGE_ID_INVALID');
+    await requireChat(db, chatId, profileId);
+    const ref = db.doc(`private_messages/${messageId}`);
+    const pinnedBy = await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists || snap.data()?.chatId !== chatId) throw new ApiError(404, 'MESSAGE_NOT_FOUND');
+      const current = Array.isArray(snap.data()?.pinnedBy) ? snap.data().pinnedBy.map(String) : [];
+      const next = current.includes(profileId)
+        ? current.filter((id) => id !== profileId)
+        : [...current, profileId];
+      transaction.update(ref, { pinnedBy: next, pinnedAt: next.length ? Date.now() : null });
+      return next;
+    });
+    return sendJson(res, 200, { pinnedBy });
   }
 
   if (action === 'react') {
