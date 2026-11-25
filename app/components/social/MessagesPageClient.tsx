@@ -840,6 +840,8 @@ export default function MessagesPageClient() {
         } : undefined,
       };
       setMessages((prev) => [...prev, optimisticMessage]);
+      // Mesajı əvvəlcə real-time socket ilə çatdır; serverdə saxlanma paralel davam etsin.
+      relayMessage(String(selectedChat.id), optimisticMessage);
       const message = await sendPrivateMessage({
         id: optimisticId,
         senderId: String(myId),
@@ -862,13 +864,17 @@ export default function MessagesPageClient() {
 
       setMessages((prev) => prev.map((item) => item.id === optimisticId ? message : item));
       setReplyTarget(null);
-      relayMessage(String(selectedChat.id), message);
       void trackMessageContact(selectedChat.id, text).catch((contactError) => {
         console.warn('[Message] contact tracking failed:', contactError);
       });
     } catch (err) {
       console.error(err);
-      if (optimisticId) setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
+      if (optimisticId) {
+        const failedId = optimisticId;
+        const failedChatId = buildChatId(String(myId), String(selectedChat.id));
+        setMessages((prev) => prev.filter((item) => item.id !== failedId));
+        emitChatDelete(String(selectedChat.id), { chatId: failedChatId, messageId: failedId });
+      }
       alert((editingMessage ? 'Mesaj düzənlənmədi: ' : 'Mesaj göndərilmədi: ') + (err instanceof Error ? err.message : 'SERVER_ERROR'));
       setMessageText(text);
     } finally {
@@ -900,10 +906,9 @@ export default function MessagesPageClient() {
       }
 
       recordStreamRef.current = stream;
-      const recorder = new MediaRecorder(
-        stream,
-        MediaRecorder.isTypeSupported(mimeType) ? { mimeType } : undefined
-      );
+      const recorderOptions: MediaRecorderOptions = { audioBitsPerSecond: 32_000 };
+      if (MediaRecorder.isTypeSupported(mimeType)) recorderOptions.mimeType = mimeType;
+      const recorder = new MediaRecorder(stream, recorderOptions);
       recordChunksRef.current = [];
       recordStartRef.current = Date.now();
 
