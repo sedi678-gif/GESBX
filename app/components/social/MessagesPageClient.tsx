@@ -811,7 +811,25 @@ export default function MessagesPageClient() {
         return;
       }
 
+      const optimisticId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const optimisticMessage: StoredMessage = {
+        id: optimisticId,
+        chatId: buildChatId(String(myId), String(selectedChat.id)),
+        senderId: String(myId),
+        recipientId: String(selectedChat.id),
+        type: 'text',
+        text,
+        createdAt: Date.now(),
+        replyTo: replyTarget ? {
+          id: replyTarget.id,
+          senderId: replyTarget.senderId,
+          type: replyTarget.type,
+          text: replyTarget.text || '',
+        } : undefined,
+      };
+      setMessages((prev) => [...prev, optimisticMessage]);
       const message = await sendPrivateMessage({
+        id: optimisticId,
         senderId: String(myId),
         recipientId: String(selectedChat.id),
         text,
@@ -830,6 +848,7 @@ export default function MessagesPageClient() {
         } : undefined,
       });
 
+      setMessages((prev) => prev.map((item) => item.id === optimisticId ? message : item));
       setReplyTarget(null);
       relayMessage(String(selectedChat.id), message);
       void trackMessageContact(selectedChat.id, text).catch((contactError) => {
@@ -837,6 +856,7 @@ export default function MessagesPageClient() {
       });
     } catch (err) {
       console.error(err);
+      if (!editingMessage) setMessages((prev) => prev.filter((item) => !item.id.startsWith('msg_') || item.text !== text));
       alert((editingMessage ? 'Mesaj düzənlənmədi: ' : 'Mesaj göndərilmədi: ') + (err instanceof Error ? err.message : 'SERVER_ERROR'));
       setMessageText(text);
     } finally {
