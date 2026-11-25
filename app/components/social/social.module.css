@@ -3532,3 +3532,86 @@
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
 }
+
+
+/* Android APK chat: keep the message list as the only vertical scroll surface. */
+.androidMessenger.msgHubChatOpen {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.androidMessenger .messageArea {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  overflow: hidden;
+}
+.androidMessenger .messageScroll {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+.androidMessenger .composeBar {
+  flex: 0 0 auto;
+}
+.androidMessenger .composeInputWrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.androidMessenger .androidPinnedPreview {
+  width: min(100%, 260px);
+  max-width: 100%;
+  min-height: 26px;
+  margin-top: 3px;
+  padding: 2px 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-left: 2px solid #25d366;
+  border-radius: 4px;
+  background: rgba(37, 211, 102, .10);
+  color: #b8f5d0;
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+.androidMessenger .androidPinnedPreviewText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.androidMessenger .androidChatIdentity {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+}
+.androidMessenger .androidChatIdentity .chatHeaderProfile {
+  flex: 0 1 auto;
+  min-height: 40px;
+}
+
+.androidMessenger .messageBubbleCol {
+  touch-action: pan-y !important;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.androidMessenger .messageRow,
+.androidMessenger .messageSelectGutter {
+  touch-action: pan-y;
+}

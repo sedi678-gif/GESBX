@@ -403,13 +403,20 @@ async function handlePost(req, res, db, profileId, action) {
       }
       const current = fresh.data()?.reactions && typeof fresh.data().reactions === 'object'
         ? fresh.data().reactions : {};
-      const users = Array.isArray(current[emoji]) ? current[emoji].map(String) : [];
-      const nextUsers = users.includes(profileId)
-        ? users.filter((id) => id !== profileId)
-        : [...users, profileId];
-      const next = { ...current };
-      if (nextUsers.length) next[emoji] = nextUsers;
-      else delete next[emoji];
+      const alreadySelected = Array.isArray(current[emoji])
+        && current[emoji].map(String).includes(profileId);
+      const next = {};
+      // Bir istifadəçinin bir mesaja yalnız bir reaksiyası ola bilər.
+      // Eyni emoji yenidən seçilərsə reaksiya silinir, başqa emoji seçilərsə dəyişdirilir.
+      for (const [existingEmoji, existingUsers] of Object.entries(current)) {
+        if (!Array.isArray(existingUsers)) continue;
+        const remaining = existingUsers.map(String).filter((id) => id !== profileId);
+        if (remaining.length) next[existingEmoji] = remaining;
+      }
+      if (!alreadySelected) {
+        const selectedUsers = Array.isArray(next[emoji]) ? next[emoji] : [];
+        next[emoji] = [...selectedUsers, profileId];
+      }
       transaction.update(ref, { reactions: next });
       return next;
     });
