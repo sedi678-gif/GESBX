@@ -237,7 +237,7 @@ export function messagePreview(msg: StoredMessage): string {
   }
 }
 
-export async function sendPrivateMessage(payload: ChatPayload & { text: string; replyTo?: StoredMessage['replyTo'] }): Promise<StoredMessage> {
+export async function sendPrivateMessage(payload: ChatPayload & { id?: string; text: string; replyTo?: StoredMessage['replyTo'] }): Promise<StoredMessage> {
   const user = await ensureFirebaseAuth();
   if (!user) throw new Error('Mesaj göndərmək üçün internet bağlantısı lazımdır.');
   const chatId = buildChatId(payload.senderId, payload.recipientId);
@@ -247,7 +247,7 @@ export async function sendPrivateMessage(payload: ChatPayload & { text: string; 
 
   const msgRef = newMessageRef();
   const message: StoredMessage = {
-    id: msgRef.id,
+    id: payload.id && /^[A-Za-z0-9_-]{1,180}$/.test(payload.id) ? payload.id : msgRef.id,
     chatId,
     senderId: payload.senderId,
     recipientId: payload.recipientId,
