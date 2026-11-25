@@ -3,8 +3,6 @@ import {
   doc,
   query,
   where,
-  orderBy,
-  limitToLast,
   onSnapshot,
   Unsubscribe,
 } from 'firebase/firestore';
@@ -23,6 +21,7 @@ export interface ChatSummary {
   otherUserAvatar: string;
   lastMessage: string;
   lastMessageAt: number;
+  archived?: boolean;
 }
 
 export interface StoredMessage {
@@ -41,6 +40,10 @@ export interface StoredMessage {
   locationLng?: number;
   callType?: 'voice' | 'video';
   callStatus?: string;
+  replyTo?: { id: string; senderId: string; type: MessageType; text: string };
+  forwardedFrom?: { senderId: string; senderName: string };
+  reactions?: Record<string, string[]>;
+  pinnedBy?: string[];
   editedAt?: number;
   deliveredAt?: number;
   readAt?: number;
@@ -60,27 +63,33 @@ async function privateMessagesRequest<T = any>(
   payload: Record<string, unknown> = {}
 ): Promise<T> {
   const user = await ensureFirebaseAuth();
-  if (!user) throw new Error('Mesaj serverinə qoşulmaq üçün hesaba daxil olun.');
-  const token = await user.getIdToken();
+  if (!user || user.isAnonymous) throw new Error('Mesaj serverinə qoşulmaq üçün qeydiyyatdan keçmiş hesaba daxil olun.');
   const params = new URLSearchParams({ handler: 'messages', action, profileId: String(profileId) });
-  const options: RequestInit = {
-    method,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    cache: 'no-store',
-  };
   if (method === 'GET') {
     Object.entries(payload).forEach(([key, value]) => {
       if (value !== undefined && value !== null) params.set(key, String(value));
     });
-  } else {
-    options.body = JSON.stringify({ ...payload, profileId: String(profileId) });
   }
-  const response = await fetch(`/api/paypal?${params.toString()}`, options);
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const code = String(result.error || 'PRIVATE_MESSAGES_FAILED');
-    throw new Error(code);
+  const body = method === 'POST' ? JSON.stringify({ ...payload, profileId: String(profileId) }) : undefined;
+
+  const send = async (forceRefresh: boolean) => {
+    const token = await user.getIdToken(forceRefresh);
+    return fetch(`/api/paypal?${params.toString()}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body,
+      cache: 'no-store',
+    });
+  };
+
+  let response = await send(false);
+  let result = await response.json().catch(() => ({}));
+  // Firebase ID token müddəti bitibsə, bir dəfə yenilə və sorğunu təkrar et.
+  if (response.status === 401 && ['AUTH_TOKEN_INVALID', 'AUTH_REQUIRED'].includes(String(result.error || ''))) {
+    response = await send(true);
+    result = await response.json().catch(() => ({}));
   }
+  if (!response.ok) throw new Error(String(result.error || 'PRIVATE_MESSAGES_FAILED'));
   return result as T;
 }
 
@@ -228,7 +237,7 @@ export function messagePreview(msg: StoredMessage): string {
   }
 }
 
-export async function sendPrivateMessage(payload: ChatPayload & { text: string }): Promise<StoredMessage> {
+export async function sendPrivateMessage(payload: ChatPayload & { id?: string; text: string; replyTo?: StoredMessage['replyTo'] }): Promise<StoredMessage> {
   const user = await ensureFirebaseAuth();
   if (!user) throw new Error('Mesaj göndərmək üçün internet bağlantısı lazımdır.');
   const chatId = buildChatId(payload.senderId, payload.recipientId);
@@ -238,12 +247,13 @@ export async function sendPrivateMessage(payload: ChatPayload & { text: string }
 
   const msgRef = newMessageRef();
   const message: StoredMessage = {
-    id: msgRef.id,
+    id: payload.id && /^[A-Za-z0-9_-]{1,180}$/.test(payload.id) ? payload.id : msgRef.id,
     chatId,
     senderId: payload.senderId,
     recipientId: payload.recipientId,
     type: 'text',
     text: trimmed,
+    replyTo: payload.replyTo,
     createdAt: now,
   };
   return persistPrivateMessage(payload, message);
@@ -494,11 +504,56 @@ function docToStoredMessage(d: { id: string; data: () => Record<string, unknown>
     editedAt: data.editedAt as number | undefined,
     deliveredAt: data.deliveredAt as number | undefined,
     readAt: data.readAt as number | undefined,
+    replyTo: data.replyTo as StoredMessage['replyTo'],
+    forwardedFrom: data.forwardedFrom as StoredMessage['forwardedFrom'],
+    reactions: data.reactions as StoredMessage['reactions'],
+    pinnedBy: Array.isArray(data.pinnedBy) ? data.pinnedBy.map(String) : [],
     createdAt: (data.createdAt as number) || 0,
   };
 }
 
 /** Mətn mesajını düzənlə (WhatsApp — yalnız öz mesajın) */
+export async function toggleMessagePin(messageId: string, chatId: string, userId: string): Promise<string[]> {
+  const result = await privateMessagesRequest<{ pinnedBy: string[] }>('pin', userId, 'POST', { messageId, chatId });
+  return result.pinnedBy || [];
+}
+
+export async function toggleMessageReaction(
+  messageId: string,
+  chatId: string,
+  emoji: string,
+  userId: string
+): Promise<Record<string, string[]>> {
+  const result = await privateMessagesRequest<{ reactions: Record<string, string[]> }>(
+    'react', userId, 'POST', { messageId, chatId, emoji }
+  );
+  return result.reactions || {};
+}
+
+export async function forwardPrivateMessage(payload: {
+  messageId: string;
+  targetUserId: string;
+  senderId: string;
+  senderName?: string;
+  senderHandle?: string;
+  senderAvatar?: string;
+  forwardedFromName?: string;
+}): Promise<StoredMessage> {
+  const result = await privateMessagesRequest<{ message: StoredMessage }>(
+    'forward', payload.senderId, 'POST', {
+      messageId: payload.messageId,
+      targetUserId: payload.targetUserId,
+      senderMeta: {
+        name: payload.senderName || '',
+        handle: payload.senderHandle || '',
+        avatar: payload.senderAvatar || '',
+      },
+      forwardedFromName: payload.forwardedFromName || '',
+    }
+  );
+  return result.message;
+}
+
 export async function editMessage(messageId: string, chatId: string, newText: string, userId: string): Promise<void> {
   const trimmed = newText.trim();
   if (!trimmed) throw new Error('Mesaj boş ola bilməz.');
@@ -515,12 +570,22 @@ export async function clearChat(chatId: string, userId: string): Promise<void> {
   await privateMessagesRequest('clear', userId, 'POST', { chatId });
 }
 
-export async function markMessageReceived(
-  messageId: string,
+export async function markMessagesReceived(
+  chatId: string,
+  messageIds: string[],
   status: { deliveredAt?: number; readAt?: number },
   userId: string
 ): Promise<void> {
-  await privateMessagesRequest('status', userId, 'POST', { messageId, ...status });
+  if (!messageIds.length) return;
+  await privateMessagesRequest('status-bulk', userId, 'POST', { chatId, messageIds, ...status });
+}
+
+export async function deletePrivateChat(chatId: string, userId: string): Promise<void> {
+  await privateMessagesRequest('delete-chat', userId, 'POST', { chatId });
+}
+
+export async function setPrivateChatArchived(chatId: string, userId: string, archived: boolean): Promise<void> {
+  await privateMessagesRequest(archived ? 'archive-chat' : 'unarchive-chat', userId, 'POST', { chatId });
 }
 
 export function listenChatMessages(
@@ -529,26 +594,47 @@ export function listenChatMessages(
   callback: (msgs: StoredMessage[]) => void,
   onError?: (error: Error) => void
 ): Unsubscribe {
-  let fallbackLoaded = false;
-  // Son 100 mesajı yüklə: bütün tarixçəni hər açılışda telefona endirmə.
-  // Mövcud Firestore composite index (chatId + createdAt ASC) ilə işləyir.
-  const q = query(
-    collection(db, 'private_messages'),
-    where('chatId', '==', chatId),
-    orderBy('createdAt', 'asc'),
-    limitToLast(100)
-  );
-  return onSnapshot(q, (snap) => {
-    const msgs: StoredMessage[] = [];
-    snap.forEach((d) => msgs.push(docToStoredMessage(d)));
-    msgs.sort((a, b) => a.createdAt - b.createdAt);
-    callback(msgs);
-  }, (error) => {
-    console.error('[Message] Firestore realtime read failed; loading via authenticated server:', error);
-    if (fallbackLoaded) return;
-    fallbackLoaded = true;
-    void privateMessagesRequest<{ messages: StoredMessage[] }>('messages', userId, 'GET', { chatId })
-      .then((result) => callback(result.messages || []))
-      .catch((serverError) => onError?.(serverError instanceof Error ? serverError : new Error(String(serverError))));
-  });
+  let cancelled = false;
+  let loading = false;
+  let lastSignature = '';
+
+  // Mesaj tarixçəsini əvvəlcə təsdiqlənmiş server API-sindən alırıq.
+  // Beləliklə Firestore client qaydaları/indeksləri tarixçənin açılmasını bloklamır.
+  const load = async () => {
+    if (cancelled || loading) return;
+    loading = true;
+    try {
+      const result = await privateMessagesRequest<{ messages: StoredMessage[] }>(
+        'messages', userId, 'GET', { chatId }
+      );
+      if (cancelled) return;
+      const messages = (result.messages || [])
+        .map((message) => ({
+          ...message,
+          id: String(message.id || ''),
+          chatId: String(message.chatId || chatId),
+          createdAt: Number(message.createdAt) || 0,
+        }))
+        .filter((message) => message.id && message.chatId === chatId)
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .slice(-100);
+      const signature = messages.map((message) => `${message.id}:${message.editedAt || 0}:${message.readAt || 0}:${message.deliveredAt || 0}`).join('|');
+      if (signature !== lastSignature) {
+        lastSignature = signature;
+        callback(messages);
+      }
+    } catch (error) {
+      if (!cancelled) onError?.(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      loading = false;
+    }
+  };
+
+  void load();
+  // Socket hadisəsi itərsə tarixçəni yeniləmək üçün ehtiyat sinxronizasiya.
+  const interval = setInterval(() => { void load(); }, 30_000);
+  return () => {
+    cancelled = true;
+    clearInterval(interval);
+  };
 }

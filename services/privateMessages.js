@@ -15,6 +15,7 @@ function text(value, max = 2000) {
 }
 
 function messagePreview(message) {
+  if (message.forwardedFrom) return `↪️ ${messagePreview({ ...message, forwardedFrom: null })}`;
   if (message.type === 'audio') return '🎤 Səs mesajı';
   if (message.type === 'image') return '📷 Şəkil';
   if (message.type === 'video') return '🎬 Video';
@@ -90,6 +91,7 @@ async function updateChat(db, senderId, recipientId, meta, preview, at, existing
     chatId,
     participants,
     participantMeta: { ...oldMeta, [senderId]: sender, [recipientId]: recipient },
+    hiddenBy: [],
     lastMessage: preview,
     lastMessageAt: at,
     updatedAt: at,
@@ -111,11 +113,15 @@ async function assertNotBlocked(db, senderId, recipientId) {
 
 async function listChats(db, profileId) {
   const snap = await db.collection('private_chats')
-    .where('participants', 'array-contains', profileId).get();
+    .where('participants', 'array-contains', profileId)
+    .limit(100)
+    .get();
   const result = [];
   snap.forEach((doc) => {
     const data = doc.data() || {};
     const participants = Array.isArray(data.participants) ? data.participants.map(String) : [];
+    const hiddenBy = Array.isArray(data.hiddenBy) ? data.hiddenBy.map(String) : [];
+    if (hiddenBy.includes(profileId)) return;
     const otherId = participants.find((id) => id !== profileId) || '';
     if (!otherId) return;
     const meta = data.participantMeta?.[otherId] || {};
@@ -127,20 +133,22 @@ async function listChats(db, profileId) {
       otherUserAvatar: text(meta.avatar, 1500),
       lastMessage: text(data.lastMessage, 2000),
       lastMessageAt: Number(data.lastMessageAt) || 0,
+      archived: Array.isArray(data.archivedBy) && data.archivedBy.map(String).includes(profileId),
     });
   });
   result.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
 
   // Köhnə söhbətlərdə participantMeta avatar saxlamaya bilər.
   // Profil fotosunu users və legacy players kolleksiyasından bərpa et.
-  const visible = result.slice(0, 100);
-  const refs = visible.flatMap((chat) => [
+  const visible = result;
+  const needsLookup = visible.filter((chat) => chat.otherUserName === 'İstifadəçi' || !chat.otherUserAvatar);
+  const refs = needsLookup.flatMap((chat) => [
     db.doc(`users/${chat.otherUserId}`),
     db.doc(`players/${chat.otherUserId}`),
   ]);
   if (refs.length) {
     const profiles = await db.getAll(...refs);
-    visible.forEach((chat, index) => {
+    needsLookup.forEach((chat, index) => {
       const user = profiles[index * 2]?.data() || {};
       const player = profiles[index * 2 + 1]?.data() || {};
       chat.otherUserName = chat.otherUserName !== 'İstifadəçi'
@@ -156,15 +164,23 @@ async function listChats(db, profileId) {
 }
 
 async function listMessages(db, chatId) {
-  // Firestore indeksində chatId + createdAt ASC artıq mövcuddur.
-  // Son 100 mesajı oxu, böyük söhbətlərin açılışını yüngülləşdir.
-  const snap = await db.collection('private_messages')
-    .where('chatId', '==', chatId)
-    .orderBy('createdAt', 'asc')
-    .limitToLast(100)
-    .get();
-  return snap.docs.map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
-    .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
+  const collection = db.collection('private_messages');
+  try {
+    // Composite index mövcuddursa yalnız ən son 100 mesaj oxunur.
+    const snap = await collection.where('chatId', '==', chatId)
+      .orderBy('createdAt', 'desc').limit(100).get();
+    return snap.docs
+      .map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
+      .reverse();
+  } catch (error) {
+    // Index hələ Firebase-ə deploy edilməyibsə tarixçə yenə açılsın.
+    if (Number(error?.code) !== 9 && !['failed-precondition', 'FAILED_PRECONDITION'].includes(String(error?.code || ''))) throw error;
+    const fallback = await collection.where('chatId', '==', chatId).get();
+    return fallback.docs
+      .map((doc) => ({ ...doc.data(), id: String(doc.data()?.id || doc.id) }))
+      .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0))
+      .slice(-100);
+  }
 }
 
 async function handleGet(req, res, db, profileId, action) {
@@ -274,6 +290,27 @@ async function handlePost(req, res, db, profileId, action) {
     if (Number.isFinite(Number(input.locationLat)) && Number(input.locationLat) >= -90 && Number(input.locationLat) <= 90) message.locationLat = Number(input.locationLat);
     if (Number.isFinite(Number(input.locationLng)) && Number(input.locationLng) >= -180 && Number(input.locationLng) <= 180) message.locationLng = Number(input.locationLng);
     if (['voice', 'video'].includes(input.callType)) message.callType = input.callType;
+    if (input.replyTo && typeof input.replyTo === 'object') {
+      const replyId = text(input.replyTo.id, 180);
+      if (replyId && ID_PATTERN.test(replyId)) {
+        const replySnap = await db.doc(`private_messages/${replyId}`).get();
+        if (replySnap.exists && replySnap.data()?.chatId === chatId) {
+          const reply = replySnap.data() || {};
+          message.replyTo = {
+            id: replyId,
+            senderId: text(reply.senderId, 20),
+            type: MESSAGE_TYPES.has(reply.type) ? reply.type : 'text',
+            text: text(reply.text, 500),
+          };
+        }
+      }
+    }
+    if (input.forwardedFrom && typeof input.forwardedFrom === 'object') {
+      message.forwardedFrom = {
+        senderId: text(input.forwardedFrom.senderId, 20),
+        senderName: text(input.forwardedFrom.senderName, 100),
+      };
+    }
     const batch = db.batch();
     const previousMeta = existing.exists ? (existing.data()?.participantMeta || {}) : {};
     const senderMeta = previousMeta[senderId] || {};
@@ -281,6 +318,7 @@ async function handlePost(req, res, db, profileId, action) {
     batch.set(chatRef, {
       chatId,
       participants: [senderId, recipientId].sort(),
+      hiddenBy: [],
       participantMeta: {
         ...previousMeta,
         [senderId]: profileMeta({
@@ -301,6 +339,147 @@ async function handlePost(req, res, db, profileId, action) {
     batch.create(messageRef, message);
     await batch.commit();
     return sendJson(res, 200, { message });
+  }
+
+  if (action === 'delete-chat') {
+    const chatId = text(body.chatId, 180);
+    const chat = await requireChat(db, chatId, profileId);
+    const hiddenBy = Array.isArray(chat.data.hiddenBy) ? chat.data.hiddenBy.map(String) : [];
+    await chat.ref.set({
+      hiddenBy: [...new Set([...hiddenBy, profileId])],
+      updatedAt: Date.now(),
+    }, { merge: true });
+    return sendJson(res, 200, { success: true });
+  }
+
+  if (action === 'archive-chat' || action === 'unarchive-chat') {
+    const chatId = text(body.chatId, 180);
+    const chat = await requireChat(db, chatId, profileId);
+    const archivedBy = Array.isArray(chat.data.archivedBy) ? chat.data.archivedBy.map(String) : [];
+    const next = action === 'archive-chat'
+      ? [...new Set([...archivedBy, profileId])]
+      : archivedBy.filter((id) => id !== profileId);
+    await chat.ref.set({ archivedBy: next, updatedAt: Date.now() }, { merge: true });
+    return sendJson(res, 200, { archived: action === 'archive-chat' });
+  }
+
+  if (action === 'pin') {
+    const messageId = text(body.messageId, 180);
+    const chatId = text(body.chatId, 180);
+    if (!ID_PATTERN.test(messageId)) throw new ApiError(400, 'MESSAGE_ID_INVALID');
+    await requireChat(db, chatId, profileId);
+    const ref = db.doc(`private_messages/${messageId}`);
+    const pinnedBy = await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists || snap.data()?.chatId !== chatId) throw new ApiError(404, 'MESSAGE_NOT_FOUND');
+      const current = Array.isArray(snap.data()?.pinnedBy) ? snap.data().pinnedBy.map(String) : [];
+      const next = current.includes(profileId)
+        ? current.filter((id) => id !== profileId)
+        : [...current, profileId];
+      transaction.update(ref, { pinnedBy: next, pinnedAt: next.length ? Date.now() : null });
+      return next;
+    });
+    return sendJson(res, 200, { pinnedBy });
+  }
+
+  if (action === 'react') {
+    const messageId = text(body.messageId, 180);
+    const chatId = text(body.chatId, 180);
+    const emoji = text(body.emoji, 8);
+    const allowed = new Set(['❤️', '👍', '👎', '😂', '😮', '😢', '🙏', '🔥', '🎉']);
+    if (!ID_PATTERN.test(messageId) || !allowed.has(emoji)) {
+      throw new ApiError(400, 'MESSAGE_REACTION_INVALID');
+    }
+    await requireChat(db, chatId, profileId);
+    const ref = db.doc(`private_messages/${messageId}`);
+    const snap = await ref.get();
+    if (!snap.exists || snap.data()?.chatId !== chatId) {
+      throw new ApiError(404, 'MESSAGE_NOT_FOUND');
+    }
+    const reactions = await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(ref);
+      if (!fresh.exists || fresh.data()?.chatId !== chatId) {
+        throw new ApiError(404, 'MESSAGE_NOT_FOUND');
+      }
+      const current = fresh.data()?.reactions && typeof fresh.data().reactions === 'object'
+        ? fresh.data().reactions : {};
+      const users = Array.isArray(current[emoji]) ? current[emoji].map(String) : [];
+      const nextUsers = users.includes(profileId)
+        ? users.filter((id) => id !== profileId)
+        : [...users, profileId];
+      const next = { ...current };
+      if (nextUsers.length) next[emoji] = nextUsers;
+      else delete next[emoji];
+      transaction.update(ref, { reactions: next });
+      return next;
+    });
+    return sendJson(res, 200, { reactions });
+  }
+
+  if (action === 'forward') {
+    const sourceMessageId = text(body.messageId, 180);
+    const targetUserId = text(body.targetUserId, 20);
+    if (!ID_PATTERN.test(sourceMessageId) || !/^\d{1,20}$/.test(targetUserId) || targetUserId === profileId) {
+      throw new ApiError(400, 'MESSAGE_FORWARD_INVALID');
+    }
+    const sourceRef = db.doc(`private_messages/${sourceMessageId}`);
+    const sourceSnap = await sourceRef.get();
+    if (!sourceSnap.exists) throw new ApiError(404, 'MESSAGE_NOT_FOUND');
+    const source = sourceSnap.data() || {};
+    await requireChat(db, String(source.chatId || ''), profileId);
+    if (!MESSAGE_TYPES.has(source.type) || source.type === 'call') {
+      throw new ApiError(400, 'MESSAGE_TYPE_CANNOT_FORWARD');
+    }
+    const targetSnap = await db.doc(`users/${targetUserId}`).get();
+    if (!targetSnap.exists || targetSnap.data()?.banned === true || targetSnap.data()?.frozen === true) {
+      throw new ApiError(404, 'RECIPIENT_NOT_AVAILABLE');
+    }
+    await assertNotBlocked(db, profileId, targetUserId);
+    const target = targetSnap.data() || {};
+    const now = Date.now();
+    const chatId = chatIdFor(profileId, targetUserId);
+    const chatRef = db.doc(`private_chats/${chatId}`);
+    const chatSnap = await chatRef.get();
+    const existing = chatSnap.exists ? chatSnap.data() || {} : {};
+    const oldMeta = existing.participantMeta && typeof existing.participantMeta === 'object'
+      ? existing.participantMeta : {};
+    const senderMeta = profileMeta(body.senderMeta || {});
+    const recipientMeta = profileMeta({
+      name: target.name,
+      handle: target.handle,
+      avatar: target.avatar || target.photoURL || target.photoUrl,
+    });
+    const forwarded = {
+      id: db.collection('private_messages').doc().id,
+      chatId,
+      senderId: profileId,
+      recipientId: targetUserId,
+      type: source.type,
+      createdAt: now,
+      forwardedFrom: {
+        senderId: text(source.senderId, 20),
+        senderName: text(body.forwardedFromName, 100) || 'İstifadəçi',
+      },
+    };
+    for (const field of ['text', 'audioUrl', 'audioDurationMs', 'mediaUrl', 'mediaMime', 'fileName', 'locationLat', 'locationLng']) {
+      if (source[field] !== undefined) forwarded[field] = source[field];
+    }
+    const batch = db.batch();
+    batch.set(chatRef, {
+      chatId,
+      participants: [profileId, targetUserId].sort(),
+      participantMeta: {
+        ...oldMeta,
+        [profileId]: senderMeta,
+        [targetUserId]: recipientMeta,
+      },
+      lastMessage: messagePreview(forwarded),
+      lastMessageAt: now,
+      updatedAt: now,
+    }, { merge: true });
+    batch.create(db.doc(`private_messages/${forwarded.id}`), forwarded);
+    await batch.commit();
+    return sendJson(res, 200, { message: forwarded });
   }
 
   if (action === 'block' || action === 'unblock') {
@@ -383,6 +562,39 @@ async function handlePost(req, res, db, profileId, action) {
     }
     await db.doc(`private_chats/${chatId}`).set({ lastMessage: '', lastMessageAt: 0, updatedAt: Date.now() }, { merge: true });
     return sendJson(res, 200, { success: true });
+  }
+
+  if (action === 'status-bulk') {
+    const chatId = text(body.chatId, 180);
+    const messageIds = Array.isArray(body.messageIds)
+      ? [...new Set(body.messageIds.map((id) => text(id, 180)).filter((id) => ID_PATTERN.test(id)))].slice(0, 100)
+      : [];
+    if (!messageIds.length) return sendJson(res, 200, { updated: 0 });
+    await requireChat(db, chatId, profileId);
+    const refs = messageIds.map((id) => db.doc(`private_messages/${id}`));
+    const snaps = await Promise.all(refs.map((ref) => ref.get()));
+    const now = Date.now();
+    const patch = {};
+    if (Number(body.deliveredAt) > 0) patch.deliveredAt = Number(body.deliveredAt);
+    if (Number(body.readAt) > 0) {
+      patch.readAt = Number(body.readAt);
+      patch.deliveredAt = patch.deliveredAt || now;
+    }
+    const batch = db.batch();
+    let updated = 0;
+    snaps.forEach((snap) => {
+      if (!snap.exists || snap.data()?.chatId !== chatId || snap.data()?.recipientId !== profileId) return;
+      const current = snap.data() || {};
+      const next = {};
+      if (patch.deliveredAt && !current.deliveredAt) next.deliveredAt = patch.deliveredAt;
+      if (patch.readAt && !current.readAt) next.readAt = patch.readAt;
+      if (Object.keys(next).length) {
+        batch.update(snap.ref, next);
+        updated += 1;
+      }
+    });
+    if (updated) await batch.commit();
+    return sendJson(res, 200, { updated });
   }
 
   if (action === 'status') {

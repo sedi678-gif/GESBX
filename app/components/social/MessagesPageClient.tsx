@@ -57,6 +57,11 @@ import {
   blockMessageUser,
   reportMessageUser,
   sendPrivateMessage,
+  toggleMessageReaction,
+  toggleMessagePin,
+  forwardPrivateMessage,
+  setPrivateChatArchived,
+  deletePrivateChat,
   sendAudioMessageFast,
   sendMediaMessageFast,
   sendFileMessageFast,
@@ -65,7 +70,7 @@ import {
   clearChat,
   editMessage,
   messagePreview,
-  markMessageReceived,
+  markMessagesReceived,
   isTransferableMessageUrl,
   type FastSendResult,
   ChatSummary,
@@ -73,6 +78,7 @@ import {
 } from '@/app/lib/messageService';
 import {
   onChatError,
+  refreshAppSocketAuth,
   emitChatDelete,
   emitChatClear,
   emitChatEdit,
@@ -104,6 +110,7 @@ interface ChatItem {
   isOnline: boolean;
   lastMsg: string;
   time: string;
+  isArchived?: boolean;
 }
 
 function formatTime(ts: number): string {
@@ -126,6 +133,7 @@ function chatSummaryToItem(chat: ChatSummary): ChatItem {
     isOnline: false,
     lastMsg: chat.lastMessage || 'Söhbət',
     time: formatTime(chat.lastMessageAt),
+    isArchived: Boolean(chat.archived),
   };
 }
 
@@ -170,6 +178,23 @@ function openMessageAsset(m: StoredMessage): void {
   }
 }
 
+function ReplyQuote({ m, myId }: { m: StoredMessage; myId: string }) {
+  if (!m.replyTo) return null;
+  const who = m.replyTo.senderId === myId ? 'Öz mesajınız' : 'Cavab verilən mesaj';
+  const preview = m.replyTo.text || (
+    m.replyTo.type === 'image' ? '📷 Şəkil' :
+    m.replyTo.type === 'video' ? '🎬 Video' :
+    m.replyTo.type === 'audio' ? '🎤 Səs mesajı' :
+    m.replyTo.type === 'file' ? '📎 Fayl' : 'Mesaj'
+  );
+  return (
+    <div className={styles.messageReplyQuote}>
+      <strong>{who}</strong>
+      <span>{preview}</span>
+    </div>
+  );
+}
+
 function MessageBubble({
   m,
   myId,
@@ -189,6 +214,8 @@ function MessageBubble({
   if (m.type === 'audio' && m.audioUrl) {
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <VoiceMessagePlayer src={m.audioUrl} durationMs={m.audioDurationMs} />
         <div className={styles.bubbleMeta}>🎤 Səs mesajı · {timeLabel} {statusMark && <span className={statusClass}>{statusMark}</span>}</div>
       </div>
@@ -198,6 +225,8 @@ function MessageBubble({
   if ((m.type === 'image' || m.type === 'video') && m.mediaUrl) {
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <button
           type="button"
           className={styles.mediaOpenBtn}
@@ -223,6 +252,8 @@ function MessageBubble({
     const ext = (m.fileName || '').split('.').pop()?.toUpperCase() || 'FILE';
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <button
           type="button"
           className={styles.waDocCard}
@@ -245,6 +276,8 @@ function MessageBubble({
     const mapsUrl = m.mediaUrl || `https://www.google.com/maps?q=${m.locationLat},${m.locationLng}`;
     return (
       <div className={cls}>
+        <ReplyQuote m={m} myId={myId} />
+        {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={styles.waLocationCard}>
           <img src={staticMapUrl(m.locationLat, m.locationLng)} alt="Xəritə" className={styles.waLocationMap} />
           <span className={styles.waLocationLabel}>📍 {m.text || 'Konum'}</span>
@@ -260,6 +293,8 @@ function MessageBubble({
 
   return (
     <div className={cls}>
+      <ReplyQuote m={m} myId={myId} />
+      {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
       <span className={styles.bubbleText}>{m.text}</span>
       <div className={styles.bubbleTime}>
         {timeLabel}
@@ -294,6 +329,9 @@ export default function MessagesPageClient() {
   const [messageContacts, setMessageContacts] = useState<MessageContact[]>([]);
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([]);
   const [listSearch, setListSearch] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [chatSelectionMode, setChatSelectionMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
 
   const [showSearch, setShowSearch] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -304,6 +342,8 @@ export default function MessagesPageClient() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [contextMenu, setContextMenu] = useState<{ message: StoredMessage; anchor: DOMRect } | null>(null);
   const [editingMessage, setEditingMessage] = useState<StoredMessage | null>(null);
+  const [replyTarget, setReplyTarget] = useState<StoredMessage | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<StoredMessage | null>(null);
   const [mediaViewer, setMediaViewer] = useState<{
     url: string;
     type: 'image' | 'video' | 'file';
@@ -360,24 +400,22 @@ export default function MessagesPageClient() {
   }, [myId]);
 
   useEffect(() => {
-    if (!selectedChat?.chatId) {
+    const activeChatId = selectedChat?.chatId;
+    if (!activeChatId) {
       setMessages([]);
       return;
     }
-    return listenChatMessages(selectedChat.chatId, String(myId), (nextMessages) => {
+    return listenChatMessages(activeChatId, String(myId), (nextMessages) => {
       setMessages(nextMessages);
       const visible = typeof document !== 'undefined' && document.visibilityState === 'visible';
-      const now = Date.now();
-      for (const message of nextMessages) {
-        if (message.recipientId !== String(myId)) continue;
-        const status: { deliveredAt?: number; readAt?: number } = {};
-        if (!message.deliveredAt) status.deliveredAt = now;
-        if (visible && !message.readAt) status.readAt = now;
-        if (Object.keys(status).length) {
-          void markMessageReceived(message.id, status, String(myId)).catch((err) => {
-            console.warn('[Message] status update failed:', err);
-          });
-        }
+      const unread = nextMessages.filter((message) =>
+        message.recipientId === String(myId) && (!message.deliveredAt || (visible && !message.readAt))
+      );
+      if (unread.length) {
+        const status: { deliveredAt?: number; readAt?: number } = { deliveredAt: Date.now() };
+        if (visible) status.readAt = Date.now();
+        void markMessagesReceived(activeChatId, unread.map((message) => message.id), status, String(myId))
+          .catch((err) => console.warn('[Message] bulk status update failed:', err));
       }
     }, (error) => {
       console.error('[Message] mesaj tarixçəsi yüklənmədi:', error);
@@ -619,6 +657,10 @@ export default function MessagesPageClient() {
       applyIncomingMessage(message);
     });
     const unsubErrors = onChatError((payload) => {
+      if (/private message.*expired|expired.*private message/i.test(payload.message || '')) {
+        void refreshAppSocketAuth().catch((error) => console.warn('[Message] socket re-auth failed:', error));
+        return;
+      }
       if (payload.message) alert(payload.message);
     });
     const unsubDelete = onChatDelete(({ chatId, messageId }) => {
@@ -751,6 +793,7 @@ export default function MessagesPageClient() {
     setMessageText('');
     setSending(true);
     const myMeta = getMyProfileMeta();
+    let optimisticId = '';
 
     try {
       if (editingMessage) {
@@ -769,7 +812,25 @@ export default function MessagesPageClient() {
         return;
       }
 
+      optimisticId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const optimisticMessage: StoredMessage = {
+        id: optimisticId,
+        chatId: buildChatId(String(myId), String(selectedChat.id)),
+        senderId: String(myId),
+        recipientId: String(selectedChat.id),
+        type: 'text',
+        text,
+        createdAt: Date.now(),
+        replyTo: replyTarget ? {
+          id: replyTarget.id,
+          senderId: replyTarget.senderId,
+          type: replyTarget.type,
+          text: replyTarget.text || '',
+        } : undefined,
+      };
+      setMessages((prev) => [...prev, optimisticMessage]);
       const message = await sendPrivateMessage({
+        id: optimisticId,
         senderId: String(myId),
         recipientId: String(selectedChat.id),
         text,
@@ -780,14 +841,23 @@ export default function MessagesPageClient() {
         recipientName: selectedChat.name,
         recipientHandle: selectedChat.username,
         recipientAvatar: selectedChat.avatar,
+        replyTo: replyTarget ? {
+          id: replyTarget.id,
+          senderId: replyTarget.senderId,
+          type: replyTarget.type,
+          text: replyTarget.text || '',
+        } : undefined,
       });
 
+      setMessages((prev) => prev.map((item) => item.id === optimisticId ? message : item));
+      setReplyTarget(null);
       relayMessage(String(selectedChat.id), message);
       void trackMessageContact(selectedChat.id, text).catch((contactError) => {
         console.warn('[Message] contact tracking failed:', contactError);
       });
     } catch (err) {
       console.error(err);
+      if (optimisticId) setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
       alert((editingMessage ? 'Mesaj düzənlənmədi: ' : 'Mesaj göndərilmədi: ') + (err instanceof Error ? err.message : 'SERVER_ERROR'));
       setMessageText(text);
     } finally {
@@ -922,6 +992,7 @@ export default function MessagesPageClient() {
   const pendingIds = new Set(messageContacts.filter((c) => c.status === 'pending').map((c) => c.contactId));
   const pendingRequests = messageContacts.filter((c) => c.status === 'pending');
   const mainChats = chats.filter((c) => {
+    if (c.isArchived) return false;
     if (isBlocked(blockedIds, c.id)) return false;
     if (pendingIds.has(c.id)) return false;
     if (listSearch.trim()) {
@@ -930,6 +1001,58 @@ export default function MessagesPageClient() {
     }
     return true;
   });
+
+  const archivedChats = chats.filter((c) => c.isArchived && !isBlocked(blockedIds, c.id));
+
+  const toggleChatSelection = (chatId: string) => {
+    setSelectedChatIds((prev) => prev.includes(chatId) ? prev.filter((id) => id !== chatId) : [...prev, chatId]);
+  };
+
+  const cancelChatSelection = () => { setChatSelectionMode(false); setSelectedChatIds([]); };
+
+  const deleteSelectedChats = async () => {
+    const targets = chats.filter((chat) => selectedChatIds.includes(chat.chatId));
+    if (!targets.length) return;
+    if (!window.confirm(`${targets.length} söhbət siyahıdan silinsin? Mesajlar qarşı tərəfdə qalacaq.`)) return;
+    const removed = new Set<string>();
+    for (const chat of targets) {
+      try {
+        await deletePrivateChat(chat.chatId, String(myId));
+        removed.add(chat.chatId);
+      } catch (error) {
+        console.error('[Message] chat delete failed:', chat.chatId, error);
+        alert(`${chat.name}: söhbət silinmədi: ${error instanceof Error ? error.message : 'SERVER_ERROR'}`);
+      }
+    }
+    setChats((prev) => prev.filter((chat) => !removed.has(chat.chatId)));
+    cancelChatSelection();
+  };
+
+  const archiveSelectedChats = async (archived: boolean) => {
+    const targets = chats.filter((chat) => selectedChatIds.includes(chat.chatId));
+    const succeeded = new Set<string>();
+    for (const chat of targets) {
+      try {
+        await setPrivateChatArchived(chat.chatId, String(myId), archived);
+        succeeded.add(chat.chatId);
+      } catch (error) {
+        console.error('[Message] bulk archive failed:', chat.chatId, error);
+        alert(`${chat.name}: arxiv əməliyyatı alınmadı: ${error instanceof Error ? error.message : 'SERVER_ERROR'}`);
+      }
+    }
+    setChats((prev) => prev.map((chat) => succeeded.has(chat.chatId) ? { ...chat, isArchived: archived } : chat));
+    cancelChatSelection();
+  };
+
+  const handleArchiveChat = async (chat: ChatItem, archived: boolean) => {
+    try {
+      await setPrivateChatArchived(chat.chatId, String(myId), archived);
+      setChats((prev) => prev.map((item) => item.chatId === chat.chatId ? { ...item, isArchived: archived } : item));
+    } catch (error) {
+      console.error('[Message] arxiv əməliyyatı alınmadı:', error);
+      alert('Söhbət arxivlənmədi: ' + (error instanceof Error ? error.message : 'SERVER_ERROR'));
+    }
+  };
 
   const allianceName =
     typeof window !== 'undefined' ? localStorage.getItem('app_user_alliance_name') || '' : '';
@@ -1021,37 +1144,6 @@ export default function MessagesPageClient() {
     clearSelection();
   }, [clearSelection, getSelectedMessages]);
 
-  const shareSelected = useCallback(async () => {
-    const texts = getSelectedMessages()
-      .map((m) => m.text || messagePreview(m))
-      .join('\n');
-    if (!texts) return;
-    if (navigator.share) {
-      try {
-        await navigator.share({ text: texts });
-      } catch {
-        /* cancelled */
-      }
-    } else {
-      await copySelectedText();
-    }
-    clearSelection();
-  }, [clearSelection, copySelectedText, getSelectedMessages]);
-
-  const forwardSelected = useCallback(async () => {
-    const texts = getSelectedMessages()
-      .map((m) => m.text || messagePreview(m))
-      .join('\n');
-    if (!texts) return;
-    try {
-      await navigator.clipboard.writeText(texts);
-      alert('Mesaj kopyalandı — başqa söhbətə yapışdırıb göndərə bilərsən.');
-    } catch {
-      alert('Ötürmə mümkün olmadı');
-    }
-    clearSelection();
-  }, [clearSelection, getSelectedMessages]);
-
   const deleteSelected = useCallback(async () => {
     if (!selectedChat || selectedIds.length === 0) return;
     if (!window.confirm(`${selectedIds.length} mesaj silinsin?`)) return;
@@ -1108,6 +1200,65 @@ export default function MessagesPageClient() {
     } catch (err) {
       console.error('[Message] clear chat failed:', err);
       alert('Söhbət təmizlənə bilmədi.');
+    }
+  };
+
+  const handlePinMessage = async (message: StoredMessage) => {
+    setContextMenu(null);
+    try {
+      const pinnedBy = await toggleMessagePin(message.id, message.chatId, String(myId));
+      setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, pinnedBy } : item));
+    } catch (error) {
+      console.error('[Message] pin failed:', error);
+      alert('Mesaj sabitlənmədi: ' + (error instanceof Error ? error.message : 'SERVER_ERROR'));
+    }
+  };
+
+  const handleReactMessage = async (message: StoredMessage, emoji: string) => {
+    setContextMenu(null);
+    try {
+      const reactions = await toggleMessageReaction(message.id, message.chatId, emoji, String(myId));
+      setMessages((prev) => prev.map((item) => item.id === message.id ? { ...item, reactions } : item));
+    } catch (error) {
+      console.error('[Message] reaction failed:', error);
+      alert('Reaksiya göndərilmədi.');
+    }
+  };
+
+  const handleForwardToUser = async (user: AppUserProfile) => {
+    if (!forwardingMessage) return;
+    const myMeta = getMyProfileMeta();
+    try {
+      const forwarded = await forwardPrivateMessage({
+        messageId: forwardingMessage.id,
+        targetUserId: String(user.id),
+        senderId: String(myId),
+        senderName: myMeta.name,
+        senderHandle: myMeta.handle,
+        senderAvatar: myMeta.avatar,
+        forwardedFromName: forwardingMessage.senderId === String(myId)
+          ? myMeta.name
+          : (selectedChat?.name || 'İstifadəçi'),
+      });
+      relayPrivateMessage(String(user.id), forwarded);
+      const targetChat: ChatItem = {
+        chatId: forwarded.chatId,
+        id: String(user.id),
+        name: [user.name, user.surname].filter(Boolean).join(' ') || user.handle || 'İstifadəçi',
+        username: user.handle || '',
+        avatar: user.avatar || DEFAULT_AVATAR,
+        isOnline: false,
+        lastMsg: messagePreview(forwarded),
+        time: formatTime(forwarded.createdAt),
+      };
+      setChats((prev) => [targetChat, ...prev.filter((chat) => chat.chatId !== targetChat.chatId)]);
+      setForwardingMessage(null);
+      setShowSearch(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (error) {
+      console.error('[Message] forward failed:', error);
+      alert('Mesaj ötürülmədi: ' + (error instanceof Error ? error.message : 'SERVER_ERROR'));
     }
   };
 
@@ -1271,11 +1422,18 @@ export default function MessagesPageClient() {
           <MessageSelectionBar
             count={selectedIds.length}
             onCancel={clearSelection}
-            onDelete={() => void deleteSelected()}
             onCopy={() => void copySelectedText()}
-            onForward={() => void forwardSelected()}
-            onShare={() => void shareSelected()}
+            onDelete={() => void deleteSelected()}
           />
+        ) : chatSelectionMode && !selectedChat ? (
+          <div className={styles.selectionBar}>
+            <button type="button" className={styles.selectionBarBtn} onClick={cancelChatSelection}>✕</button>
+            <strong className={styles.selectionBarCount}>{selectedChatIds.length} söhbət</strong>
+            <div className={styles.selectionBarActions}>
+              <button type="button" className={styles.selectionBarBtn} onClick={() => void archiveSelectedChats(!showArchived)} disabled={!selectedChatIds.length}>{showArchived ? 'Arxivdən çıxar' : '↓ Arxivlə'}</button>
+              <button type="button" className={styles.selectionBarBtn} onClick={() => void deleteSelectedChats()} disabled={!selectedChatIds.length} title="Söhbətləri sil">🗑️</button>
+            </div>
+          </div>
         ) : selectedChat ? (
           <>
             <button type="button" className={styles.msgHubIconBtn} onClick={() => setSelectedChat(null)} aria-label="Geri">
@@ -1295,6 +1453,7 @@ export default function MessagesPageClient() {
               <button type="button" className={`${styles.msgHubIconBtn} ${styles.msgHubIconBtnAccent}`} onClick={() => void handleStartCall('video')} aria-label={t.messages.videoCall} title={t.messages.videoCall}>
                 <IconVideo />
               </button>
+              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setSelectionMode(true); setSelectedIds([]); }} aria-label="Mesaj seç">Seç</button>
               <button type="button" className={styles.msgHubIconBtn} onClick={() => setShowActions(true)} aria-label="Daha çox">
                 <IconMore />
               </button>
@@ -1307,6 +1466,8 @@ export default function MessagesPageClient() {
               <p className={styles.msgHubSubtitle}>13+ · Təhlükəsiz söhbət</p>
             </div>
             <div className={styles.headerActions}>
+              <button type="button" className={styles.msgHubIconBtn} onClick={() => { setShowArchived((v) => !v); cancelChatSelection(); }} title="Arxiv" aria-label="Arxiv">{`Arxiv (${archivedChats.length})`}</button>
+              <button type="button" className={styles.msgHubIconBtn} onClick={() => { if (chatSelectionMode) { cancelChatSelection(); } else { setSelectedChat(null); setInboxTab('chats'); setChatSelectionMode(true); setSelectedChatIds([]); } }} title="Söhbətləri seç" aria-label="Söhbətləri seç">{chatSelectionMode ? 'Ləğv et' : 'Söhbət seç'}</button>
               <button type="button" className={styles.msgHubIconBtn} onClick={() => setShowCallSettings(true)} title="Zəng parametrləri" aria-label="Zəng parametrləri">
                 <IconSettings />
               </button>
@@ -1358,7 +1519,21 @@ export default function MessagesPageClient() {
                   <span className={styles.msgRequestChevron}>›</span>
                 </button>
               )}
-              {mainChats.length === 0 ? (
+              {showArchived ? (
+                <>
+                  <div className={styles.msgChatTop}><strong>Arxivlənmiş söhbətlər</strong><button type="button" className={styles.secondaryBtn} onClick={() => setShowArchived(false)}>Geri</button></div>
+                  {archivedChats.length === 0 ? <div className={styles.msgEmpty}><p>Arxiv boşdur</p></div> : archivedChats.map((chat) => (
+                    <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ''}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : (setSelectedChat(chat), setShowArchived(false))} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
+                      {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(e) => { e.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
+                      <div className={styles.msgChatBody}>
+                        <div className={styles.msgChatTop}><span className={styles.msgChatName}>{chat.name}</span><span className={styles.msgChatTime}>{chat.time}</span></div>
+                        <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
+                      </div>
+                      {!chatSelectionMode && <button type="button" className={styles.secondaryBtn} onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, false); }}>Arxivdən çıxar</button>}
+                    </div>
+                  ))}
+                </>
+              ) : mainChats.length === 0 ? (
                 <div className={styles.msgEmpty}>
                   <div className={styles.msgEmptyIcon}>💬</div>
                   <p>Söhbət yoxdur</p>
@@ -1366,7 +1541,8 @@ export default function MessagesPageClient() {
                 </div>
               ) : (
                 mainChats.map((chat) => (
-                  <div key={chat.chatId} className={styles.msgChatRow} onClick={() => setSelectedChat(chat)}>
+                  <div key={chat.chatId} role={chatSelectionMode ? 'button' : undefined} tabIndex={chatSelectionMode ? 0 : undefined} className={`${styles.msgChatRow} ${selectedChatIds.includes(chat.chatId) ? styles.messageRowSelected : ""}`} onClick={() => chatSelectionMode ? toggleChatSelection(chat.chatId) : setSelectedChat(chat)} onKeyDown={(event) => { if (chatSelectionMode && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleChatSelection(chat.chatId); } }}> 
+                    {chatSelectionMode && <button type="button" className={styles.selectionBarBtn} onClick={(event) => { event.stopPropagation(); toggleChatSelection(chat.chatId); }}>{selectedChatIds.includes(chat.chatId) ? '☑' : '□'}</button>}
                     <img src={chat.avatar || DEFAULT_AVATAR} alt="" className={styles.msgHubAvatar} onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = DEFAULT_AVATAR; }} />
                     <div className={styles.msgChatBody}>
                       <div className={styles.msgChatTop}>
@@ -1375,6 +1551,18 @@ export default function MessagesPageClient() {
                       </div>
                       <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                     </div>
+                    {!chatSelectionMode && (
+                      <button
+                        type="button"
+                        className={styles.chatArchiveAction}
+                        aria-label={`${chat.name} söhbətini arxivlə`}
+                        title="Söhbəti arxivlə"
+                        onClick={(event) => { event.stopPropagation(); void handleArchiveChat(chat, true); }}
+                      >
+                        ↓ Arxivlə
+                      </button>
+                    )}
+
                   </div>
                 ))
               )}
@@ -1475,7 +1663,17 @@ export default function MessagesPageClient() {
                 onGutterLongPress={enterSelection}
                 onToggleSelect={toggleSelect}
               >
+                {(m.pinnedBy?.length || 0) > 0 && <span className={styles.messagePinnedLabel}>📌 Sabitlənib</span>}
                 <MessageBubble m={m} myId={myId} onOpenMedia={handleOpenMedia} />
+                {m.reactions && Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).length > 0 && (
+                  <div className={styles.messageReactions}>
+                    {Object.entries(m.reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) => (
+                      <button key={emoji} type="button" className={ids.includes(String(myId)) ? styles.messageReactionActive : ''} onClick={() => void handleReactMessage(m, emoji)}>
+                        {emoji} {ids.length}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </ChatMessageRow>
             ))}
           </div>
@@ -1483,6 +1681,12 @@ export default function MessagesPageClient() {
             <div className={styles.voiceRecordingBar}>
               <span className={styles.voiceRecDot} aria-hidden />
               🎤 Səs yazılır · {recordElapsed}s — buraxın və ya mikrofona toxunun
+            </div>
+          )}
+          {replyTarget && !editingMessage && (
+            <div className={styles.editBanner}>
+              <span>↩️ Cavab: {replyTarget.text || messagePreview(replyTarget)}</span>
+              <button type="button" onClick={() => setReplyTarget(null)}>Ləğv</button>
             </div>
           )}
           {editingMessage && (
@@ -1612,13 +1816,13 @@ export default function MessagesPageClient() {
       )}
 
       {showSearch && (
-        <div className={styles.modalOverlay} onClick={() => setShowSearch(false)}>
+        <div className={styles.modalOverlay} onClick={() => { setShowSearch(false); setForwardingMessage(null); }}>
           <div className={styles.modalSheet} onClick={(e) => e.stopPropagation()}>
-            <h2 className={styles.modalTitle}>{t.messages.search}</h2>
+            <h2 className={styles.modalTitle}>{forwardingMessage ? 'Mesajı kimə ötürək?' : t.messages.search}</h2>
             <input className={styles.input} placeholder={t.messages.searchPlaceholder} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             <button type="button" className={styles.primaryBtn} onClick={runSearch}>{t.messages.searchBtn}</button>
             {searchResults.map((u) => (
-              <div key={u.id} className={styles.userResult} onClick={() => startChatWithUser(u)}>
+              <div key={u.id} className={styles.userResult} onClick={() => forwardingMessage ? void handleForwardToUser(u) : void startChatWithUser(u)}>
                 <img src={u.avatar || DEFAULT_AVATAR} alt="" className={styles.avatar} />
                 <div>
                   <div style={{ fontWeight: 800 }}>{u.name} {u.surname}</div>
@@ -1626,6 +1830,11 @@ export default function MessagesPageClient() {
                 </div>
               </div>
             ))}
+            {forwardingMessage && (
+              <button type="button" className={styles.secondaryBtn} onClick={() => { setForwardingMessage(null); setShowSearch(false); }}>
+                Ləğv et
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1657,10 +1866,32 @@ export default function MessagesPageClient() {
           anchor={contextMenu.anchor}
           myId={myId}
           onEdit={() => handleStartEdit(contextMenu.message)}
+          onPin={() => void handlePinMessage(contextMenu.message)}
+          onReply={() => { setReplyTarget(contextMenu.message); setContextMenu(null); }}
+          onForward={() => { setForwardingMessage(contextMenu.message); setSearchQuery(''); setSearchResults([]); setShowSearch(true); setContextMenu(null); }}
+          onReact={(emoji) => void handleReactMessage(contextMenu.message, emoji)}
           onDelete={() => void handleDeleteMessage(contextMenu.message)}
           onCopy={() => {
-            const t = contextMenu.message.text || messagePreview(contextMenu.message);
-            void navigator.clipboard.writeText(t);
+            const value = contextMenu.message.text || messagePreview(contextMenu.message);
+            if (navigator.clipboard?.writeText) {
+              void navigator.clipboard.writeText(value).catch(() => {
+                const field = document.createElement('textarea');
+                field.value = value;
+                field.style.position = 'fixed';
+                field.style.opacity = '0';
+                document.body.appendChild(field);
+                field.select();
+                try { document.execCommand('copy'); } finally { field.remove(); }
+              });
+            } else {
+              const field = document.createElement('textarea');
+              field.value = value;
+              field.style.position = 'fixed';
+              field.style.opacity = '0';
+              document.body.appendChild(field);
+              field.select();
+              try { document.execCommand('copy'); } finally { field.remove(); }
+            }
             setContextMenu(null);
           }}
           onClose={() => setContextMenu(null)}
