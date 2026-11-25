@@ -562,9 +562,13 @@ export default function MessagesPageClient() {
       recordStreamRef.current?.getTracks().forEach((track) => track.stop());
       recordStreamRef.current = null;
 
+      const wasCancelled = recordCancelledRef.current;
+      recordCancelledRef.current = false;
       const blobType = recorder.mimeType || mimeType || 'audio/webm';
       const blob = new Blob(recordChunksRef.current, { type: blobType });
       recordChunksRef.current = [];
+
+      if (wasCancelled) return;
 
       const durationMs = Math.max(0, Date.now() - recordStartRef.current);
       const chat = selectedChatRef.current;
@@ -873,6 +877,7 @@ export default function MessagesPageClient() {
   const startRecording = async () => {
     if (!selectedChatRef.current || mediaRecorderRef.current) return;
     recordPendingStopRef.current = false;
+    recordCancelledRef.current = false;
 
     const allowed = await ensureMediaPermission('microphone');
     if (!allowed) {
@@ -929,38 +934,53 @@ export default function MessagesPageClient() {
   };
 
   const micPressStartedAtRef = useRef(0);
-  const micLockedRef = useRef(false);
-  const micWasRecordingAtPressRef = useRef(false);
+  const micPointerStartXRef = useRef<number | null>(null);
   const micPointerStartYRef = useRef<number | null>(null);
+  const recordCancelledRef = useRef(false);
 
   const onMicHoldStart = (e: React.PointerEvent) => {
     if (sending || messageText.trim()) return;
     e.preventDefault();
     micPressStartedAtRef.current = Date.now();
-    micWasRecordingAtPressRef.current = Boolean(recording || mediaRecorderRef.current);
+    micPointerStartXRef.current = e.clientX;
     micPointerStartYRef.current = e.clientY;
-    micLockedRef.current = false;
+    recordCancelledRef.current = false;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     if (!recording && !mediaRecorderRef.current) void startRecording();
   };
 
   const onMicPointerMove = (e: React.PointerEvent) => {
-    if (micPointerStartYRef.current === null || !micPressStartedAtRef.current) return;
-    if (micPointerStartYRef.current - e.clientY > 58) micLockedRef.current = true;
+    if (micPointerStartXRef.current === null || micPointerStartYRef.current === null) return;
+    // Sola sürüşdür: səs yazısını ləğv et, heç kimə göndərmə.
+    if (micPointerStartXRef.current - e.clientX > 72) {
+      recordCancelledRef.current = true;
+      stopRecording();
+      micPointerStartXRef.current = null;
+      micPointerStartYRef.current = null;
+      micPressStartedAtRef.current = 0;
+    }
   };
 
-  const onMicHoldEnd = () => {
-    if (micPointerStartYRef.current === null) return;
-    const heldFor = Date.now() - micPressStartedAtRef.current;
+  const onMicHoldEnd = (e: React.PointerEvent) => {
+    if (micPointerStartXRef.current === null) return;
+    e.preventDefault();
+    micPointerStartXRef.current = null;
     micPointerStartYRef.current = null;
     micPressStartedAtRef.current = 0;
-    if (micLockedRef.current) return;
-    if (micWasRecordingAtPressRef.current || heldFor >= 220) stopRecording();
-    micWasRecordingAtPressRef.current = false;
+    if (!recordCancelledRef.current) stopRecording();
+  };
+
+  const onMicCancel = () => {
+    if (micPointerStartXRef.current === null) return;
+    recordCancelledRef.current = true;
+    micPointerStartXRef.current = null;
+    micPointerStartYRef.current = null;
+    micPressStartedAtRef.current = 0;
+    stopRecording();
   };
 
   const onMicClick = () => {
-    // Klaviatura ilə aktivləşdirmə üçün əlçatanlıq ehtiyatı.
+    // Klaviatura ilə istifadə: Enter/Space yazını başladır və növbəti aktivləşdirmə göndərir.
     if (recording || mediaRecorderRef.current) stopRecording();
     else if (!sending && !messageText.trim()) void startRecording();
   };
@@ -1822,12 +1842,11 @@ export default function MessagesPageClient() {
                 onPointerDown={onMicHoldStart}
                 onPointerMove={onMicPointerMove}
                 onPointerUp={onMicHoldEnd}
-                onPointerCancel={onMicHoldEnd}
-                onPointerLeave={onMicHoldEnd}
+                onPointerCancel={onMicCancel}
                 onClick={(event) => { if (event.detail === 0) onMicClick(); }}
                 disabled={sending}
-                title="Toxunaraq başlat, yenidən toxunaraq göndər; basıb saxla və yuxarı sürüşdürərək kilidlə"
-                aria-label="Səs mesajı yaz"
+                title="Basılı saxlayın, buraxanda göndərilir. Sola sürüşdürəndə ləğv olunur."
+                aria-label="Səs yaz: buraxanda göndər, sola sürüşdürəndə ləğv et"
               >
                 <IconMic />
               </button>
