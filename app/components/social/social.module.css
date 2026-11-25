@@ -3768,3 +3768,88 @@
   visibility: visible !important;
   pointer-events: auto !important;
 }
+
+
+/* Inline voice recorder: waveform stays inside the message composer. */
+.msgHubPage .voiceComposeActive {
+  min-height: 46px !important;
+  height: 46px !important;
+  border: 1px solid rgba(239, 68, 68, .38);
+  border-radius: 999px;
+  background: rgba(31, 18, 27, .96);
+  overflow: hidden !important;
+}
+.msgHubPage .voiceComposeVisual {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 46px;
+  min-width: 0;
+  padding: 0 12px;
+  box-sizing: border-box;
+  color: #f8fafc;
+}
+.msgHubPage .voiceElapsed {
+  flex: 0 0 auto;
+  min-width: 25px;
+  color: #fca5a5;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.msgHubPage .voiceWave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 28px;
+  height: 30px;
+  overflow: hidden;
+}
+.msgHubPage .voiceWave i {
+  display: block;
+  width: 3px;
+  min-width: 2px;
+  height: 7px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #67e8f9, #a78bfa);
+  animation: gesbxVoiceWave .62s ease-in-out infinite alternate;
+}
+@keyframes gesbxVoiceWave {
+  from { height: 4px; opacity: .55; }
+  to { height: 25px; opacity: 1; }
+}
+.msgHubPage .voiceGestureHint {
+  flex: 0 0 auto;
+  color: #aab8c4;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.msgHubPage .voiceTrashBtn {
+  display: inline-flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(248, 113, 113, .45);
+  border-radius: 50%;
+  color: #fca5a5;
+  background: rgba(127, 29, 29, .28);
+}
+.msgHubPage .voiceTrashBtn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.msgHubPage .msgComposeMicBtn {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
