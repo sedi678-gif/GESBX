@@ -11,6 +11,7 @@ export {
   isAppSocketConnected,
 
   getAppSocket,
+  refreshAppSocketAuth,
 
   connectAppSocket as connectMessageSocket,
 
