@@ -793,6 +793,7 @@ export default function MessagesPageClient() {
     setMessageText('');
     setSending(true);
     const myMeta = getMyProfileMeta();
+    let optimisticId = '';
 
     try {
       if (editingMessage) {
@@ -811,7 +812,7 @@ export default function MessagesPageClient() {
         return;
       }
 
-      const optimisticId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      optimisticId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const optimisticMessage: StoredMessage = {
         id: optimisticId,
         chatId: buildChatId(String(myId), String(selectedChat.id)),
@@ -856,7 +857,7 @@ export default function MessagesPageClient() {
       });
     } catch (err) {
       console.error(err);
-      if (!editingMessage) setMessages((prev) => prev.filter((item) => !item.id.startsWith('msg_') || item.text !== text));
+      if (optimisticId) setMessages((prev) => prev.filter((item) => item.id !== optimisticId));
       alert((editingMessage ? 'Mesaj düzənlənmədi: ' : 'Mesaj göndərilmədi: ') + (err instanceof Error ? err.message : 'SERVER_ERROR'));
       setMessageText(text);
     } finally {
