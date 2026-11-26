@@ -93,8 +93,17 @@ type InvitePayload = {
  * ona görə bu funksiya əvvəlcə Cloud Function-dan hazır token istəyir; funksiya əlçatan deyilsə
  * xəta atılır (sessiyaya secret yazmaq qadağandır).
  */
+function encodeUtf8Base64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
 async function generateTestKitToken(
-  ZegoUIKitPrebuilt: ZegoUIKitModule['ZegoUIKitPrebuilt'],
+  _ZegoUIKitPrebuilt: ZegoUIKitModule['ZegoUIKitPrebuilt'],
   roomID: string,
   userID: string,
   userName: string
@@ -102,31 +111,29 @@ async function generateTestKitToken(
   const appID = Number(getZegoAppId());
   const rid = String(roomID ?? '');
   const uid = String(userID ?? '');
-  if (!Number.isFinite(appID) || appID <= 0) {
-    throw new Error('Zego appID etibarsızdır.');
+  const name = String(userName || uid);
+  if (!Number.isInteger(appID) || appID <= 0 || appID > 0xffffffff) {
+    throw new Error('ZEGO App ID düzgün qurulmayıb.');
   }
-  if (!rid) {
-    throw new Error('Zego roomID boşdur.');
-  }
-  if (!uid) {
-    throw new Error('Zego userID boşdur.');
+  if (!rid || !uid) {
+    throw new Error('Zəng otağının və ya istifadəçinin ID-si boşdur.');
   }
 
+  // Server Token04-ü artıq ZEGO Server Secret ilə imzalayıb.
+  // UIKit-in gözlədiyi əlavə metadata hissəsini düzəldirik; Token04-ü
+  // yenidən appSign kimi imzalamaq olmaz.
   const serverToken = await prefetchZegoToken({
     roomId: rid,
     userId: uid,
-    userName: userName || uid,
+    userName: name,
   });
-
-  // ZEGO server API Token04 qaytarır. UIKit isə xam Token04 deyil,
-  // token#base64({ appID, roomID, userID, userName }) formatını tələb edir.
-  return ZegoUIKitPrebuilt.generateKitTokenForProduction(
+  const metadata = encodeUtf8Base64(JSON.stringify({
     appID,
-    serverToken,
-    rid,
-    uid,
-    userName || uid
-  );
+    roomID: rid,
+    userID: uid,
+    userName: name,
+  }));
+  return `${serverToken}#${metadata}`;
 }
 
 /** Zəng qəbul edilməmişdən əvvəl tokeni paralel hazırlayırıq. */
@@ -613,11 +620,12 @@ async function joinMediaRoom(roomId: string, callType: CallType): Promise<void> 
   }
 
   const { ZegoUIKitPrebuilt } = await loadZegoUIKit();
-  const kitToken = await prefetchZegoToken({
-    roomId: rid,
-    userId: uid,
-    userName: String(activeUserName || uid),
-  });
+  const kitToken = await generateTestKitToken(
+    ZegoUIKitPrebuilt,
+    rid,
+    uid,
+    String(activeUserName || uid)
+  );
   const zp = ZegoUIKitPrebuilt.create(kitToken);
   patchJoinRoom(zp);
   applyLiveStageStyle(getOrCreateZegoStage());
