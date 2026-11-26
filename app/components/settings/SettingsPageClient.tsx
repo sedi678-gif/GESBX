@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/firebase';
+import { notifyUserIdChanged } from '@/app/lib/userId';
 import AppLink from '@/app/components/AppLink';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import { useSettings } from '@/context/SettingsContext';
@@ -54,6 +57,7 @@ export default function SettingsPageClient() {
   const [confirmAction, setConfirmAction] = useState<'freeze' | 'delete' | null>(null);
   const [deleteWord, setDeleteWord] = useState('');
   const [accountBusy, setAccountBusy] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<AppUserProfile[]>([]);
   const [blockedLoading, setBlockedLoading] = useState(true);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
@@ -138,6 +142,30 @@ export default function SettingsPageClient() {
       notify(t.accountActionError);
     } finally {
       setAccountBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      // Firebase session is the source of truth; clear the active profile cache
+      // so this device cannot briefly display the previous account after logout.
+      await signOut(auth);
+      try {
+        localStorage.removeItem('app_current_user_v6');
+        localStorage.removeItem('app_user_alliance_name');
+      } catch {
+        // Storage may be unavailable in a restricted WebView; Firebase sign-out
+        // still invalidates the persisted authentication session.
+      }
+      notifyUserIdChanged();
+      router.replace('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Hesabdan çıxış xətası:', error);
+      notify('Hesabdan çıxış alınmadı. Yenidən cəhd edin.');
+      setLoggingOut(false);
     }
   };
 
@@ -309,6 +337,16 @@ export default function SettingsPageClient() {
             checked={settings.account.autoPlayVideos}
             onChange={(v) => void updateSettings({ account: { ...settings.account, autoPlayVideos: v } })}
           />
+
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            disabled={loggingOut || accountBusy}
+            onClick={() => void handleLogout()}
+            style={{ width: '100%', marginTop: 12 }}
+          >
+            {loggingOut ? 'Çıxış edilir...' : '↪ Hesabdan çıxış'}
+          </button>
 
           <div className={styles.dangerZone}>
             <h3 className={styles.dangerZoneTitle}>⚠️ {t.dangerZone}</h3>
