@@ -810,6 +810,33 @@ export async function initZegoCallKit(
   return initPromise;
 }
 
+async function ensureZegoInviteeRegistered(
+  appUserId: string,
+  userName: string,
+  userAvatar?: string
+): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Firebase istifadəçi sessiyası tapılmadı.');
+  const idToken = await user.getIdToken();
+  const response = await fetch('/api/paypal?handler=zego-register-user', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId: appUserId, userName, userAvatar: userAvatar || '' }),
+    cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.registered !== true) {
+    const reason = String(data?.message || data?.error || `HTTP ${response.status}`);
+    if (response.status === 404) {
+      throw new Error('Zəng edilən şəxsin GESBX profili tapılmadı. Profil ID-sini yoxlayın.');
+    }
+    throw new Error(`Qarşı tərəfin ZEGO qeydiyyatı tamamlanmadı: ${reason}`);
+  }
+}
+
 export async function sendZegoCallInvitation(
   zp: ZegoInstance,
   params: {
@@ -876,7 +903,7 @@ export async function sendZegoCallInvitation(
 
   bindZimListeners(zim);
 
-  const result = await zim.callInvite([calleeZegoId], {
+  // ZIM callInvite 107026: invitee UserID must exist in ZEGO ZIM. Register it server-side first.\n  await ensureZegoInviteeRegistered(params.calleeId, params.calleeName, params.calleeAvatar);\n\n  const result = await zim.callInvite([calleeZegoId], {
     timeout: params.timeout ?? 60,
     mode: 1,
     extendedData: JSON.stringify(payload),
