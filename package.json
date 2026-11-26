@@ -39,7 +39,7 @@
     "@capacitor/core": "^8.5.0",
     "@capacitor/ios": "^8.5.3",
     "@react-google-maps/api": "^2.20.8",
-    "@zegocloud/zego-uikit-prebuilt": "^2.18.4",
+    "@zegocloud/zego-uikit-prebuilt": "2.18.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
