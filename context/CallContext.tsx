@@ -33,6 +33,25 @@ import CallUiHost from '@/app/components/messages/CallUiHost';
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80';
 
+function describeCallError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object') {
+    const value = error as Record<string, unknown>;
+    const message = value.message || value.errorMessage || value.reason || value.error;
+    const code = value.code || value.errorCode;
+    if (message && code) return `${String(message)} (kod: ${String(code)})`;
+    if (message) return String(message);
+    if (code) return `ZEGO xəta kodu: ${String(code)}`;
+    try {
+      const details = JSON.stringify(error);
+      if (details && details !== '{}') return `ZEGO cavabı: ${details.slice(0, 400)}`;
+    } catch {
+      // Use the safe fallback below.
+    }
+  }
+  return 'Zəng xidməti cavab vermədi. İnternet bağlantısını yoxlayıb yenidən cəhd edin.';
+}
+
 interface ActiveCallState {
   callId: string;
   callType: CallType;
@@ -285,8 +304,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         });
       } catch (err) {
         console.error('[Zego] sendCallInvitation failed:', err);
-        const msg = err instanceof Error ? err.message : 'Zəng göndərilmədi.';
-        setCallError(msg);
+        setCallError(describeCallError(err));
       }
     },
     [myId, buildKitOptions]
