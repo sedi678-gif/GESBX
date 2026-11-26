@@ -60,6 +60,34 @@ let remoteRoomPeers = 0;
 // Zəng dəvəti gedərkən otaq tokenini əvvəlcədən alırıq ki, qəbul ediləndə gözləmə olmasın.
 const mediaTokenCache = new Map<string, { promise: Promise<string>; expiresAt: number }>();
 
+// ZEGO ZIM user registration is persistent. Cache successful registrations so
+// every call does not wait for another Firebase -> Vercel -> ZEGO round trip.
+const inviteeRegistrationPromises = new Map<string, Promise<void>>();
+
+function inviteeRegistrationCacheKey(appUserId: string): string {
+  return `gesbx_zego_registered_v1:${getZegoAppId()}:${toZegoUserId(appUserId)}`;
+}
+
+function hasCachedInviteeRegistration(key: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function cacheInviteeRegistration(key: string, registered: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (registered) window.localStorage.setItem(key, '1');
+    else window.localStorage.removeItem(key);
+  } catch {
+    // Private browsing/storage restrictions must not block calling.
+  }
+}
+
+
 type ZimUser = { userID: string; userName?: string };
 type ZimLike = {
   callInvite: (
@@ -840,26 +868,64 @@ async function ensureZegoInviteeRegistered(
   userName: string,
   userAvatar?: string
 ): Promise<void> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Firebase istifadəçi sessiyası tapılmadı.');
-  const idToken = await user.getIdToken();
-  const response = await fetch('/api/paypal?handler=zego-register-user', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${idToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ userId: appUserId, userName, userAvatar: userAvatar || '' }),
-    cache: 'no-store',
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data?.registered !== true) {
-    const reason = String(data?.message || data?.error || `HTTP ${response.status}`);
-    if (response.status === 404) {
-      throw new Error('Zəng edilən şəxsin GESBX profili tapılmadı. Profil ID-sini yoxlayın.');
+  const cacheKey = inviteeRegistrationCacheKey(appUserId);
+  if (hasCachedInviteeRegistration(cacheKey)) return;
+
+  const pending = inviteeRegistrationPromises.get(cacheKey);
+  if (pending) return pending;
+
+  const task = (async () => {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Firebase istifadəçi sessiyası tapılmadı.');
+    const idToken = await user.getIdToken();
+    const response = await fetch('/api/paypal?handler=zego-register-user', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId: appUserId, userName, userAvatar: userAvatar || '' }),
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.registered !== true) {
+      const reason = String(data?.message || data?.error || `HTTP ${response.status}`);
+      if (response.status === 404) {
+        throw new Error('Zəng edilən şəxsin GESBX profili tapılmadı. Profil ID-sini yoxlayın.');
+      }
+      throw new Error(`Qarşı tərəfin ZEGO qeydiyyatı tamamlanmadı: ${reason}`);
     }
-    throw new Error(`Qarşı tərəfin ZEGO qeydiyyatı tamamlanmadı: ${reason}`);
+    cacheInviteeRegistration(cacheKey, true);
+  })();
+
+  inviteeRegistrationPromises.set(cacheKey, task);
+  try {
+    await task;
+  } finally {
+    if (inviteeRegistrationPromises.get(cacheKey) === task) {
+      inviteeRegistrationPromises.delete(cacheKey);
+    }
   }
+}
+
+/** Söhbət açılan kimi qarşı tərəfin ZIM qeydiyyatını arxa planda hazırlayır. */
+export function prepareZegoCallInvitee(
+  appUserId: string,
+  userName: string,
+  userAvatar?: string
+): Promise<void> {
+  return ensureZegoInviteeRegistered(appUserId, userName, userAvatar);
+}
+
+function isInviteeNotRegisteredError(error: unknown): boolean {
+  let detail = '';
+  try {
+    detail = typeof error === 'string' ? error : JSON.stringify(error);
+  } catch {
+    detail = String(error);
+  }
+  detail += ` ${String(error)}`;
+  return /107026|6000281|all called user not registered/i.test(detail);
 }
 
 export async function sendZegoCallInvitation(
@@ -930,14 +996,33 @@ export async function sendZegoCallInvitation(
 
   bindZimListeners(zim);
 
-  // ZIM callInvite 107026: invitee UserID must exist in ZEGO ZIM. Register it server-side first.
+  // Registration is normally warmed up when the chat opens and cached locally.
+  // Keep the server-side check as a safe fallback for first-time contacts.
+  const registrationStartedAt = Date.now();
   await ensureZegoInviteeRegistered(params.calleeId, params.calleeName, params.calleeAvatar);
+  const registrationMs = Date.now() - registrationStartedAt;
 
-  const result = await zim.callInvite([calleeZegoId], {
+  const inviteConfig = {
     timeout: params.timeout ?? 60,
     mode: 1,
     enableNotReceivedCheck: true,
     extendedData: JSON.stringify(payload),
+  };
+  const inviteStartedAt = Date.now();
+  let result: Awaited<ReturnType<typeof zim.callInvite>>;
+  try {
+    result = await zim.callInvite([calleeZegoId], inviteConfig);
+  } catch (error) {
+    // If ZEGO lost a previously registered account, repair registration once
+    // and retry only for the known "user not registered" error.
+    if (!isInviteeNotRegisteredError(error)) throw error;
+    cacheInviteeRegistration(inviteeRegistrationCacheKey(params.calleeId), false);
+    await ensureZegoInviteeRegistered(params.calleeId, params.calleeName, params.calleeAvatar);
+    result = await zim.callInvite([calleeZegoId], inviteConfig);
+  }
+  console.info('[Zego] call invite timing', {
+    zimReadyAndRegistrationMs: registrationMs,
+    callInviteMs: Date.now() - inviteStartedAt,
   });
 
   pendingZimCallId = result.callID;
