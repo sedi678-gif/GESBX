@@ -687,10 +687,26 @@ export async function initZegoCallKit(
   initPromise = (async () => {
     lastInitError = null;
     try {
-      const [{ ZegoUIKitPrebuilt }, { ZIM }] = await Promise.all([
+      const [uikitModule, zimModuleRaw] = await Promise.all([
         loadZegoUIKit(),
         import('zego-zim-web'),
       ]);
+      const { ZegoUIKitPrebuilt } = uikitModule;
+      // Next/Vercel dynamic-import interop can expose a package's named export
+      // either on the module namespace or under default. Normalize both shapes.
+      const zimModule = zimModuleRaw as unknown as {
+        ZIM?: { getVersion?: () => string };
+        default?: { ZIM?: { getVersion?: () => string }; getVersion?: () => string };
+      };
+      const ZIM =
+        zimModule.ZIM ||
+        zimModule.default?.ZIM ||
+        zimModule.default;
+      if (!ZIM || typeof ZIM.getVersion !== 'function') {
+        throw new Error(
+          'ZEGO ZIM modulu düzgün yüklənmədi (ZIM.getVersion tapılmadı). Tətbiqi yeniləyin və yenidən yoxlayın.'
+        );
+      }
 
       if (tableVoiceActive) {
         activeUserId = zegoUserId;
