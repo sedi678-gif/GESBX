@@ -6,10 +6,8 @@ import {
   flipLocalCamera,
   getCallMedia,
   listenCallMedia,
-  setCallLocalStream,
 } from '@/app/lib/callMediaBridge';
 import { startCallPulse, startRingtone, stopCallPulse, stopRingtone } from '@/app/lib/callRingtone';
-import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
   getCallUiState,
   listenCallUiState,
@@ -85,21 +83,10 @@ export default function CallUiHost() {
       minimized={minimized}
       onToggleMinimize={() => setMinimized((v) => !v)}
       onAccept={() => {
-        void (async () => {
-          void unlockCallAudio();
-          const primed = await primeCallMedia(ui.callType === 'video');
-          /* İcazə alındı — track-ləri Zego tutsun, overlay mic-i saxlamasın. */
-          releaseMediaStream(primed.stream);
-          setCallLocalStream(null);
-          if (!primed.audio) {
-            ui.refuse?.();
-            closeUi();
-            return;
-          }
-          setJoinWithCamera(ui.callType === 'video' && primed.video);
-          setCameraOn(ui.callType === 'video' && primed.video);
-          ui.accept?.();
-        })();
+        // ZegoCallKit's accept handler owns the single microphone/camera
+        // permission request. Do not call getUserMedia a second time here.
+        void unlockCallAudio();
+        ui.accept?.();
       }}
       onReject={() => {
         ui.refuse?.();
