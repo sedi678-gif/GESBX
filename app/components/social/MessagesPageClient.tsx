@@ -1123,9 +1123,26 @@ export default function MessagesPageClient() {
       alert(media.error || 'Mikrofon icazəsi verilməyib.');
       return;
     }
-    /* İcazə verildi — mikrofonu Zego-ya burax, əks halda publish olmur. */
-    releaseMediaStream(media.stream);
-    setCallLocalStream(null);
+    /*
+     * Video zəngində kamera görüntüsünü zəng dəvəti gedən andan saxla:
+     * CallOverlay gözləmə zamanı istifadəçiyə özünü göstərir. Mikrofon track-i
+     * Zego qoşulmazdan əvvəl buraxılır ki, eyni anda iki SDK mikrofonu tutmasın.
+     * Video track isə Zego otağa qoşulana qədər preview üçün açıq qalır.
+     */
+    if (callType === 'video' && media.video && media.stream) {
+      media.stream.getAudioTracks().forEach((track) => {
+        try {
+          track.stop();
+          media.stream?.removeTrack(track);
+        } catch {
+          /* track artıq dayandırılıb */
+        }
+      });
+      setCallLocalStream(media.stream);
+    } else {
+      releaseMediaStream(media.stream);
+      setCallLocalStream(null);
+    }
     startCall({
       calleeId: String(selectedChat.id),
       calleeName: selectedChat.name,
