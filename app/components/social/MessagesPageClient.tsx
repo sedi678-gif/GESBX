@@ -24,7 +24,7 @@ import { useCall } from '@/context/CallContext';
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
 import { setCallLocalStream } from '@/app/lib/callMediaBridge';
 import { setCallUiState } from '@/app/lib/callUiBridge';
-import { zegoHangUp } from '@/app/lib/zegoCallKit';
+import { prepareZegoCallInvitee, zegoHangUp } from '@/app/lib/zegoCallKit';
 import {
   primeCallMedia,
   releaseMediaStream,
@@ -384,6 +384,14 @@ export default function MessagesPageClient() {
     setContextMenu(null);
     setEditingMessage(null);
   }, [selectedChat?.chatId]);
+
+  // Prepare the ZEGO invitee as soon as a conversation is opened. This moves
+  // the one-time registration network round trip out of the Call button path.
+  useEffect(() => {
+    if (!selectedChat?.id || !myId || myId === 'guest') return;
+    void prepareZegoCallInvitee(selectedChat.id, selectedChat.name, selectedChat.avatar)
+      .catch((error) => console.debug('[Call] invitee warm-up deferred:', error));
+  }, [selectedChat?.id, selectedChat?.name, selectedChat?.avatar, myId]);
 
   useEffect(() => {
     if (!myId || myId === 'guest') return;
