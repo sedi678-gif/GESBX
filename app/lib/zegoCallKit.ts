@@ -1,7 +1,6 @@
 'use client';
 
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
-import { ZegoExpressEngine } from 'zego-express-engine-webrtc';
 import { auth } from '@/firebase';
 import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
@@ -320,17 +319,25 @@ function loadZegoUIKit(): Promise<ZegoUIKitModule> {
       installZegoBodyGuard();
       await patchSharedReactRoot();
 
-      // ZEGO's published UIKit package declares no npm dependencies. Its Web
-      // runtime still expects the Express engine to be present in the client
-      // bundle. Load it first and expose the constructor before UIKit evaluates.
-      // ZEGO-nun rəsmi Web SDK inteqrasiyası named export istifadə edir.
-      // Statik import Next/Webpack bundler-ə SDK-nı düzgün client bundle-a daxil etməyə imkan verir.
-      // Bu SDK versiyasında sinfin versiya göstəricisi "version" property-dir.
-      // UIKit-in runtime gözlədiyi getVersion metodu üçün təhlükəsiz adapter veririk.
-      const ExpressEngineCompat = ZegoExpressEngine as unknown as {
-        version?: string;
-        getVersion?: () => string;
+      // Express Engine brauzer SDK-sıdır: statik import SSR zamanı document xətası yaradır.
+      // Ona görə yalnız bu client-side funksiya çağırılanda yükləyirik.
+      if (typeof window === 'undefined' || typeof document === 'undefined') {
+        throw new Error('ZEGO zəng SDK-sı yalnız brauzerdə başladılır.');
+      }
+      const expressModule = await import('zego-express-engine-webrtc');
+      const expressExports = expressModule as unknown as {
+        ZegoExpressEngine?: { version?: string; getVersion?: () => string };
+        default?: { ZegoExpressEngine?: { version?: string; getVersion?: () => string }; version?: string; getVersion?: () => string };
       };
+      const ExpressEngineCompat =
+        expressExports.ZegoExpressEngine ||
+        expressExports.default?.ZegoExpressEngine ||
+        expressExports.default;
+      if (!ExpressEngineCompat) {
+        throw new Error('ZEGO Express Engine konstruktoru tapılmadı.');
+      }
+      // Bu SDK versiyasında versiya məlumatı "version" property-sindədir.
+      // UIKit getVersion gözlədiyi üçün yalnız uyğun adapter əlavə edirik.
       if (typeof ExpressEngineCompat.getVersion !== 'function') {
         const sdkVersion = String(ExpressEngineCompat.version || '');
         if (!sdkVersion) {
@@ -340,9 +347,9 @@ function loadZegoUIKit(): Promise<ZegoUIKitModule> {
       }
 
       const runtime = globalThis as typeof globalThis & {
-        ZegoExpressEngine?: typeof ZegoExpressEngine;
+        ZegoExpressEngine?: unknown;
       };
-      runtime.ZegoExpressEngine = ZegoExpressEngine;
+      runtime.ZegoExpressEngine = ExpressEngineCompat;
 
       zegoImportGuard = true;
       try {
