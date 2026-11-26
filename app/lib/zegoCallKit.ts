@@ -325,10 +325,18 @@ function loadZegoUIKit(): Promise<ZegoUIKitModule> {
       // bundle. Load it first and expose the constructor before UIKit evaluates.
       // ZEGO-nun rəsmi Web SDK inteqrasiyası named export istifadə edir.
       // Statik import Next/Webpack bundler-ə SDK-nı düzgün client bundle-a daxil etməyə imkan verir.
-      if (typeof ZegoExpressEngine?.getVersion !== 'function') {
-        throw new Error(
-          'ZEGO Express SDK yükləndi, lakin getVersion API-si mövcud deyil. SDK versiyası uyğun deyil.'
-        );
+      // Bu SDK versiyasında sinfin versiya göstəricisi "version" property-dir.
+      // UIKit-in runtime gözlədiyi getVersion metodu üçün təhlükəsiz adapter veririk.
+      const ExpressEngineCompat = ZegoExpressEngine as unknown as {
+        version?: string;
+        getVersion?: () => string;
+      };
+      if (typeof ExpressEngineCompat.getVersion !== 'function') {
+        const sdkVersion = String(ExpressEngineCompat.version || '');
+        if (!sdkVersion) {
+          throw new Error('ZEGO Express SDK yükləndi, lakin versiya məlumatı tapılmadı.');
+        }
+        ExpressEngineCompat.getVersion = () => sdkVersion;
       }
 
       const runtime = globalThis as typeof globalThis & {
