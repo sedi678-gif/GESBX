@@ -521,23 +521,24 @@ function bindZimListeners(zim: ZimLike) {
       peerName: payload?.peerName || inviter.userName || inviter.userID || 'İstifadəçi',
       peerAvatar: payload?.peerAvatar,
       accept: () => {
-        void zim
-          .callAccept(callID, { extendedData: '' })
-          .then(async () => {
-            // Incoming video calls request camera permission from the accept gesture.
-            // If camera access is denied or no camera exists, continue as an audio call.
-            const primed = await primeCallMedia(pendingCallType === 'video');
-            joinWithCamera = pendingCallType === 'video' && primed.video;
-            releaseMediaStream(primed.stream);
-            if (!primed.audio) {
-              throw new Error(primed.error || 'Mikrofon icazəsi verilməyib.');
-            }
-            await joinMediaRoom(pendingRoomId, pendingCallType);
-          })
-          .catch((err) => {
-            console.error('[ZIM] callAccept', err);
-            stopCallUi('accept_failed');
-          });
+        void (async () => {
+          // Prepare camera BEFORE accepting: ZIM may emit the accepted event
+          // immediately, and its listener can join the room before this promise resolves.
+          // Set the camera flag first so the first joinRoom() is a video join.
+          const acceptedCallType = pendingCallType;
+          const acceptedRoomId = pendingRoomId;
+          const primed = await primeCallMedia(acceptedCallType === 'video');
+          joinWithCamera = acceptedCallType === 'video' && primed.video;
+          releaseMediaStream(primed.stream);
+          if (!primed.audio) {
+            throw new Error(primed.error || 'Mikrofon icazəsi verilməyib.');
+          }
+          await zim.callAccept(callID, { extendedData: '' });
+          await joinMediaRoom(acceptedRoomId, acceptedCallType);
+        })().catch((err) => {
+          console.error('[ZIM] callAccept', err);
+          stopCallUi('accept_failed');
+        });
       },
       refuse: () => {
         void zim.callReject(callID, { extendedData: '' });
