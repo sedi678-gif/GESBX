@@ -318,13 +318,45 @@ function loadZegoUIKit(): Promise<ZegoUIKitModule> {
     uikitPromise = (async () => {
       installZegoBodyGuard();
       await patchSharedReactRoot();
+
+      // ZEGO's published UIKit package declares no npm dependencies. Its Web
+      // runtime still expects the Express engine to be present in the client
+      // bundle. Load it first and expose the constructor before UIKit evaluates.
+      const expressModuleRaw = await import('zego-express-engine-webrtc');
+      const expressModule = expressModuleRaw as unknown as {
+        ZegoExpressEngine?: { getVersion?: () => string };
+        default?: {
+          ZegoExpressEngine?: { getVersion?: () => string };
+          getVersion?: () => string;
+        };
+      };
+      const ExpressEngine =
+        expressModule.ZegoExpressEngine ||
+        expressModule.default?.ZegoExpressEngine ||
+        expressModule.default;
+
+      if (!ExpressEngine || typeof ExpressEngine.getVersion !== 'function') {
+        throw new Error(
+          'ZEGO Express SDK düzgün yüklənmədi: ZegoExpressEngine.getVersion tapılmadı. Paket versiyasını yoxlayın.'
+        );
+      }
+
+      const runtime = globalThis as typeof globalThis & {
+        ZegoExpressEngine?: typeof ExpressEngine;
+      };
+      runtime.ZegoExpressEngine = ExpressEngine;
+
       zegoImportGuard = true;
       try {
         return await import('@zegocloud/zego-uikit-prebuilt');
       } finally {
         zegoImportGuard = false;
       }
-    })();
+    })().catch((error) => {
+      // A failed lazy import must be retryable after a transient chunk failure.
+      uikitPromise = null;
+      throw error;
+    });
   }
   return uikitPromise;
 }
