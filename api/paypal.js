@@ -120,7 +120,11 @@ async function zegoRegisterUserApi(req, res) {
     const result = await zimResponse.json().catch(() => ({}));
     const errors = Array.isArray(result?.ErrorList) ? result.ErrorList : [];
     const onlyAlreadyRegistered = errors.length > 0 && errors.every((item) => Number(item?.SubCode) === 660700002);
-    if (!zimResponse.ok || (Number(result?.Code) !== 0 && Number(result?.Code) !== 660700002) ||
+    // ZEGO may return Code=660000001 when every requested user already exists.
+    // In that case ErrorList's SubCode=660700002 is the authoritative per-user result.
+    const registrationAccepted = Number(result?.Code) === 0 ||
+      Number(result?.Code) === 660700002 || onlyAlreadyRegistered;
+    if (!zimResponse.ok || !registrationAccepted ||
         (errors.length > 0 && !onlyAlreadyRegistered)) {
       console.error('[ZEGO user registration]', { httpStatus: zimResponse.status, code: result?.Code, errors });
       return res.status(502).json({
