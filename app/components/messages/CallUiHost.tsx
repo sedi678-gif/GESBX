@@ -12,7 +12,6 @@ import {
   getCallUiState,
   listenCallUiState,
   requestCallInvite,
-  setCallUiState,
 } from '@/app/lib/callUiBridge';
 import {
   setJoinWithCamera,
@@ -65,8 +64,6 @@ export default function CallUiHost() {
   }, [ui]);
 
   if (!ui) return null;
-
-  const closeUi = () => setCallUiState(null);
 
   return (
     <CallOverlay
