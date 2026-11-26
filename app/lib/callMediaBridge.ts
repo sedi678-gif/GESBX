@@ -242,7 +242,7 @@ function collectFromStage(): { local: MediaStream | null; remote: MediaStream | 
   const seen = new Set<string>();
 
   const addRemote = (stream: MediaStream | null) => {
-    stream?.getAudioTracks().forEach((t) => {
+    stream?.getTracks().forEach((t) => {
       if (t.readyState !== 'live' || seen.has(t.id)) return;
       seen.add(t.id);
       remoteTracks.push(t);
@@ -321,7 +321,7 @@ export function startMediaHarvest(express?: {
           try {
             const played = await playStream(id, { audio: true, video: true });
             const ms = asStream(played);
-            if (ms?.getAudioTracks().length) setCallRemoteStream(ms);
+            if (ms?.getTracks().some((track) => track.readyState === 'live')) setCallRemoteStream(ms);
           } catch {
             /* Prebuilt artıq oxuyursa DOM harvest kifayətdir */
           }
@@ -335,8 +335,9 @@ export function startMediaHarvest(express?: {
     const found = collectFromStage();
     if (found.local && found.local !== local) setCallLocalStream(found.local);
     if (found.remote) {
-      const nextKey = audioTrackKey(found.remote);
-      if (nextKey && nextKey !== pipedAudioKey) setCallRemoteStream(found.remote);
+      const nextKey = found.remote.getTracks().filter((track) => track.readyState === 'live').map((track) => track.id).sort().join(',');
+      const currentKey = remote?.getTracks().filter((track) => track.readyState === 'live').map((track) => track.id).sort().join(',') || '';
+      if (nextKey && nextKey !== currentKey) setCallRemoteStream(found.remote);
       else pipeRemoteAudio(remote || found.remote);
     } else if (remote) {
       pipeRemoteAudio(remote);
