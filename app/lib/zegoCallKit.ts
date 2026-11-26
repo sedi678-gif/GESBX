@@ -112,7 +112,21 @@ async function generateTestKitToken(
     throw new Error('Zego userID boşdur.');
   }
 
-  return prefetchZegoToken({ roomId: rid, userId: uid, userName: userName || uid });
+  const serverToken = await prefetchZegoToken({
+    roomId: rid,
+    userId: uid,
+    userName: userName || uid,
+  });
+
+  // ZEGO server API Token04 qaytarır. UIKit isə xam Token04 deyil,
+  // token#base64({ appID, roomID, userID, userName }) formatını tələb edir.
+  return ZegoUIKitPrebuilt.generateKitTokenForProduction(
+    appID,
+    serverToken,
+    rid,
+    uid,
+    userName || uid
+  );
 }
 
 /** Zəng qəbul edilməmişdən əvvəl tokeni paralel hazırlayırıq. */
