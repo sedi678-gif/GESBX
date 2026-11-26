@@ -56,6 +56,16 @@ let sessionUnsub: (() => void) | null = null;
 let hangupInFlight = false;
 let remoteZimUsers = new Set<string>();
 let remoteRoomPeers = 0;
+let callSpeakerEnabled = true;
+
+function applyCallSpeakerRoute(retries = 0): void {
+  void setNativeCallSpeakerEnabled(callSpeakerEnabled).then((routed) => {
+    if (!routed && retries < 2 && mediaZp) {
+      window.setTimeout(() => applyCallSpeakerRoute(retries + 1), 350);
+    }
+  });
+}
+
 
 // Zəng dəvəti gedərkən otaq tokenini əvvəlcədən alırıq ki, qəbul ediləndə gözləmə olmasın.
 const mediaTokenCache = new Map<string, { promise: Promise<string>; expiresAt: number }>();
@@ -687,7 +697,10 @@ async function joinMediaRoom(roomId: string, callType: CallType): Promise<void> 
   zp.joinRoom(mediaRoomConfig(ZegoUIKitPrebuilt, callType));
   unmuteKit(zp);
   startMediaHarvest(pickExpress(zp));
-  void setNativeCallSpeakerEnabled(true);
+  callSpeakerEnabled = true;
+  applyCallSpeakerRoute();
+  window.setTimeout(() => applyCallSpeakerRoute(), 350);
+  window.setTimeout(() => applyCallSpeakerRoute(), 900);
   remoteRoomPeers = 0;
 
   void (async () => {
@@ -1208,17 +1221,18 @@ export function zegoMuteMicrophone(muted: boolean) {
 export function zegoMuteSpeaker(muted: boolean) {
   const el = document.getElementById('gesbx-remote-audio') as HTMLAudioElement | null;
   if (el) {
+    // Do not mute the HTML audio element: Android's communication device
+    // selection (earpiece/speaker) is responsible for physical routing.
     el.muted = false;
     el.volume = 1;
-    if (!muted) void el.play().catch((error: unknown) => {
-      console.debug('[zegoCallKit] Speaker playback was blocked or interrupted.', error);
+    void el.play().catch((error: unknown) => {
+      console.debug('[zegoCallKit] Remote audio playback was blocked or interrupted.', error);
     });
   }
-  // Speaker OFF routes Android communication audio to the handset earpiece.
-  void setNativeCallSpeakerEnabled(!muted).then((routed) => {
-    // Keep a safe volume-only fallback in older APK builds without the native plugin.
-    if (!routed && el) el.volume = muted ? 0.4 : 1;
-  });
+  callSpeakerEnabled = !muted;
+  // Re-apply after ZEGO's audio engine has had time to change Android's route.
+  applyCallSpeakerRoute();
+  window.setTimeout(() => applyCallSpeakerRoute(), 300);
   getExpress()?.muteSpeaker?.(false);
 }
 
