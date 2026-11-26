@@ -1,6 +1,7 @@
 'use client';
 
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
+import { resetNativeCallAudio, setNativeCallSpeakerEnabled } from '@/app/lib/callAudioRoute';
 import { auth } from '@/firebase';
 import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
@@ -63,7 +64,7 @@ type ZimUser = { userID: string; userName?: string };
 type ZimLike = {
   callInvite: (
     invitees: string[],
-    config: { timeout: number; extendedData: string; mode?: number }
+    config: { timeout: number; extendedData: string; mode?: number; enableNotReceivedCheck?: boolean }
   ) => Promise<{ callID: string; errorUserList?: ZimUser[]; errorInvitees?: ZimUser[] }>;
   callCancel: (callID: string, invitees: string[], config: { extendedData: string }) => Promise<unknown>;
   callAccept: (callID: string, config: { extendedData: string }) => Promise<unknown>;
@@ -484,6 +485,7 @@ function stopCallUi(reason: string) {
   remoteRoomPeers = 0;
   unwatchSession();
   leaveMediaRoom(true, true);
+  void resetNativeCallAudio();
   setCallUiState(null);
   optionsRef.current.onCallInvitationEnded?.(reason);
   hangupInFlight = false;
@@ -540,6 +542,16 @@ function bindZimListeners(zim: ZimLike) {
     const inLive = uiMode === 'active' || uiMode === 'connecting';
     for (const user of list) {
       if (!user?.userID || user.userID === activeUserId) continue;
+      if (user.state === 9) {
+        const prev = getCallUiState();
+        if (prev?.mode === 'outgoing') {
+          patchCallUiState({ hint: 'Zəng qarşı tərəfin cihazına hələ çatmayıb. Qarşı tərəfin internetini və tətbiqin açıq olduğunu yoxlayın.' });
+        }
+      }
+      if (user.state === 5) {
+        const prev = getCallUiState();
+        if (prev?.mode === 'outgoing') patchCallUiState({ hint: 'Zəng qarşı tərəfə çatdı, cavab gözlənilir…' });
+      }
       if (user.state === 1) {
         remoteZimUsers.add(user.userID);
         const prev = getCallUiState();
@@ -547,7 +559,7 @@ function bindZimListeners(zim: ZimLike) {
         optionsRef.current.onOutgoingAccepted?.(user.userID);
         if (pendingRoomId) void joinMediaRoom(pendingRoomId, pendingCallType);
       }
-      if (user.state === 2 || user.state === 4 || user.state === 6) {
+      if (user.state === 2 || user.state === 6 || user.state === 10) {
         remoteZimUsers.delete(user.userID);
         if (!inLive) stopCallUi(`user_${user.state}`);
       }
@@ -578,6 +590,7 @@ function mediaRoomConfig(
     },
     turnOnMicrophoneWhenJoining: true,
     turnOnCameraWhenJoining: callType === 'video' && joinWithCamera,
+    useFrontFacingCamera: true,
     showMyCameraToggleButton: false,
     showMyMicrophoneToggleButton: false,
     showAudioVideoSettingsButton: false,
@@ -635,6 +648,7 @@ async function joinMediaRoom(roomId: string, callType: CallType): Promise<void> 
   zp.joinRoom(mediaRoomConfig(ZegoUIKitPrebuilt, callType));
   unmuteKit(zp);
   startMediaHarvest(pickExpress(zp));
+  void setNativeCallSpeakerEnabled(true);
   remoteRoomPeers = 0;
 
   void (async () => {
@@ -850,7 +864,7 @@ export async function sendZegoCallInvitation(
     callerAvatar?: string;
   }
 ): Promise<{ errorInvitees: { userID: string }[] }> {
-  setJoinWithCamera(Boolean(params.joinCamera));
+  setJoinWithCamera(Boolean(params.joinCamera) || params.callType === 'video');
 
   const calleeZegoId = toZegoUserId(params.calleeId);
   const roomId = toZegoRoomId(params.roomId || params.calleeId, 'c_');
@@ -909,6 +923,7 @@ export async function sendZegoCallInvitation(
   const result = await zim.callInvite([calleeZegoId], {
     timeout: params.timeout ?? 60,
     mode: 1,
+    enableNotReceivedCheck: true,
     extendedData: JSON.stringify(payload),
   });
 
