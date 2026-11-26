@@ -1,6 +1,7 @@
 'use client';
 
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
+import { ZegoExpressEngine } from 'zego-express-engine-webrtc';
 import { auth } from '@/firebase';
 import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
@@ -322,29 +323,18 @@ function loadZegoUIKit(): Promise<ZegoUIKitModule> {
       // ZEGO's published UIKit package declares no npm dependencies. Its Web
       // runtime still expects the Express engine to be present in the client
       // bundle. Load it first and expose the constructor before UIKit evaluates.
-      const expressModuleRaw = await import('zego-express-engine-webrtc');
-      const expressModule = expressModuleRaw as unknown as {
-        ZegoExpressEngine?: { getVersion?: () => string };
-        default?: {
-          ZegoExpressEngine?: { getVersion?: () => string };
-          getVersion?: () => string;
-        };
-      };
-      const ExpressEngine =
-        expressModule.ZegoExpressEngine ||
-        expressModule.default?.ZegoExpressEngine ||
-        expressModule.default;
-
-      if (!ExpressEngine || typeof ExpressEngine.getVersion !== 'function') {
+      // ZEGO-nun rəsmi Web SDK inteqrasiyası named export istifadə edir.
+      // Statik import Next/Webpack bundler-ə SDK-nı düzgün client bundle-a daxil etməyə imkan verir.
+      if (typeof ZegoExpressEngine?.getVersion !== 'function') {
         throw new Error(
-          'ZEGO Express SDK düzgün yüklənmədi: ZegoExpressEngine.getVersion tapılmadı. Paket versiyasını yoxlayın.'
+          'ZEGO Express SDK yükləndi, lakin getVersion API-si mövcud deyil. SDK versiyası uyğun deyil.'
         );
       }
 
       const runtime = globalThis as typeof globalThis & {
-        ZegoExpressEngine?: typeof ExpressEngine;
+        ZegoExpressEngine?: typeof ZegoExpressEngine;
       };
-      runtime.ZegoExpressEngine = ExpressEngine;
+      runtime.ZegoExpressEngine = ZegoExpressEngine;
 
       zegoImportGuard = true;
       try {
