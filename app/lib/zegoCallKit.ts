@@ -903,7 +903,10 @@ export async function sendZegoCallInvitation(
 
   bindZimListeners(zim);
 
-  // ZIM callInvite 107026: invitee UserID must exist in ZEGO ZIM. Register it server-side first.\n  await ensureZegoInviteeRegistered(params.calleeId, params.calleeName, params.calleeAvatar);\n\n  const result = await zim.callInvite([calleeZegoId], {
+  // ZIM callInvite 107026: invitee UserID must exist in ZEGO ZIM. Register it server-side first.
+  await ensureZegoInviteeRegistered(params.calleeId, params.calleeName, params.calleeAvatar);
+
+  const result = await zim.callInvite([calleeZegoId], {
     timeout: params.timeout ?? 60,
     mode: 1,
     extendedData: JSON.stringify(payload),
