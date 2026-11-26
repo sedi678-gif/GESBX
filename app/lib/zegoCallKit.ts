@@ -523,7 +523,17 @@ function bindZimListeners(zim: ZimLike) {
       accept: () => {
         void zim
           .callAccept(callID, { extendedData: '' })
-          .then(() => joinMediaRoom(pendingRoomId, pendingCallType))
+          .then(async () => {
+            // Incoming video calls request camera permission from the accept gesture.
+            // If camera access is denied or no camera exists, continue as an audio call.
+            const primed = await primeCallMedia(pendingCallType === 'video');
+            joinWithCamera = pendingCallType === 'video' && primed.video;
+            releaseMediaStream(primed.stream);
+            if (!primed.audio) {
+              throw new Error(primed.error || 'Mikrofon icazəsi verilməyib.');
+            }
+            await joinMediaRoom(pendingRoomId, pendingCallType);
+          })
           .catch((err) => {
             console.error('[ZIM] callAccept', err);
             stopCallUi('accept_failed');
@@ -864,7 +874,9 @@ export async function sendZegoCallInvitation(
     callerAvatar?: string;
   }
 ): Promise<{ errorInvitees: { userID: string }[] }> {
-  setJoinWithCamera(Boolean(params.joinCamera) || params.callType === 'video');
+  // Only enable camera when the caller explicitly obtained camera access.
+  // A video-call invitation without camera permission must remain audio-only.
+  setJoinWithCamera(params.callType === 'video' && Boolean(params.joinCamera));
 
   const calleeZegoId = toZegoUserId(params.calleeId);
   const roomId = toZegoRoomId(params.roomId || params.calleeId, 'c_');
