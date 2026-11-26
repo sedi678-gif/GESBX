@@ -60,7 +60,8 @@
     "socket.io-client": "^4.8.3",
     "three": "^0.174.0",
     "zego-zim-web": "2.16.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "zego-express-engine-webrtc": "3.10.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
