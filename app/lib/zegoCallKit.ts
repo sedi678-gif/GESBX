@@ -1025,11 +1025,23 @@ export async function sendZegoCallInvitation(
     callInviteMs: Date.now() - inviteStartedAt,
   });
 
+  let errors = result.errorUserList?.length ? result.errorUserList : result.errorInvitees || [];
+
+  // Some ZIM SDK versions resolve callInvite() but put error 107026 in
+  // errorUserList/errorInvitees instead of rejecting the promise.
+  if (errors.length && isInviteeNotRegisteredError(errors)) {
+    cacheInviteeRegistration(inviteeRegistrationCacheKey(params.calleeId), false);
+    await ensureZegoInviteeRegistered(params.calleeId, params.calleeName, params.calleeAvatar);
+    result = await zim.callInvite([calleeZegoId], inviteConfig);
+    errors = result.errorUserList?.length ? result.errorUserList : result.errorInvitees || [];
+  }
+
   pendingZimCallId = result.callID;
-  const errors = result.errorUserList?.length ? result.errorUserList : result.errorInvitees || [];
   if (errors.length) {
     patchCallUiState({
-      hint: 'Qarşı tərəf hazırda cavab vermir. Gözləyin və ya zəngi bitirin.',
+      hint: isInviteeNotRegisteredError(errors)
+        ? 'Qarşı tərəfin ZEGO qeydiyyatı yenilənmədi. Bir az sonra yenidən yoxlayın.'
+        : 'Qarşı tərəf hazırda cavab vermir. Gözləyin və ya zəngi bitirin.',
     });
   }
   return { errorInvitees: errors.map((u) => ({ userID: u.userID })) };
