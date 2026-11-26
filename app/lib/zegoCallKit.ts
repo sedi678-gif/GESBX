@@ -1099,11 +1099,13 @@ export function zegoMuteSpeaker(muted: boolean) {
   const el = document.getElementById('gesbx-remote-audio') as HTMLAudioElement | null;
   if (el) {
     el.muted = false;
-    el.volume = muted ? 0.4 : 1;
+    el.volume = 1;
     if (!muted) void el.play().catch((error: unknown) => {
       console.debug('[zegoCallKit] Speaker playback was blocked or interrupted.', error);
     });
   }
+  // Speaker OFF routes Android communication audio to the handset earpiece.
+  void setNativeCallSpeakerEnabled(!muted);
   getExpress()?.muteSpeaker?.(false);
 }
 
