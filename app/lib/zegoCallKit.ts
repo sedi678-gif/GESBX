@@ -1105,7 +1105,10 @@ export function zegoMuteSpeaker(muted: boolean) {
     });
   }
   // Speaker OFF routes Android communication audio to the handset earpiece.
-  void setNativeCallSpeakerEnabled(!muted);
+  void setNativeCallSpeakerEnabled(!muted).then((routed) => {
+    // Keep a safe volume-only fallback in older APK builds without the native plugin.
+    if (!routed && el) el.volume = muted ? 0.4 : 1;
+  });
   getExpress()?.muteSpeaker?.(false);
 }
 
