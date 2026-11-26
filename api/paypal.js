@@ -62,7 +62,7 @@ async function zegoRegisterUserApi(req, res) {
 
   try {
     const authorization = String(req.headers.authorization || '');
-    const match = authorization.match(/^Bearer\\s+(.+)$/i);
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
     if (!match) return res.status(401).json({ error: 'unauthorized' });
     const decoded = await getAdminAuth().verifyIdToken(match[1]);
 
@@ -172,12 +172,6 @@ async function zegoTokenApi(req, res) {
       return res.status(403).json({ error: 'user_id_not_linked_to_account' });
     }
 
-    await getAdminFirestore().doc('app_config/zego').set({
-      appSign: FieldValue.delete(),
-      serverSecret: FieldValue.delete(),
-      updatedAt: Date.now(),
-    }, { merge: true });
-
     return res.status(200).json({
       token: makeZegoToken04(zegoUserId(requestedUserId), roomId),
       appId: ZEGO_APP_ID,
@@ -196,7 +190,8 @@ async function zegoTokenApi(req, res) {
 
 module.exports = async function paypalApi(req, res) {
   const handler = String(req.query?.handler || 'request');
-  if (handler === 'zego-token') return zegoTokenApi(req, res);\n  if (handler === 'zego-register-user') return zegoRegisterUserApi(req, res);
+  if (handler === 'zego-token') return zegoTokenApi(req, res);
+  if (handler === 'zego-register-user') return zegoRegisterUserApi(req, res);
   if (handler === 'social-likes') return socialLikes(req, res);
   if (handler === 'messages') return privateMessages(req, res);
   if (handler === 'webhook') return paypalWebhook(req, res);
