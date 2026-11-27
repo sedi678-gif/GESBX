@@ -333,10 +333,17 @@ async function bootstrapOrRecordAdmin(db, identity, displayName) {
         firebaseUid: identity.uid,
         updatedAt: now,
       }, { merge: true });
-      if (playerSnap.exists && !player.firebaseUid) {
-        transaction.set(playerRef, { firebaseUid: identity.uid, updatedAt: now }, { merge: true });
-      }
     }
+
+    // Callable admin operations also verify the paired player profile.
+    // Bootstrap the reserved profile for the already-authorized UID so
+    // adminUid() does not reject every moderation/economy action.
+    transaction.set(playerRef, {
+      odId: ADMIN_PROFILE_ID,
+      firebaseUid: identity.uid,
+      identityVerifiedAt: player.identityVerifiedAt || now,
+      updatedAt: now,
+    }, { merge: true });
     transaction.set(sessionRef, {
       adminId: ADMIN_PROFILE_ID,
       adminUid: identity.uid,
