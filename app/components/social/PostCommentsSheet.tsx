@@ -117,7 +117,8 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
 
   const renderComment = (comment: PostComment, depth = 0): React.ReactNode => {
     const stats = likes[comment.id] || { count: 0, liked: false };
-    const childComments = depth === 0 ? (repliesByParent[comment.id] || []) : [];
+    // Cavabların da öz cavabları ola bilər: bütün səviyyələri göstər.
+    const childComments = repliesByParent[comment.id] || [];
     return (
       <React.Fragment key={comment.id}>
         <div className={styles.commentItem} style={depth > 0 ? { marginLeft: Math.min(depth, 4) * 24, borderLeft: '2px solid rgba(99,102,241,.35)', paddingLeft: 10 } : undefined}>
@@ -178,7 +179,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.liked ? 'Bəyənildi' : 'Bəyən'}
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
-              <button type="button" className={styles.commentReplyButton} onClick={() => { setActiveCommentMenu(null); setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label="Şərhə cavab yaz" title="Cavab yaz">↩</button>
+              <button type="button" className={styles.commentReplyButton} onClick={() => { setActiveCommentMenu(null); setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label="Cavab yaz">↩</button>
             </div>
             {activeCommentMenu === comment.id && (
               <div className={styles.commentContextMenu} role="menu" aria-label="Şərh seçimləri">
