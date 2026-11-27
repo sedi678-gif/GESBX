@@ -13,7 +13,7 @@ import {
   CallType,
 } from '@/app/lib/callService';
 import { getCallSettings } from '@/app/lib/callSettings';
-import { listenFollowingIds, searchUsers } from '@/app/lib/socialService';
+import { listenFollowingIds } from '@/app/lib/socialService';
 import { getFollowerProfiles, getFollowingProfiles } from '@/app/lib/suggestedProfiles';
 import type { AppUserProfile } from '@/app/lib/socialTypes';
 import { ensureZegoConfig, getZegoConfigErrorMessage } from '@/app/lib/zegoConfig';
@@ -89,10 +89,8 @@ interface CallContextType {
   toggleCamera: () => Promise<void>;
   showInvite: boolean;
   setShowInvite: (v: boolean) => void;
-  inviteQuery: string;
-  setInviteQuery: (v: string) => void;
-  inviteResults: Awaited<ReturnType<typeof searchUsers>>;
-  runInviteSearch: (myId: string) => Promise<void>;
+  inviteFollowers: AppUserProfile[];
+  inviteFollowing: AppUserProfile[];
   inviteUser: (userId: string, userName: string) => Promise<void>;
   clearCallError: () => void;
 }
@@ -122,11 +120,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [callError, setCallError] = useState<string | null>(null);
   const [zegoReady, setZegoReady] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteQuery, setInviteQuery] = useState('');
-  const [inviteResults, setInviteResults] = useState<Awaited<ReturnType<typeof searchUsers>>>([]);
-  const [inviteContacts, setInviteContacts] = useState<AppUserProfile[]>([]);
-  const [inviteSearchError, setInviteSearchError] = useState('');
-  const [inviteSearching, setInviteSearching] = useState(false);
+  const [inviteFollowers, setInviteFollowers] = useState<AppUserProfile[]>([]);
+  const [inviteFollowing, setInviteFollowing] = useState<AppUserProfile[]>([]);
+  const [inviteError, setInviteError] = useState('');
   const [followingIds, setFollowingIds] = useState<string[]>([]);
 
   const activeCallRef = useRef<ActiveCallState | null>(null);
@@ -153,19 +149,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let alive = true;
     if (!myId || myId === 'guest' || myId === 'anonim_user_id') {
-      setInviteContacts([]);
+      setInviteFollowers([]);
+      setInviteFollowing([]);
       return;
     }
     void Promise.all([getFollowerProfiles(myId, 60), getFollowingProfiles(myId, 60)])
       .then(([followers, following]) => {
         if (!alive) return;
-        const unique = new Map<string, AppUserProfile>();
-        [...followers, ...following].forEach((profile) => {
-          if (profile.id !== myId) unique.set(profile.id, profile);
-        });
-        setInviteContacts([...unique.values()].slice(0, 80));
+        setInviteFollowers(followers.filter((profile) => profile.id !== myId));
+        setInviteFollowing(following.filter((profile) => profile.id !== myId));
       })
-      .catch((error) => console.warn('[Call] invite contacts unavailable:', error));
+      .catch((error) => {
+        console.warn('[Call] invite contacts unavailable:', error);
+        if (alive) setInviteError('İzləyici siyahısı yüklənmədi. İnternet bağlantısını yoxla.');
+      });
     return () => { alive = false; };
   }, [myId]);
 
@@ -340,28 +337,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     activeCallRef.current = null;
   }, []);
 
-  const runInviteSearch = useCallback(
-    async (searchMyId: string) => {
-      if (!inviteQuery.trim()) {
-        setInviteResults([]);
-        setInviteSearchError('Axtarmaq üçün ad və ya @istifadəçi adı yaz.');
-        return;
-      }
-      setInviteSearching(true);
-      setInviteSearchError('');
-      try {
-        const results = await searchUsers(inviteQuery, searchMyId);
-        setInviteResults(results.filter((u) => u.id !== searchMyId));
-        if (!results.length) setInviteSearchError('Bu adda istifadəçi tapılmadı.');
-      } catch (error) {
-        setInviteSearchError(error instanceof Error ? error.message : 'İstifadəçilər axtarıla bilmədi.');
-      } finally {
-        setInviteSearching(false);
-      }
-    },
-    [inviteQuery]
-  );
-
   const inviteUser = useCallback(async (userId: string, userName: string) => {
     try {
       await inviteUserToActiveCall(userId, userName);
@@ -377,7 +352,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('[Call] participant invitation failed:', err);
       const msg = err instanceof Error ? err.message : 'Dəvət göndərilmədi.';
-      setInviteSearchError(msg);
+      setInviteError(msg);
       patchCallUiState({ hint: msg });
     }
   }, []);
@@ -402,10 +377,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         toggleCamera: async () => undefined,
         showInvite,
         setShowInvite,
-        inviteQuery,
-        setInviteQuery,
-        inviteResults,
-        runInviteSearch,
+        inviteFollowers,
+        inviteFollowing,
         inviteUser,
         clearCallError,
       }}
@@ -417,44 +390,30 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             <div className={styles.modalOverlay} style={{ zIndex: 2147483647 }} onClick={() => setShowInvite(false)}>
               <div className={styles.modalSheet} onClick={(e) => e.stopPropagation()}>
                 <h2 className={styles.modalTitle}>Zəngə əlavə et</h2>
-                <input
-                  value={inviteQuery}
-                  onChange={(e) => setInviteQuery(e.target.value)}
-                  placeholder="Ad, @nickname..."
-                  style={{ width: '100%', margin: '8px 0 12px', padding: '10px 12px', borderRadius: 10, border: '1px solid #334155', background: '#0f172a', color: '#fff' }}
-                />
-                <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  onClick={() => {
-                    if (myId) void runInviteSearch(myId);
-                  }}
-                >
-                  Axtar
-                </button>
-                <div style={{ marginTop: 12, maxHeight: 300, overflow: 'auto' }}>
-                  {inviteSearchError ? <p role="status" style={{ color: '#fca5a5', fontSize: 13, marginBottom: 8 }}>{inviteSearchError}</p> : null}
-                  {inviteSearching ? <p style={{ color: '#cbd5e1', fontSize: 13 }}>Axtarılır...</p> : null}
-                  {(inviteResults.length ? inviteResults : inviteContacts).map((u) => (
-                    <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: '1px solid rgba(148,163,184,.16)' }}>
+                <div style={{ marginTop: 12, maxHeight: 340, overflowY: 'auto' }}>
+                  {inviteError ? <p role="status" style={{ color: '#fca5a5', fontSize: 13, marginBottom: 8 }}>{inviteError}</p> : null}
+                  <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 700, margin: '8px 0' }}>Səni izləyənlər</h3>
+                  {inviteFollowers.length ? inviteFollowers.map((u) => (
+                    <div key={'follower-' + u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: '1px solid rgba(148,163,184,.16)' }}>
                       <img src={u.avatar || DEFAULT_AVATAR} alt="" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} />
                       <div style={{ minWidth: 0, flex: 1, color: '#fff', textAlign: 'left' }}>
                         <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[u.name, u.surname].filter(Boolean).join(' ') || u.handle || 'İstifadəçi'}</strong>
-                        <small style={{ color: '#94a3b8' }}>{u.handle ? '@' + u.handle : 'GESBX istifadəçisi'}</small>
+                        <small style={{ color: '#94a3b8' }}>{u.handle ? '@' + u.handle : 'Səni izləyir'}</small>
                       </div>
-                      <button
-                        type="button"
-                        className={styles.primaryBtn}
-                        style={{ flexShrink: 0 }}
-                        onClick={() => void inviteUser(u.id, [u.name, u.surname].filter(Boolean).join(' ') || u.handle || u.id)}
-                      >
-                        Qoş
-                      </button>
+                      <button type="button" className={styles.primaryBtn} style={{ flexShrink: 0 }} onClick={() => void inviteUser(u.id, [u.name, u.surname].filter(Boolean).join(' ') || u.handle || u.id)}>Qoş</button>
                     </div>
-                  ))}
-                  {!inviteSearching && !inviteSearchError && !inviteResults.length && !inviteContacts.length ? (
-                    <p style={{ color: '#94a3b8', fontSize: 13 }}>Əlaqələr siyahısı boşdur. Ad və ya @istifadəçi adı ilə axtar.</p>
-                  ) : null}
+                  )) : <p style={{ color: '#94a3b8', fontSize: 13 }}>Hələ səni izləyən yoxdur.</p>}
+                  <h3 style={{ color: '#e2e8f0', fontSize: 14, fontWeight: 700, margin: '16px 0 8px' }}>Sənin izlədiklərin</h3>
+                  {inviteFollowing.length ? inviteFollowing.map((u) => (
+                    <div key={'following-' + u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: '1px solid rgba(148,163,184,.16)' }}>
+                      <img src={u.avatar || DEFAULT_AVATAR} alt="" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} />
+                      <div style={{ minWidth: 0, flex: 1, color: '#fff', textAlign: 'left' }}>
+                        <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[u.name, u.surname].filter(Boolean).join(' ') || u.handle || 'İstifadəçi'}</strong>
+                        <small style={{ color: '#94a3b8' }}>{u.handle ? '@' + u.handle : 'Sənin izlədiyin'}</small>
+                      </div>
+                      <button type="button" className={styles.primaryBtn} style={{ flexShrink: 0 }} onClick={() => void inviteUser(u.id, [u.name, u.surname].filter(Boolean).join(' ') || u.handle || u.id)}>Qoş</button>
+                    </div>
+                  )) : <p style={{ color: '#94a3b8', fontSize: 13 }}>Sənin izlədiyin profil yoxdur.</p>}
                 </div>
                 <button type="button" className={styles.primaryBtn} onClick={() => setShowInvite(false)}>
                   Bağla
