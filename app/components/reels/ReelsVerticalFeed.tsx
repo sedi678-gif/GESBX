@@ -5,6 +5,9 @@ import PostCommentsSheet from '@/app/components/social/PostCommentsSheet';
 import { listenUserLikedPostIds, recordPostView, toggleLikePost } from '@/app/lib/postsService';
 import { getReelsForYou, trackReelSignal, type ForYouFeedItem } from '@/app/lib/reelsForYou';
 import { getLocalProfileDisplayName } from '@/app/lib/userId';
+import { getSuggestedProfiles } from '@/app/lib/suggestedProfiles';
+import { followUser } from '@/app/lib/socialService';
+import type { AppUserProfile } from '@/app/lib/socialTypes';
 import { useUser } from '@/context/UserContext';
 import { callSecureFunction } from '@/app/lib/secureFunctions';
 import ReelsSlide, { type ReelsWatchFlush } from './ReelsSlide';
@@ -26,6 +29,9 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [suggestions, setSuggestions] = useState<AppUserProfile[]>([]);
+  const [followedSuggestionIds, setFollowedSuggestionIds] = useState<Set<string>>(new Set());
+  const [suggestionError, setSuggestionError] = useState('');
   const pendingLikesRef = useRef<Set<string>>(new Set());
   const [commentItem, setCommentItem] = useState<ForYouFeedItem | null>(null);
   const loadingMore = useRef(false);
@@ -59,6 +65,12 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
     },
     [canTrack, userId]
   );
+
+  useEffect(() => {
+    let alive = true;
+    if (canTrack) void getSuggestedProfiles(userId).then((rows) => { if (alive) setSuggestions(rows); }).catch((err) => { console.warn('[Reels] recommendations unavailable:', err); if (alive) setSuggestionError('Tövsiyələr hazırda yüklənmədi.'); });
+    return () => { alive = false; };
+  }, [canTrack, userId]);
 
   useEffect(() => {
     setItems([]);
@@ -245,6 +257,13 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
     }).catch((err) => console.warn('[Reels] share count update failed:', err));
   };
 
+  const handleFollowSuggestion = async (profile: AppUserProfile) => {
+    if (!canTrack || followedSuggestionIds.has(profile.id)) return;
+    setFollowedSuggestionIds((prev) => new Set(prev).add(profile.id));
+    try { await followUser(userId, profile.id); }
+    catch (err) { setFollowedSuggestionIds((prev) => { const next = new Set(prev); next.delete(profile.id); return next; }); alert(err instanceof Error ? err.message : 'İzləmə sorğusu göndərilmədi.'); }
+  };
+
   const setSlotRef = (index: number) => (node: HTMLDivElement | null) => {
     if (node) slotRefs.current.set(index, node);
     else slotRefs.current.delete(index);
@@ -275,26 +294,51 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
       >
         {items.map((item, index) => {
           const mounted = Math.abs(index - activeIndex) <= NEIGHBOR_COUNT;
+          const showSuggestion = suggestions.length > 0 && (index + 1) % 5 === 0;
           return (
-            <div
-              key={item.videoId}
-              ref={setSlotRef(index)}
-              data-index={index}
-              className="h-[calc(100dvh-var(--app-nav-total,68px))] w-full snap-start snap-always"
-            >
-              {mounted ? (
-                <ReelsSlide
-                  item={item}
-                  active={index === activeIndex}
-                  liked={likedIds.has(item.videoId)}
-                  likeBusy={false}
-                  onLike={() => void handleLike(item)}
-                  onComment={() => handleComment(item)}
-                  onShare={() => void handleShare(item)}
-                  onWatchFlush={sendWatch}
-                />
+            <React.Fragment key={item.videoId}>
+              <div
+                ref={setSlotRef(index)}
+                data-index={index}
+                className="h-[calc(100dvh-var(--app-nav-total,68px))] w-full snap-start snap-always"
+              >
+                {mounted ? (
+                  <ReelsSlide
+                    item={item}
+                    active={index === activeIndex}
+                    liked={likedIds.has(item.videoId)}
+                    likeBusy={false}
+                    onLike={() => void handleLike(item)}
+                    onComment={() => handleComment(item)}
+                    onShare={() => void handleShare(item)}
+                    onWatchFlush={sendWatch}
+                  />
+                ) : null}
+              </div>
+              {showSuggestion ? (
+                <section className="flex h-[calc(100dvh-var(--app-nav-total,68px))] w-full snap-start snap-always flex-col items-center justify-center overflow-y-auto bg-gradient-to-b from-slate-950 via-black to-indigo-950 px-6 py-8 text-white">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-[.22em] text-white/60">GESBX · Sənin üçün</p>
+                  <h2 className="mb-2 text-center text-2xl font-black">İzləyə biləcəyin insanlar</h2>
+                  <p className="mb-7 max-w-sm text-center text-sm text-white/65">Ortaq əlaqələrinə əsasən seçilmiş profillər.</p>
+                  <div className="w-full max-w-sm space-y-3">
+                    {suggestions.slice(0, 5).map((profile) => {
+                      const followed = followedSuggestionIds.has(profile.id);
+                      return (
+                        <div key={profile.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
+                          <a href={`/profile?user=${encodeURIComponent(profile.id)}`} className="flex min-w-0 flex-1 items-center gap-3 text-white no-underline">
+                            <img src={profile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'} alt="" className="h-12 w-12 rounded-full object-cover" />
+                            <span className="min-w-0"><strong className="block truncate text-sm">{profile.name} {profile.surname || ''}</strong><small className="block truncate text-white/60">{profile.handle ? '@' + profile.handle : 'GESBX istifadəçisi'}</small></span>
+                          </a>
+                          <button type="button" onClick={() => void handleFollowSuggestion(profile)} disabled={followed} className="rounded-full bg-white px-4 py-2 text-xs font-extrabold text-black disabled:bg-white/20 disabled:text-white">{followed ? 'İzlənilir' : 'İzlə'}</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {suggestionError ? <p className="mt-4 text-xs text-white/50">{suggestionError}</p> : null}
+                  <p className="mt-7 text-xs text-white/45">Davam etmək üçün yuxarı sürüşdür</p>
+                </section>
               ) : null}
-            </div>
+            </React.Fragment>
           );
         })}
       </div>
