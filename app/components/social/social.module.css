@@ -2654,6 +2654,10 @@
   margin-bottom: 1px;
 }
 
+.commentsSheetOverlay {
+  z-index: 270;
+}
+
 .commentsSheet {
   display: flex;
   flex-direction: column;
