@@ -1044,9 +1044,10 @@ export async function sendZegoCallInvitation(
 
   let errors = result.errorUserList?.length ? result.errorUserList : result.errorInvitees || [];
 
-  // Some ZIM SDK versions resolve callInvite() but put error 107026 in
-  // errorUserList/errorInvitees instead of rejecting the promise.
-  if (errors.length && isInviteeNotRegisteredError(errors)) {
+  // ZIM may return failed invitees without including the numeric error code.
+  // If any invitee failed, clear the persistent registration cache, repair the
+  // server-side registration once, and retry the invitation once.
+  if (errors.length) {
     cacheInviteeRegistration(inviteeRegistrationCacheKey(params.calleeId), false);
     await ensureZegoInviteeRegistered(params.calleeId, params.calleeName, params.calleeAvatar);
     result = await zim.callInvite([calleeZegoId], inviteConfig);
