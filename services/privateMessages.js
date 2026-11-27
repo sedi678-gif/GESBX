@@ -316,6 +316,17 @@ async function handlePost(req, res, db, profileId, action) {
         senderName: text(input.forwardedFrom.senderName, 100),
       };
     }
+    // Mobil şəbəkədə cavab itərsə klient eyni message ID ilə sorğunu təkrar edir.
+    // Mövcud mesajı yenidən yaratmağa çalışmaq əvəzinə əvvəlki nəticəni qaytar.
+    const alreadySaved = await messageRef.get();
+    if (alreadySaved.exists) {
+      const saved = alreadySaved.data() || {};
+      if (String(saved.chatId || '') !== chatId || String(saved.senderId || '') !== senderId) {
+        throw new ApiError(409, 'MESSAGE_ID_CONFLICT');
+      }
+      return sendJson(res, 200, { message: { ...saved, id: messageId } });
+    }
+
     const batch = db.batch();
     const previousMeta = existing.exists ? (existing.data()?.participantMeta || {}) : {};
     const senderMeta = previousMeta[senderId] || {};
