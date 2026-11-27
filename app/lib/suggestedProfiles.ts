@@ -37,3 +37,19 @@ export async function getSuggestedProfiles(userId: string, max = 12): Promise<Ap
   }));
   return profiles.filter((p): p is AppUserProfile => Boolean(p)).slice(0, max);
 }
+
+export async function getFollowingProfiles(userId: string, max = 100): Promise<AppUserProfile[]> {
+  if (!userId || userId === 'guest' || userId === 'anonim_user_id') return [];
+  await ensureFirebaseAuth();
+  const links = await getDocs(query(collection(db, 'follows'), where('followerId', '==', userId), limit(max)));
+  const ids = [...new Set(links.docs.map(d => String(d.data().followingId || '')).filter(id => id && id !== userId))];
+  const rows = await Promise.all(ids.map(async id => {
+    const snap = await getDoc(doc(db, 'users', id));
+    if (!snap.exists()) return null;
+    const d = snap.data();
+    if (d.frozen || d.banned) return null;
+    return { id, name: String(d.name || ''), surname: d.surname ? String(d.surname) : undefined,
+      handle: String(d.handle || ''), avatar: d.avatar ? String(d.avatar) : undefined } as AppUserProfile;
+  }));
+  return rows.filter((p): p is AppUserProfile => Boolean(p));
+}
