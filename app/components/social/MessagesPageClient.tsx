@@ -42,6 +42,7 @@ import {
   MessageContact,
 } from '@/app/lib/messageRequestService';
 import { listenCallHistory, CallHistoryItem } from '@/app/lib/callHistoryService';
+import { getFollowingProfiles } from '@/app/lib/suggestedProfiles';
 import { TEEN_SAFETY_RULES, getCallSettings } from '@/app/lib/callSettings';
 import {
   isBlocked,
@@ -330,6 +331,7 @@ export default function MessagesPageClient() {
   const [showRequests, setShowRequests] = useState(false);
   const [messageContacts, setMessageContacts] = useState<MessageContact[]>([]);
   const [callHistory, setCallHistory] = useState<CallHistoryItem[]>([]);
+  const [callFriends, setCallFriends] = useState<AppUserProfile[]>([]);
   const [listSearch, setListSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [isAndroidApp, setIsAndroidApp] = useState(false);
@@ -406,6 +408,12 @@ export default function MessagesPageClient() {
   useEffect(() => {
     if (!myId || myId === 'guest') return;
     return listenCallHistory(myId, setCallHistory);
+  }, [myId]);
+
+  useEffect(() => {
+    let active = true;
+    if (myId && myId !== 'guest') void getFollowingProfiles(myId).then(rows => { if (active) setCallFriends(rows); }).catch(err => console.error('[Calls] dost siyahısı yüklənmədi:', err));
+    return () => { active = false; };
   }, [myId]);
 
   useEffect(() => {
@@ -1098,8 +1106,8 @@ export default function MessagesPageClient() {
     }
   };
 
-  const handleStartCall = async (callType: CallType) => {
-    if (!selectedChat) {
+  const handleStartCall = async (callType: CallType, targetChat = selectedChat) => {
+    if (!targetChat) {
       alert('Zəng üçün söhbət seçin.');
       return;
     }
@@ -1118,8 +1126,8 @@ export default function MessagesPageClient() {
     setCallUiState({
       mode: 'outgoing',
       callType,
-      peerName: selectedChat.name,
-      peerAvatar: selectedChat.avatar,
+      peerName: targetChat.name,
+      peerAvatar: targetChat.avatar,
       cancel: () => {
         zegoHangUp();
       },
@@ -1152,10 +1160,10 @@ export default function MessagesPageClient() {
       setCallLocalStream(null);
     }
     startCall({
-      calleeId: String(selectedChat.id),
-      calleeName: selectedChat.name,
-      calleeAvatar: selectedChat.avatar,
-      chatId: selectedChat.chatId,
+      calleeId: String(targetChat.id),
+      calleeName: targetChat.name,
+      calleeAvatar: targetChat.avatar,
+      chatId: targetChat.chatId,
       callType,
       joinCamera: callType === 'video' && media.video,
     });
@@ -1793,6 +1801,31 @@ export default function MessagesPageClient() {
 
           {inboxTab === 'calls' && (
             <div className={styles.msgCallsPane}>
+              <div style={{ padding: '10px 12px 14px' }}>
+                <h3 style={{ margin: '0 0 10px', fontWeight: 800 }}>Dostların — zəng et</h3>
+                {callFriends.filter(friend => !isBlocked(blockedIds, friend.id) && (!listSearch.trim() || `${friend.name} ${friend.surname || ''} ${friend.handle}`.toLowerCase().includes(listSearch.toLowerCase()))).length === 0 ? (
+                  <p style={{ color: '#94a3b8', fontSize: 13 }}>İzlədiyin dostların burada görünəcək.</p>
+                ) : callFriends.filter(friend => !isBlocked(blockedIds, friend.id) && (!listSearch.trim() || `${friend.name} ${friend.surname || ''} ${friend.handle}`.toLowerCase().includes(listSearch.toLowerCase()))).map(friend => {
+                  const chat = chats.find(item => item.id === friend.id) || {
+                    chatId: buildChatId(myId, friend.id), id: friend.id,
+                    name: [friend.name, friend.surname].filter(Boolean).join(' ') || friend.handle || 'İstifadəçi',
+                    username: friend.handle || '', avatar: friend.avatar || DEFAULT_AVATAR,
+                    isOnline: false, lastMsg: '', time: '',
+                  };
+                  return (
+                    <div key={friend.id} className={styles.msgCallRow}>
+                      <img src={chat.avatar} alt="" className={styles.avatar} />
+                      <div className={styles.msgChatBody}>
+                        <span className={styles.msgChatName}>{chat.name}</span>
+                        <p className={styles.msgChatPreview}>İzlədiyin istifadəçi</p>
+                      </div>
+                      <button type="button" className={`${styles.msgHubIconBtn} ${styles.msgHubIconBtnAccent}`} onClick={() => { setSelectedChat(chat); void handleStartCall('voice', chat); }} aria-label="Səsli zəng et"><IconPhone /></button>
+                      <button type="button" className={styles.msgHubIconBtn} onClick={() => { setSelectedChat(chat); void handleStartCall('video', chat); }} aria-label="Video zəng et">📹</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <h3 style={{ padding: '0 12px', fontWeight: 800 }}>Son zənglər</h3>
               {callHistory.length === 0 ? (
                 <div className={styles.msgEmpty}>
                   <div className={styles.msgEmptyIcon}>📞</div>
