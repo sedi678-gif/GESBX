@@ -234,11 +234,15 @@ async function handlePost(req, res, db, profileId, action) {
     if (senderId !== profileId || !/^\d{1,20}$/.test(recipientId) || recipientId === senderId) {
       throw new ApiError(403, 'CHAT_PARTICIPANTS_INVALID');
     }
-    const recipientSnap = await db.doc(`users/${recipientId}`).get();
+    // Recipient availability and both block directions are independent reads:
+    // run them together to avoid serial Firestore round trips on every message.
+    const [recipientSnap] = await Promise.all([
+      db.doc(`users/${recipientId}`).get(),
+      assertNotBlocked(db, senderId, recipientId),
+    ]);
     if (!recipientSnap.exists || recipientSnap.data()?.banned === true || recipientSnap.data()?.frozen === true) {
       throw new ApiError(404, 'RECIPIENT_NOT_AVAILABLE');
     }
-    await assertNotBlocked(db, senderId, recipientId);
     const chatId = chatIdFor(senderId, recipientId);
     const chatRef = db.doc(`private_chats/${chatId}`);
     const existing = await chatRef.get();
