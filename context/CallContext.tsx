@@ -14,6 +14,8 @@ import {
 } from '@/app/lib/callService';
 import { getCallSettings } from '@/app/lib/callSettings';
 import { listenFollowingIds, searchUsers } from '@/app/lib/socialService';
+import { getFollowerProfiles, getFollowingProfiles } from '@/app/lib/suggestedProfiles';
+import type { AppUserProfile } from '@/app/lib/socialTypes';
 import { ensureZegoConfig, getZegoConfigErrorMessage } from '@/app/lib/zegoConfig';
 import { patchCallUiState, setCallInviteHandler, setCallUiState } from '@/app/lib/callUiBridge';
 import {
@@ -122,6 +124,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteQuery, setInviteQuery] = useState('');
   const [inviteResults, setInviteResults] = useState<Awaited<ReturnType<typeof searchUsers>>>([]);
+  const [inviteContacts, setInviteContacts] = useState<AppUserProfile[]>([]);
+  const [inviteSearchError, setInviteSearchError] = useState('');
+  const [inviteSearching, setInviteSearching] = useState(false);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
 
   const activeCallRef = useRef<ActiveCallState | null>(null);
@@ -143,6 +148,25 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!myId) return;
     return listenFollowingIds(myId, setFollowingIds);
+  }, [myId]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!myId || myId === 'guest' || myId === 'anonim_user_id') {
+      setInviteContacts([]);
+      return;
+    }
+    void Promise.all([getFollowerProfiles(myId, 60), getFollowingProfiles(myId, 60)])
+      .then(([followers, following]) => {
+        if (!alive) return;
+        const unique = new Map<string, AppUserProfile>();
+        [...followers, ...following].forEach((profile) => {
+          if (profile.id !== myId) unique.set(profile.id, profile);
+        });
+        setInviteContacts([...unique.values()].slice(0, 80));
+      })
+      .catch((error) => console.warn('[Call] invite contacts unavailable:', error));
+    return () => { alive = false; };
   }, [myId]);
 
   const canReceiveFrom = useCallback((callerId: string, callType: CallType) => {
@@ -318,8 +342,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const runInviteSearch = useCallback(
     async (searchMyId: string) => {
-      const results = await searchUsers(inviteQuery, searchMyId);
-      setInviteResults(results.filter((u) => u.id !== searchMyId));
+      if (!inviteQuery.trim()) {
+        setInviteResults([]);
+        setInviteSearchError('Axtarmaq üçün ad və ya @istifadəçi adı yaz.');
+        return;
+      }
+      setInviteSearching(true);
+      setInviteSearchError('');
+      try {
+        const results = await searchUsers(inviteQuery, searchMyId);
+        setInviteResults(results.filter((u) => u.id !== searchMyId));
+        if (!results.length) setInviteSearchError('Bu adda istifadəçi tapılmadı.');
+      } catch (error) {
+        setInviteSearchError(error instanceof Error ? error.message : 'İstifadəçilər axtarıla bilmədi.');
+      } finally {
+        setInviteSearching(false);
+      }
     },
     [inviteQuery]
   );
@@ -329,15 +367,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       await inviteUserToActiveCall(userId, userName);
       const sessionId = activeCallRef.current?.callId || getActiveCallSessionId();
       if (sessionId) {
-        await inviteParticipantToCall(sessionId, userId).catch(() => undefined);
+        void inviteParticipantToCall(sessionId, userId).catch((error) => {
+          console.warn('[Call] dəvət olunan iştirakçı sessiyaya yazılmadı:', error);
+        });
       }
       setCallError(null);
-      patchCallUiState({ hint: undefined });
+      patchCallUiState({ hint: 'Dəvət göndərildi.' });
       setShowInvite(false);
     } catch (err) {
-      console.error(err);
+      console.error('[Call] participant invitation failed:', err);
       const msg = err instanceof Error ? err.message : 'Dəvət göndərilmədi.';
-      setCallError(msg);
+      setInviteSearchError(msg);
       patchCallUiState({ hint: msg });
     }
   }, []);
@@ -392,18 +432,29 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 >
                   Axtar
                 </button>
-                <div style={{ marginTop: 12, maxHeight: 240, overflow: 'auto' }}>
-                  {inviteResults.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      className={styles.primaryBtn}
-                      style={{ width: '100%', marginBottom: 8 }}
-                      onClick={() => void inviteUser(u.id, u.name || u.handle || u.id)}
-                    >
-                      {u.name || u.handle || u.id}
-                    </button>
+                <div style={{ marginTop: 12, maxHeight: 300, overflow: 'auto' }}>
+                  {inviteSearchError ? <p role="status" style={{ color: '#fca5a5', fontSize: 13, marginBottom: 8 }}>{inviteSearchError}</p> : null}
+                  {inviteSearching ? <p style={{ color: '#cbd5e1', fontSize: 13 }}>Axtarılır...</p> : null}
+                  {(inviteResults.length ? inviteResults : inviteContacts).map((u) => (
+                    <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 2px', borderBottom: '1px solid rgba(148,163,184,.16)' }}>
+                      <img src={u.avatar || DEFAULT_AVATAR} alt="" style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }} />
+                      <div style={{ minWidth: 0, flex: 1, color: '#fff', textAlign: 'left' }}>
+                        <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[u.name, u.surname].filter(Boolean).join(' ') || u.handle || 'İstifadəçi'}</strong>
+                        <small style={{ color: '#94a3b8' }}>{u.handle ? '@' + u.handle : 'GESBX istifadəçisi'}</small>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.primaryBtn}
+                        style={{ flexShrink: 0 }}
+                        onClick={() => void inviteUser(u.id, [u.name, u.surname].filter(Boolean).join(' ') || u.handle || u.id)}
+                      >
+                        Qoş
+                      </button>
+                    </div>
                   ))}
+                  {!inviteSearching && !inviteSearchError && !inviteResults.length && !inviteContacts.length ? (
+                    <p style={{ color: '#94a3b8', fontSize: 13 }}>Əlaqələr siyahısı boşdur. Ad və ya @istifadəçi adı ilə axtar.</p>
+                  ) : null}
                 </div>
                 <button type="button" className={styles.primaryBtn} onClick={() => setShowInvite(false)}>
                   Bağla
