@@ -169,7 +169,7 @@ io.on('connection', (socket) => {
     try {
       const senderId = onlineUsers.get(socket.id);
       const recipient = String(recipientId || '').trim();
-      if (!senderId || !/^\\d{1,20}$/.test(recipient) || recipient === senderId) return;
+      if (!senderId || !/^\d{1,20}$/.test(recipient) || recipient === senderId) return;
       if (!message || typeof message !== 'object') return;
 
       const chatId = String(message.chatId || '');
