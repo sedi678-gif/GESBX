@@ -53,3 +53,32 @@ export async function getFollowingProfiles(userId: string, max = 100): Promise<A
   }));
   return rows.filter((p): p is AppUserProfile => Boolean(p));
 }
+
+
+export async function getFollowerProfiles(userId: string, max = 100): Promise<AppUserProfile[]> {
+  if (!userId || userId === 'guest' || userId === 'anonim_user_id') return [];
+  await ensureFirebaseAuth();
+  // Followers are users whose followingId points to the signed-in user.
+  const links = await getDocs(query(
+    collection(db, 'follows'),
+    where('followingId', '==', userId),
+    limit(max)
+  ));
+  const ids = [...new Set(links.docs
+    .map(d => String(d.data().followerId || ''))
+    .filter(id => id && id !== userId))];
+  const rows = await Promise.all(ids.map(async id => {
+    const snap = await getDoc(doc(db, 'users', id));
+    if (!snap.exists()) return null;
+    const d = snap.data();
+    if (d.frozen || d.banned) return null;
+    return {
+      id,
+      name: String(d.name || ''),
+      surname: d.surname ? String(d.surname) : undefined,
+      handle: String(d.handle || ''),
+      avatar: d.avatar ? String(d.avatar) : undefined,
+    } as AppUserProfile;
+  }));
+  return rows.filter((profile): profile is AppUserProfile => Boolean(profile));
+}
