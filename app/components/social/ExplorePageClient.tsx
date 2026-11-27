@@ -448,14 +448,16 @@ export default function ExplorePageClient() {
           </div>
         ) : (
           <div key={`${current.userId}:${media.id}`} className={styles.mediaFramePremium}>
-            <div className={styles.storyDotsPremium}>
-              {current.mediaList.map((_, i) => (
-                <div key={i} className={`${styles.storyDotPremium} ${i === mediaIndex ? styles.storyDotPremiumActive : ''}`} />
-              ))}
-              <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, textShadow: '0 1px 4px #000' }}>
-                {mediaIndex + 1}/{current.mediaList.length}
-              </span>
-            </div>
+            {current.mediaList.length > 1 && current.mediaList.every((entry) => entry.mediaType !== 'video') ? (
+              <div className={styles.storyDotsPremium}>
+                {current.mediaList.map((_, i) => (
+                  <div key={i} className={`${styles.storyDotPremium} ${i === mediaIndex ? styles.storyDotPremiumActive : ''}`} />
+                ))}
+                <span style={{ color: '#fff', fontSize: 12, fontWeight: 700, textShadow: '0 1px 4px #000' }}>
+                  {mediaIndex + 1}/{current.mediaList.length}
+                </span>
+              </div>
+            ) : null}
             {media.mediaType === 'video' ? (
               <>
                 <video
