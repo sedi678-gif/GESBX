@@ -1157,41 +1157,51 @@ export default function MessagesPageClient() {
         zegoHangUp();
       },
     });
-    const media = await primeCallMedia(callType === 'video');
-    if (!media.audio) {
-      releaseMediaStream(media.stream);
-      setCallUiState(null);
-      alert(media.error || 'Mikrofon icazəsi verilməyib.');
-      return;
-    }
-    /*
-     * Video zəngində kamera görüntüsünü zəng dəvəti gedən andan saxla:
-     * CallOverlay gözləmə zamanı istifadəçiyə özünü göstərir. Mikrofon track-i
-     * Zego qoşulmazdan əvvəl buraxılır ki, eyni anda iki SDK mikrofonu tutmasın.
-     * Video track isə Zego otağa qoşulana qədər preview üçün açıq qalır.
-     */
-    if (callType === 'video' && media.video && media.stream) {
-      media.stream.getAudioTracks().forEach((track) => {
-        try {
-          track.stop();
-          media.stream?.removeTrack(track);
-        } catch {
-          /* track artıq dayandırılıb */
-        }
+    let previewStream: MediaStream | null = null;
+    try {
+      const media = await primeCallMedia(callType === 'video');
+      previewStream = media.stream;
+      if (!media.audio) {
+        releaseMediaStream(media.stream);
+        setCallLocalStream(null);
+        setCallUiState(null);
+        alert(media.error || 'Mikrofon icazəsi verilməyib.');
+        return;
+      }
+      /*
+       * Keep video preview while ringing, but release the preview microphone
+       * before ZEGO joins so two SDKs never compete for the same audio device.
+       */
+      if (callType === 'video' && media.video && media.stream) {
+        media.stream.getAudioTracks().forEach((track) => {
+          try {
+            track.stop();
+            media.stream?.removeTrack(track);
+          } catch {
+            /* track artıq dayandırılıb */
+          }
+        });
+        setCallLocalStream(media.stream);
+      } else {
+        releaseMediaStream(media.stream);
+        previewStream = null;
+        setCallLocalStream(null);
+      }
+      await startCall({
+        calleeId: String(targetChat.id),
+        calleeName: targetChat.name,
+        calleeAvatar: targetChat.avatar,
+        chatId: targetChat.chatId,
+        callType,
+        joinCamera: callType === 'video' && media.video,
       });
-      setCallLocalStream(media.stream);
-    } else {
-      releaseMediaStream(media.stream);
+    } catch (error) {
+      if (previewStream) releaseMediaStream(previewStream);
       setCallLocalStream(null);
+      setCallUiState(null);
+      console.error('[Call] media preparation failed:', error);
+      alert(error instanceof Error ? error.message : 'Zəng üçün kamera və mikrofon hazırlana bilmədi.');
     }
-    startCall({
-      calleeId: String(targetChat.id),
-      calleeName: targetChat.name,
-      calleeAvatar: targetChat.avatar,
-      chatId: targetChat.chatId,
-      callType,
-      joinCamera: callType === 'video' && media.video,
-    });
   };
 
   const pendingIds = new Set(messageContacts.filter((c) => c.status === 'pending').map((c) => c.contactId));
