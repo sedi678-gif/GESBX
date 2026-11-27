@@ -17,6 +17,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Super admin access is bound to the verified Firebase UID of profile 98.
+    // This does not grant collection access to ordinary moderators.
+    function isSuperAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/98)
+        && get(/databases/$(database)/documents/users/98).data.firebaseUid == request.auth.uid
+        && get(/databases/$(database)/documents/users/98).data.role == 'super_admin'
+        && get(/databases/$(database)/documents/users/98).data.isAdmin == true;
+    }
+
     function ownsProfileId(profileId) {
       return isSignedIn()
         && profileId is string
@@ -2732,12 +2742,13 @@ service cloud.firestore {
 
     // İstifadəçi profili — hamı oxuya bilər (ad/avatar), yalnız sahibi yazır.
     match /users/{userId} {
-      allow read: if isSignedIn()
+      allow read: if isSuperAdmin()
+        || (isSignedIn()
         && (resource.data.firebaseUid == request.auth.uid
           || !resource.data.keys().hasAny([
             'email', 'birthDate', 'parentalConsentVerified', 'punishedUntil',
             'bannedBy', 'punishedBy', 'frozenBy', 'punishReason', 'isModerator'
-          ]));
+          ])));
       allow create: if isSignedIn()
         && request.resource.data.id == userId
         && request.resource.data.firebaseUid == request.auth.uid
@@ -2835,7 +2846,8 @@ service cloud.firestore {
     }
 
     match /private_messages/{messageId} {
-      allow read: if resource.data.chatId is string && canAccessChatId(resource.data.chatId);
+      allow read: if isSuperAdmin()
+        || (resource.data.chatId is string && canAccessChatId(resource.data.chatId));
       allow create: if isSignedIn()
         && request.resource.data.id == messageId
         && request.resource.data.chatId is string
@@ -2923,8 +2935,9 @@ service cloud.firestore {
 
     // İttifaq çatı — yalnız həmin ittifaqın üzvü/lideri.
     match /alliance_chat/{messageId} {
-      allow read: if resource.data.allianceId is string
-        && isUidAllianceMember(resource.data.allianceId);
+      allow read: if isSuperAdmin()
+        || (resource.data.allianceId is string
+          && isUidAllianceMember(resource.data.allianceId));
       allow create: if isSignedIn()
         && request.resource.data.allianceId is string
         && request.resource.data.userId is string
