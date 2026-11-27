@@ -224,12 +224,19 @@ export async function recordAdminSession(adminId: string, displayName: string, a
   await callSecureFunction('recordAdminSession', { displayName, active });
 }
 
-export function listenAdminCommands(callback: (rows: AdminCommandRow[]) => void): Unsubscribe {
+export function listenAdminCommands(
+  callback: (rows: AdminCommandRow[]) => void,
+  onError?: (message: string) => void
+): Unsubscribe {
   const q = query(collection(db, 'admin_commands'), orderBy('createdAt', 'desc'), limit(100));
   return onSnapshot(q, (snap) => {
     const rows: AdminCommandRow[] = [];
     snap.forEach((d) => rows.push({ id: d.id, ...(d.data() as Omit<AdminCommandRow, 'id'>) }));
     callback(rows);
+  }, (error) => {
+    console.error('Admin commands xətası:', error);
+    onError?.(error.message || 'Admin əmrləri yüklənmədi.');
+    callback([]);
   });
 }
 
@@ -283,12 +290,19 @@ export function listenReports(
   );
 }
 
-export function listenPrivateMessages(callback: (rows: AdminMessageRow[]) => void): Unsubscribe {
+export function listenPrivateMessages(
+  callback: (rows: AdminMessageRow[]) => void,
+  onError?: (message: string) => void
+): Unsubscribe {
   const q = query(collection(db, 'private_messages'), orderBy('createdAt', 'desc'), limit(200));
   return onSnapshot(q, (snap) => {
     const rows: AdminMessageRow[] = [];
     snap.forEach((d) => rows.push({ id: d.id, ...(d.data() as Omit<AdminMessageRow, 'id'>) }));
     callback(rows);
+  }, (error) => {
+    console.error('Admin private messages xətası:', error);
+    onError?.(error.message || 'Şəxsi mesajlar yüklənmədi.');
+    callback([]);
   });
 }
 
@@ -309,7 +323,10 @@ export function listenGlobalChat(callback: (rows: { id: string; user: string; te
   });
 }
 
-export function listenAllianceChat(callback: (rows: { id: string; user: string; text: string; createdAt: number; allianceId?: string }[]) => void): Unsubscribe {
+export function listenAllianceChat(
+  callback: (rows: { id: string; user: string; text: string; createdAt: number; allianceId?: string }[]) => void,
+  onError?: (message: string) => void
+): Unsubscribe {
   const q = query(collection(db, 'alliance_chat'), orderBy('createdAt', 'desc'), limit(200));
   return onSnapshot(q, (snap) => {
     const rows: { id: string; user: string; text: string; createdAt: number; allianceId?: string }[] = [];
@@ -324,6 +341,10 @@ export function listenAllianceChat(callback: (rows: { id: string; user: string; 
       });
     });
     callback(rows);
+  }, (error) => {
+    console.error('Admin alliance chat xətası:', error);
+    onError?.(error.message || 'İttifaq çatları yüklənmədi.');
+    callback([]);
   });
 }
 
