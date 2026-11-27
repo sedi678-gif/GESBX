@@ -274,6 +274,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       activeCallRef.current = nextCall;
       setActiveCall(nextCall);
 
+      const clearFailedCall = () => {
+        activeCallRef.current = null;
+        setActiveCall(null);
+        setCallUiState(null);
+      };
+
       setCallUiState({
         mode: 'outgoing',
         callType: params.callType,
@@ -284,36 +290,42 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
-      let ready = await ensureZegoConfig();
-      if (!ready) {
-        await new Promise((r) => setTimeout(r, 1200));
-        ready = await ensureZegoConfig();
-      }
-      if (!ready) {
-        setCallError(getZegoConfigErrorMessage());
-        return;
-      }
-
-      void createCallSession({
-        callId,
-        chatId: params.chatId,
-        callerId: myId,
-        calleeId,
-        callType: params.callType,
-        callerName: myMeta.name,
-        callerAvatar: myMeta.avatar,
-      }).catch((err) => console.warn('[Call] Firebase session:', err));
-
       try {
+        let ready = await ensureZegoConfig();
+        if (!ready) {
+          await new Promise((r) => setTimeout(r, 1200));
+          ready = await ensureZegoConfig();
+        }
+        if (!ready) {
+          clearFailedCall();
+          setCallError(getZegoConfigErrorMessage());
+          return;
+        }
+
+        // Start session creation while ZEGO initializes, but wait for it before
+        // sending the invitation so the recipient never watches a missing session.
+        const sessionPromise = createCallSession({
+          callId,
+          chatId: params.chatId,
+          callerId: myId,
+          calleeId,
+          callType: params.callType,
+          callerName: myMeta.name,
+          callerAvatar: myMeta.avatar,
+        });
+
         let zp = getZegoCallKitInstance();
         if (!zp) {
           zp = await initZegoCallKit(myId, myMeta.name, buildKitOptions());
         }
         if (!zp) {
+          await sessionPromise.catch((err) => console.warn('[Call] Firebase session:', err));
+          clearFailedCall();
           setCallError(getZegoLastInitError() || 'Zego Call Kit işə salına bilmədi.');
           return;
         }
 
+        await sessionPromise;
         await sendZegoCallInvitation(zp, {
           calleeId,
           calleeName: params.calleeName,
@@ -325,6 +337,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         });
       } catch (err) {
         console.error('[Zego] sendCallInvitation failed:', err);
+        clearFailedCall();
         setCallError(describeCallError(err));
       }
     },
