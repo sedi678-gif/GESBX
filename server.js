@@ -162,6 +162,54 @@ io.on('connection', (socket) => {
     io.emit('user_status_change', { userId: profileId, isOnline: true });
   });
 
+  // Authenticated private-message relay. The client persists messages through
+  // the API; this socket path only delivers the already-authorized chat event
+  // to the recipient's online room. Never trust senderId from the payload.
+  socket.on('chat:message', async ({ recipientId, message } = {}) => {
+    try {
+      const senderId = onlineUsers.get(socket.id);
+      const recipient = String(recipientId || '').trim();
+      if (!senderId || !/^\\d{1,20}$/.test(recipient) || recipient === senderId) return;
+      if (!message || typeof message !== 'object') return;
+
+      const chatId = String(message.chatId || '');
+      const messageId = String(message.id || '');
+      if (
+        message.senderId !== senderId ||
+        String(message.recipientId || '') !== recipient ||
+        chatId !== [senderId, recipient].sort().join('__') ||
+        !/^[A-Za-z0-9_-]{1,180}$/.test(messageId)
+      ) return;
+
+      const db = getAdminFirestore();
+      const [chatSnap, recipientSnap] = await Promise.all([
+        db.doc(`private_chats/${chatId}`).get(),
+        db.doc(`users/${recipient}`).get(),
+      ]);
+      if (!chatSnap.exists || !recipientSnap.exists) return;
+      const participants = Array.isArray(chatSnap.data()?.participants)
+        ? chatSnap.data().participants.map(String)
+        : [];
+      if (participants.length !== 2 || !participants.includes(senderId) || !participants.includes(recipient)) return;
+      if (recipientSnap.data()?.banned === true || recipientSnap.data()?.frozen === true) return;
+
+      // Strip unexpected fields and cap the relay payload size.
+      const safeMessage = {
+        ...message,
+        id: messageId,
+        chatId,
+        senderId,
+        recipientId: recipient,
+      };
+      const serialized = JSON.stringify(safeMessage);
+      if (serialized.length > 1_500_000) return;
+      io.to(recipient).emit('chat:message', safeMessage);
+    } catch (error) {
+      console.error('[Socket] private message relay failed:', error?.message || error);
+      socket.emit('error_message', { message: 'PRIVATE_MESSAGE_RELAY_FAILED' });
+    }
+  });
+
   socket.on('join_alliance_hub', async ({ userId } = {}) => {
     if (!userId) return;
     // ✅ FIXED: auth olunmadan hub-a qoşulmaq olmaz
