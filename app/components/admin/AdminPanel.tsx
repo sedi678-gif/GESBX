@@ -317,11 +317,11 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
     const u1 = listenReports(setReports);
 
-    const u2 = listenPrivateMessages(setMessages);
+    const u2 = listenPrivateMessages(setMessages, (message) => setPanelError(message));
 
-    const u3 = listenAllianceChat(setAllianceChat);
+    const u3 = listenAllianceChat(setAllianceChat, (message) => setPanelError(message));
 
-    const u4 = listenAdminCommands(setCommands);
+    const u4 = listenAdminCommands(setCommands, (message) => setPanelError(message));
 
     return () => { u1(); u2(); u3(); u4(); };
 
