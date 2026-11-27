@@ -1181,41 +1181,31 @@ export function getActiveCallSessionId(): string {
 export async function inviteUserToActiveCall(appUserId: string, displayName: string): Promise<void> {
   const zim = getZim();
   if (!zim) throw new Error('Zəng siqnalı hazır deyil.');
+  const ui = getCallUiState();
+  if (!ui || ui.mode !== 'active') {
+    throw new Error('Üçüncü şəxsi əlavə etmək üçün əvvəlcə əsas zəng cavablandırılmalı və aktiv olmalıdır.');
+  }
   const roomId = pendingRoomId || mediaRoomId;
-  if (!roomId) throw new Error('Aktiv zəng otağı yoxdur.');
+  if (!roomId) throw new Error('Aktiv zəng otağı tapılmadı. Zəngi yenidən başladın.');
+  const callId = pendingZimCallId;
+  if (!callId || typeof zim.callingInvite !== 'function') {
+    throw new Error('Bu zəng ZEGO konfrans rejimində açılmayıb. Üçüncü iştirakçı dəvəti mümkün olmadı.');
+  }
   const zegoId = toZegoUserId(appUserId);
   if (!zegoId) throw new Error('İstifadəçi ID-si etibarsızdır.');
+  if (zegoId === toZegoUserId(activeUserId || '')) {
+    throw new Error('Özünüzü zəngə əlavə edə bilməzsiniz.');
+  }
   const payload: InvitePayload = {
     roomId,
     sessionId: pendingSessionId || undefined,
     callType: pendingCallType,
     peerName: activeUserName || displayName,
   };
-  const extra = JSON.stringify(payload);
-  const callId = pendingZimCallId;
-  if (callId && zim.callingInvite) {
-    let res: { errorUserList?: ZimUser[] } | undefined;
-    try {
-      res = await zim.callingInvite([zegoId], callId, { extendedData: extra });
-    } catch {
-      res = await zim.callingInvite([zegoId], {
-        callID: callId,
-        extendedData: extra,
-        timeout: 60,
-      });
-    }
-    if (res?.errorUserList?.length) {
-      throw new Error('İstifadəçi onlayn deyil və ya dəvəti ala bilmədi.');
-    }
-    return;
+  const result = await zim.callingInvite([zegoId], callId, { extendedData: JSON.stringify(payload) });
+  if (result?.errorUserList?.length) {
+    throw new Error('İstifadəçi onlayn deyil və ya dəvəti ala bilmədi.');
   }
-  const res = await zim.callInvite([zegoId], {
-    timeout: 60,
-    mode: 1,
-    extendedData: extra,
-  });
-  const errors = res.errorUserList?.length ? res.errorUserList : res.errorInvitees || [];
-  if (errors.length) throw new Error('İstifadəçi onlayn deyil və ya dəvəti ala bilmədi.');
 }
 
 export function zegoMuteMicrophone(muted: boolean) {
