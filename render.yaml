@@ -2,7 +2,7 @@ services:
   - type: web
     name: gesbx-realtime
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm ci
     startCommand: node server.js
     healthCheckPath: /health
