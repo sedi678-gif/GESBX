@@ -404,7 +404,6 @@ function loadZegoUIKit(): Promise<ZegoUIKitModule> {
         // amma UIKit yenə də getVersion() çağırır. SDK versiyasını package pinindən ver.
         const sdkVersion = String(
           ExpressEngineCompat.version ||
-          expressExports.version ||
           expressExports.default?.version ||
           '3.10.0'
         );
