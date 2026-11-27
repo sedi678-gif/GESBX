@@ -2019,7 +2019,6 @@ export default function MessagesPageClient() {
                       void handleSend();
                     }
                   }}
-                  // Keep the input enabled during send: disabling a focused Android input closes the keyboard.
                   aria-disabled={sending}
                 />
                 </>
