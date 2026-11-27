@@ -962,7 +962,7 @@ function ProfilePageContent() {
     }
   }, [posts, currentUser.id, isRegistered]);
 
-  const closePostViewer = () => setSelectedPostId(null);
+  const closePostViewer = () => { setShowProfileComments(false); setSelectedPostId(null); };
 
   useEffect(() => {
     if (!selectedPostId) return;
@@ -1471,7 +1471,7 @@ function ProfilePageContent() {
           ) : (
             <div className={profileStyles.postGridPremium}>
               {posts.map((post, index) => (
-                <div key={post.id} className={profileStyles.postTile} onClick={() => setSelectedPostId(post.id)}>
+                <div key={post.id} className={profileStyles.postTile} onClick={() => { setShowProfileComments(false); setSelectedPostId(post.id); }}>
                   {(post.mediaUrl || post.thumbnail) ? (post.mediaType === 'video' ? (
                     <VideoPostPreview
                       src={post.mediaUrl}
