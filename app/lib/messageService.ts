@@ -83,12 +83,36 @@ async function privateMessagesRequest<T = any>(
     });
   };
 
-  let response = await send(false);
-  let result = await response.json().catch(() => ({}));
-  // Firebase ID token müddəti bitibsə, bir dəfə yenilə və sorğunu təkrar et.
-  if (response.status === 401 && ['AUTH_TOKEN_INVALID', 'AUTH_REQUIRED'].includes(String(result.error || ''))) {
-    response = await send(true);
-    result = await response.json().catch(() => ({}));
+  let response: Response | null = null;
+  let result: Record<string, unknown> = {};
+  let refreshedToken = false;
+  let lastNetworkError: unknown = null;
+
+  // Zəif mobil internetdə sorğu yarıda kəsilə bilər. Server send əməliyyatını
+  // message ID ilə idempotent saxlayır, buna görə eyni POST təhlükəsiz təkrarlana bilər.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      response = await send(refreshedToken);
+      result = await response.json().catch(() => ({}));
+      if (
+        response.status === 401 &&
+        !refreshedToken &&
+        ['AUTH_TOKEN_INVALID', 'AUTH_REQUIRED'].includes(String(result.error || ''))
+      ) {
+        refreshedToken = true;
+        response = await send(true);
+        result = await response.json().catch(() => ({}));
+      }
+      if (response.ok || response.status < 500 || attempt === 2) break;
+    } catch (error) {
+      lastNetworkError = error;
+      if (attempt === 2) throw error;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 300 * (attempt + 1)));
+  }
+
+  if (!response) {
+    throw lastNetworkError instanceof Error ? lastNetworkError : new Error('Şəbəkə bağlantısı qurulmadı.');
   }
   if (!response.ok) throw new Error(String(result.error || 'PRIVATE_MESSAGES_FAILED'));
   return result as T;
