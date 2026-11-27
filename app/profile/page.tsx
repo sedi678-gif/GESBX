@@ -21,12 +21,7 @@ import {
   writeCachedViewsReceived,
   readCachedLikesReceived,
   writeCachedLikesReceived,
-  addPostComment,
-  listenPostComments,
   deleteOwnPost,
-  editOwnPostComment,
-  deleteOwnPostComment,
-  reportPostComment,
   preparePostMediaFile,
 } from '@/app/lib/postsService';
 import {
@@ -34,7 +29,7 @@ import {
   linkCurrentAccountToEmail,
   refreshEmailVerification,
 } from '@/app/lib/firebaseAuth';
-import { PostComment, SocialPost } from '@/app/lib/socialTypes';
+import { SocialPost } from '@/app/lib/socialTypes';
 import { listenFollowCounts, reportContent } from '@/app/lib/socialService';
 import AppBottomNav from '@/app/components/AppBottomNav';
 import AdminPanel from '@/app/components/admin/AdminPanel';
@@ -890,7 +885,6 @@ function ProfilePageContent() {
   useEffect(() => {
     setXpModeOn(playerProfile?.proPanelActive !== true);
   }, [playerProfile?.proPanelActive]);
-  const [newCommentText, setNewCommentText] = useState('');
   const [showProfileComments, setShowProfileComments] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
