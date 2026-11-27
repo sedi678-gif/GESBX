@@ -319,6 +319,8 @@ export default function MessagesPageClient() {
   const [selectedChat, setSelectedChat] = useState<ChatItem | null>(null);
   const [messages, setMessages] = useState<StoredMessage[]>([]);
   const [messageText, setMessageText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const composeInputRef = useRef<HTMLInputElement>(null);
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -920,7 +922,15 @@ export default function MessagesPageClient() {
       setMessageText(text);
     } finally {
       setSending(false);
+      // Keep the composer focused after sending so Android does not dismiss the IME.
+      window.requestAnimationFrame(() => composeInputRef.current?.focus({ preventScroll: true }));
     }
+  };
+
+  const insertMessageEmoji = (emoji: string) => {
+    setMessageText((current) => `${current}${emoji}`);
+    setShowEmojiPicker(false);
+    window.requestAnimationFrame(() => composeInputRef.current?.focus({ preventScroll: true }));
   };
 
   const startRecording = async () => {
@@ -1923,6 +1933,13 @@ export default function MessagesPageClient() {
             </div>
           )}
           <div className={styles.composeBar}>
+            {showEmojiPicker && !recording && (
+              <div className={styles.messageEmojiPicker} role="group" aria-label="Emoji seç">
+                {['😀','😂','🥰','😍','😊','😉','😎','😭','😡','👍','👎','👏','🙏','❤️','🔥','🎉','💯','🤝','😘','🤣','😢','🤔','👌','💪','🙌','✨','💖','😇','🤗','🥳'].map((emoji) => (
+                  <button key={emoji} type="button" onPointerDown={(event) => event.preventDefault()} onClick={() => insertMessageEmoji(emoji)} aria-label={`${emoji} emoji`}>{emoji}</button>
+                ))}
+              </div>
+            )}
             <input
               ref={mediaInputRef}
               type="file"
@@ -1973,7 +1990,18 @@ export default function MessagesPageClient() {
                   <span className={styles.voiceGestureHint}>{recordingLocked ? 'Kilidləndi' : '← Sil · ↑ Kilidlə'}</span>
                 </div>
               ) : (
+                <>
+                <button
+                  type="button"
+                  className={styles.composeEmojiBtn}
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => setShowEmojiPicker((open) => !open)}
+                  aria-label="Emoji əlavə et"
+                  aria-expanded={showEmojiPicker}
+                  title="Emoji əlavə et"
+                >😊</button>
                 <input
+                  ref={composeInputRef}
                   type="text"
                   dir="ltr"
                   inputMode="text"
@@ -1985,15 +2013,22 @@ export default function MessagesPageClient() {
                   placeholder={editingMessage ? 'Mesajı düzənlə...' : sending ? t.messages.sending : t.messages.placeholder}
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && hasComposeText && handleSend()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && hasComposeText) {
+                      e.preventDefault();
+                      void handleSend();
+                    }
+                  }}
                   disabled={sending}
                 />
+                </>
               )}
             </div>
             {hasComposeText ? (
               <button
                 type="button"
                 className={`${styles.msgComposeBtn} ${styles.msgComposeSendBtn}`}
+                onPointerDown={(event) => event.preventDefault()}
                 onClick={() => void handleSend()}
                 disabled={sending || recording}
                 aria-label="Göndər"
