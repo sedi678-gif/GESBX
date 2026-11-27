@@ -325,7 +325,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        await sessionPromise;
+        await sessionPromise.catch((err) => console.warn('[Call] Firebase session unavailable; continuing with ZEGO invitation:', err));
         await sendZegoCallInvitation(zp, {
           calleeId,
           calleeName: params.calleeName,
