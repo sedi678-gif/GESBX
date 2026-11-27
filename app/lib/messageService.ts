@@ -330,7 +330,15 @@ export async function sendMediaMessageFast(
     let blob: Blob = payload.file;
     let mime = payload.file.type;
     if (type === 'image') {
-      blob = await compressImage(payload.file, 1920, 0.9);
+      // Şəxsi mesaj şəkillərini Storage-a məcburən göndərmə:
+      // Storage billing/permission xətası lokal preview URL-ni sonradan yararsız edir.
+      // Şəkli Firestore mesajına uyğun ölçüyə qədər sıx və data URL kimi saxla.
+      blob = await compressImage(payload.file, 1600, 0.82);
+      if (blob.size > INLINE_LIMIT) blob = await compressImage(payload.file, 1280, 0.72);
+      if (blob.size > INLINE_LIMIT) blob = await compressImage(payload.file, 960, 0.62);
+      if (blob.size > INLINE_LIMIT) {
+        throw new Error('Şəkil göndərilmədi: fayl çox böyükdür. Daha kiçik şəkil seçin.');
+      }
       mime = 'image/jpeg';
     }
     const ext = type === 'image' ? 'jpg' : payload.file.name.split('.').pop()?.toLowerCase() || 'mp4';
@@ -338,7 +346,7 @@ export async function sendMediaMessageFast(
       `chat_media/${chatId}/${messageId}.${ext}`,
       blob,
       mime,
-      type === 'image' ? 500_000 : VOICE_INLINE_PREFER
+      type === 'image' ? INLINE_LIMIT : VOICE_INLINE_PREFER
     );
     const message: StoredMessage = { ...instant, mediaUrl, mediaMime: mime };
     return persistPrivateMessage(payload, message);
