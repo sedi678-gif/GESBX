@@ -133,7 +133,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
             best = { index, ratio: entry.intersectionRatio };
           }
         }
-        if (best) setActiveIndex(best.index);
+        setActiveIndex(best ? best.index : -1);
       },
       { root, threshold: [0, VISIBLE_RATIO, 1] }
     );
