@@ -25,17 +25,28 @@ export async function getSuggestedProfiles(userId: string, max = 12): Promise<Ap
     const id = String(d.data().followerId || '');
     if (id && !excluded.has(id)) mutualCandidates.set(id, (mutualCandidates.get(id) || 0) + 1);
   });
-  const ranked = [...mutualCandidates.entries()].sort((a,b) => b[1]-a[1]).slice(0, max * 2);
-  const profiles = await Promise.all(ranked.map(async ([id]) => {
+  // Əvvəlcə qarşılıqlı əlaqələrə görə sıralanmış profillər. Əlaqə qrafiki boşdursa
+  // tövsiyə səhifəsi boş qalmasın deyə ümumi istifadəçi kolleksiyasından ehtiyat namizədlər götür.
+  const ranked = [...mutualCandidates.entries()].sort((a,b) => b[1]-a[1]).map(([id]) => id);
+  const candidateIds = [...ranked];
+  if (candidateIds.length < max) {
+    const publicUsers = await getDocs(query(collection(db, 'users'), limit(Math.max(60, max * 8))));
+    publicUsers.forEach((snap) => {
+      const id = snap.id;
+      const data = snap.data();
+      if (!excluded.has(id) && !data.frozen && !data.banned && !candidateIds.includes(id)) candidateIds.push(id);
+    });
+  }
+  const profiles = await Promise.all(candidateIds.slice(0, max * 2).map(async (id) => {
     const snap = await getDoc(doc(db, 'users', id));
     if (!snap.exists()) return null;
     const d = snap.data();
-    if (d.frozen || d.banned) return null;
+    if (d.frozen || d.banned || excluded.has(id)) return null;
     return { id, name: String(d.name || ''), surname: d.surname ? String(d.surname) : undefined,
       handle: String(d.handle || ''), avatar: d.avatar ? String(d.avatar) : undefined,
       region: d.region ? String(d.region) : undefined } as AppUserProfile;
   }));
-  return profiles.filter((p): p is AppUserProfile => Boolean(p)).slice(0, max);
+  return profiles.filter((profile): profile is AppUserProfile => Boolean(profile)).slice(0, max);
 }
 
 export async function getFollowingProfiles(userId: string, max = 100): Promise<AppUserProfile[]> {
