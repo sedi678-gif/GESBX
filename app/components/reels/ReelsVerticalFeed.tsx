@@ -294,7 +294,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
       >
         {items.map((item, index) => {
           const mounted = Math.abs(index - activeIndex) <= NEIGHBOR_COUNT;
-          const showSuggestion = suggestions.length > 0 && (index + 1) % 5 === 0;
+          const showSuggestion = (index + 1) % 5 === 0;
           return (
             <React.Fragment key={item.videoId}>
               <div
@@ -321,7 +321,12 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
                   <h2 className="mb-2 text-center text-2xl font-black">İzləyə biləcəyin insanlar</h2>
                   <p className="mb-7 max-w-sm text-center text-sm text-white/65">Ortaq əlaqələrinə əsasən seçilmiş profillər.</p>
                   <div className="w-full max-w-sm space-y-3">
-                    {suggestions.slice(0, 5).map((profile) => {
+                    {suggestions.length === 0 ? (
+                      <div className="rounded-2xl border border-white/10 bg-white/10 p-4 text-center text-sm text-white/70">
+                        Hazırda tövsiyə ediləcək profil tapılmadı. Bir az sonra yenidən yoxla.
+                      </div>
+                    ) : null}
+                    {suggestions.slice(0, 5).map((profile) => {}
                       const followed = followedSuggestionIds.has(profile.id);
                       return (
                         <div key={profile.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
