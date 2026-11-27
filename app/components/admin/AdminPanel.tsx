@@ -119,6 +119,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
   const [tab, setTab] = useState<'users' | 'reports' | 'messages' | 'chat' | 'commands' | 'security' | 'posts'>('users');
 
   const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [panelError, setPanelError] = useState('');
 
   const [reports, setReports] = useState<AdminReportRow[]>([]);
 
@@ -308,7 +309,11 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
     if (!unlocked) return;
 
-    void listAllUsers().then(setUsers);
+    setPanelError('');
+    void listAllUsers().then(setUsers).catch((error) => {
+      console.error('[AdminPanel] users load failed:', error);
+      setPanelError(error instanceof Error ? error.message : 'İstifadəçilər yüklənmədi.');
+    });
 
     const u1 = listenReports(setReports);
 
@@ -518,6 +523,13 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
 
 
+      {panelError ? (
+        <div role="alert" style={{ color: '#fecaca', background: 'rgba(127,29,29,.25)', border: '1px solid rgba(248,113,113,.35)', borderRadius: 10, padding: 9, marginBottom: 10, fontSize: 12 }}>
+          Admin xətası: {panelError}
+          <button type="button" onClick={() => { setPanelError(''); void listAllUsers().then(setUsers).catch((error) => setPanelError(error instanceof Error ? error.message : 'İstifadəçilər yüklənmədi.')); }} style={{ marginLeft: 8, color: '#fff', background: 'transparent', border: 0, textDecoration: 'underline' }}>Yenidən yoxla</button>
+        </div>
+      ) : null}
+
       <div className={styles.tabRow} style={{ padding: 0, marginBottom: 12 }}>
 
         {(['users', 'reports', 'messages', 'chat', 'commands', 'security', 'posts'] as const).map((t) => (
@@ -592,19 +604,19 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
                 </button>
 
-                <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => void banUser(userId, u.id, !u.banned).then(() => listAllUsers().then(setUsers))}>
+                <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => void banUser(userId, u.id, !u.banned).then(async () => { setUsers(await listAllUsers()); alert(u.banned ? 'Ban götürüldü.' : 'İstifadəçi banlandı.'); }).catch((error) => alert(error instanceof Error ? error.message : 'Ban əməliyyatı alınmadı.'))}>
 
                   {u.banned ? 'Ban aç' : 'Ban'}
 
                 </button>
 
-                <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => void punishUser(userId, u.id, 7, 'Admin cəzası').then(() => alert('7 gün cəzalandırıldı'))}>
+                <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => void punishUser(userId, u.id, 7, 'Admin cəzası').then(() => alert('İstifadəçi 7 gün cəzalandırıldı.')).catch((error) => alert(error instanceof Error ? error.message : 'Cəza tətbiq edilmədi.'))}>
 
                   7g cəza
 
                 </button>
 
-                <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => void grantModerator(userId, u.id, !u.isModerator).then(() => listAllUsers().then(setUsers))}>
+                <button type="button" className={styles.secondaryBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => void grantModerator(userId, u.id, !u.isModerator).then(async () => { setUsers(await listAllUsers()); alert(u.isModerator ? 'Moderator hüququ ləğv edildi.' : 'Moderator hüququ verildi.'); }).catch((error) => alert(error instanceof Error ? error.message : 'Moderator əməliyyatı alınmadı.'))}>
 
                   {u.isModerator ? 'Mod sil' : 'Mod ver'}
 
@@ -612,7 +624,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
                 {u.id !== SUPER_ADMIN_ID && (
 
-                  <button type="button" className={styles.dangerBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => { if (confirm('Silinsin?')) void deleteUserAccount(userId, u.id).then(() => listAllUsers().then(setUsers)); }}>
+                  <button type="button" className={styles.dangerBtn} style={{ width: 'auto', padding: '4px 8px', fontSize: 10, margin: 0 }} onClick={() => { if (confirm('Bu istifadəçinin hesabı silinsin?')) void deleteUserAccount(userId, u.id).then(async () => { setUsers(await listAllUsers()); alert('İstifadəçi hesabı silindi.'); }).catch((error) => alert(error instanceof Error ? error.message : 'Hesab silinmədi.')); }}>
 
                     Sil
 
@@ -654,7 +666,7 @@ export default function AdminPanel({ userId, displayName }: AdminPanelProps) {
 
                 {r.status === 'pending' && (
 
-                  <button type="button" className={styles.primaryBtn} style={{ marginTop: 6, fontSize: 10 }} onClick={() => void resolveReport(userId, r.id, 'resolved')}>
+                  <button type="button" className={styles.primaryBtn} style={{ marginTop: 6, fontSize: 10 }} onClick={() => void resolveReport(userId, r.id, 'resolved').then(() => alert('Şikayət həll edildi.')).catch((error) => alert(error instanceof Error ? error.message : 'Şikayət yenilənmədi.'))}>
 
                     Həll et
 
