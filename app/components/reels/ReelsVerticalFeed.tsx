@@ -326,7 +326,7 @@ export default function ReelsVerticalFeed({ userId }: ReelsVerticalFeedProps) {
                         Hazırda tövsiyə ediləcək profil tapılmadı. Bir az sonra yenidən yoxla.
                       </div>
                     ) : null}
-                    {suggestions.slice(0, 5).map((profile) => {}
+                    {suggestions.slice(0, 5).map((profile) => {
                       const followed = followedSuggestionIds.has(profile.id);
                       return (
                         <div key={profile.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 p-3">
