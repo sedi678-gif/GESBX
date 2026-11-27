@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { addPostComment, listenPostComments, listenPostCommentLikes, togglePostCommentLike, editOwnPostComment, deleteOwnPostComment, reportPostComment } from '@/app/lib/postsService';
 import type { PostComment } from '@/app/lib/socialTypes';
 import styles from './social.module.css';
@@ -116,7 +117,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
 
   const renderComment = (comment: PostComment, depth = 0): React.ReactNode => {
     const stats = likes[comment.id] || { count: 0, liked: false };
-    const childComments = repliesByParent[comment.id] || [];
+    const childComments = depth === 0 ? (repliesByParent[comment.id] || []) : [];
     return (
       <React.Fragment key={comment.id}>
         <div className={styles.commentItem} style={depth > 0 ? { marginLeft: Math.min(depth, 4) * 24, borderLeft: '2px solid rgba(99,102,241,.35)', paddingLeft: 10 } : undefined}>
@@ -132,7 +133,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
             </>
           ) : <div className={styles.commentAvatarFallback}>{comment.userName.charAt(0)}</div>}
           <div className={styles.commentBody}>
-            <div className={styles.commentAuthor}>{comment.userName}</div>
+            <Link className={styles.commentAuthor} href={`/profile?user=${encodeURIComponent(comment.userId)}`}>{comment.userName}</Link>
             <div className={styles.commentText}
               onPointerDown={(event) => { if (event.pointerType === 'mouse' && event.button !== 0) return; clearCommentHoldTimer(); commentHoldTimerRef.current = setTimeout(() => setActiveCommentMenu(comment.id), 520); }}
               onPointerUp={clearCommentHoldTimer} onPointerCancel={clearCommentHoldTimer} onPointerLeave={clearCommentHoldTimer}
@@ -177,7 +178,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
                 {stats.liked ? 'Bəyənildi' : 'Bəyən'}
                 {stats.count > 0 && <span className={styles.commentLikeCount}>{stats.count}</span>}
               </button>
-              <button type="button" className={styles.commentReplyButton} onClick={() => { setActiveCommentMenu(null); setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label={depth > 0 ? "Bu cavaba cavab yaz" : "Şərhə cavab yaz"}>↩ <span>{depth > 0 ? 'Cavaba cavab yaz' : 'Cavab yaz'}</span></button>
+              {depth === 0 && <button type="button" className={styles.commentReplyButton} onClick={() => { setActiveCommentMenu(null); setEditingComment(null); setReplyTo(comment); setText(''); setError(''); }} aria-label="Şərhə cavab yaz" title="Cavab yaz">↩</button>}
             </div>
             {activeCommentMenu === comment.id && (
               <div className={styles.commentContextMenu} role="menu" aria-label="Şərh seçimləri">

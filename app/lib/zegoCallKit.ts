@@ -399,10 +399,15 @@ function loadZegoUIKit(): Promise<ZegoUIKitModule> {
       // Bu SDK versiyasında versiya məlumatı "version" property-sindədir.
       // UIKit getVersion gözlədiyi üçün yalnız uyğun adapter əlavə edirik.
       if (typeof ExpressEngineCompat.getVersion !== 'function') {
-        const sdkVersion = String(ExpressEngineCompat.version || '');
-        if (!sdkVersion) {
-          throw new Error('ZEGO Express SDK yükləndi, lakin versiya məlumatı tapılmadı.');
-        }
+        // ZEGO Express WebRTC package.json bu repoda 3.10.0-a pin olunub.
+        // Bəzi bundler/Capacitor kombinasiyalarında static version export itir,
+        // amma UIKit yenə də getVersion() çağırır. SDK versiyasını package pinindən ver.
+        const sdkVersion = String(
+          ExpressEngineCompat.version ||
+          expressExports.version ||
+          expressExports.default?.version ||
+          '3.10.0'
+        );
         ExpressEngineCompat.getVersion = () => sdkVersion;
       }
 
