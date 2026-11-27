@@ -198,7 +198,7 @@ export default function PostCommentsSheet(props: PostCommentsSheetProps) {
   };
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
+    <div className={styles.modalOverlay + " " + styles.commentsSheetOverlay} onClick={onClose}>
       <div className={styles.modalSheet + ' ' + styles.commentsSheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Şərhlər">
         <div className={styles.commentsSheetHead}>
           <h2 className={styles.modalTitle}>💬 Şərhlər</h2>
