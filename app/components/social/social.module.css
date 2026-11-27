@@ -3867,3 +3867,27 @@
 .voiceMsgSpeedBtn:active {
   transform: scale(0.94);
 }
+
+
+/* Inline emoji picker and keyboard-preserving message composer. */
+.msgHubPage .composeInputWrap { position: relative !important; }
+.msgHubPage .composeEmojiBtn {
+  flex: 0 0 34px; width: 34px; min-width: 34px; height: 38px;
+  border: 0; border-radius: 10px; background: transparent;
+  color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.msgHubPage .composeEmojiBtn:active { transform: scale(.92); }
+.msgHubPage .composeInputWrap .composeInput { flex: 1 1 auto !important; min-width: 0 !important; }
+.msgHubPage .messageEmojiPicker {
+  position: absolute; z-index: 120; left: 0; bottom: calc(100% + 12px);
+  width: min(310px, calc(100vw - 32px)); max-height: 210px; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px;
+  padding: 10px; border: 1px solid rgba(103,232,249,.35); border-radius: 16px;
+  background: #111c2d; box-shadow: 0 12px 34px rgba(0,0,0,.45);
+}
+.msgHubPage .messageEmojiPicker button {
+  min-width: 0; height: 38px; border: 0; border-radius: 9px;
+  background: rgba(255,255,255,.06); color: #fff; font-size: 23px; cursor: pointer;
+}
+.msgHubPage .messageEmojiPicker button:active { background: rgba(34,211,238,.25); transform: scale(.94); }
