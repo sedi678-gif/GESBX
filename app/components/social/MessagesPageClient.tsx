@@ -42,7 +42,7 @@ import {
   MessageContact,
 } from '@/app/lib/messageRequestService';
 import { listenCallHistory, CallHistoryItem } from '@/app/lib/callHistoryService';
-import { getFollowingProfiles } from '@/app/lib/suggestedProfiles';
+import { getFollowerProfiles } from '@/app/lib/suggestedProfiles';
 import { TEEN_SAFETY_RULES, getCallSettings } from '@/app/lib/callSettings';
 import {
   isBlocked,
@@ -412,7 +412,7 @@ export default function MessagesPageClient() {
 
   useEffect(() => {
     let active = true;
-    if (myId && myId !== 'guest') void getFollowingProfiles(myId).then(rows => { if (active) setCallFriends(rows); }).catch(err => console.error('[Calls] dost siyahısı yüklənmədi:', err));
+    if (myId && myId !== 'guest') void getFollowerProfiles(myId).then(rows => { if (active) setCallFriends(rows); }).catch(err => console.error('[Calls] dost siyahısı yüklənmədi:', err));
     return () => { active = false; };
   }, [myId]);
 
@@ -1802,9 +1802,9 @@ export default function MessagesPageClient() {
           {inboxTab === 'calls' && (
             <div className={styles.msgCallsPane}>
               <div style={{ padding: '10px 12px 14px' }}>
-                <h3 style={{ margin: '0 0 10px', fontWeight: 800 }}>Dostların — zəng et</h3>
+                <h3 style={{ margin: '0 0 10px', fontWeight: 800 }}>Səni izləyənlər — zəng et</h3>
                 {callFriends.filter(friend => !isBlocked(blockedIds, friend.id) && (!listSearch.trim() || `${friend.name} ${friend.surname || ''} ${friend.handle}`.toLowerCase().includes(listSearch.toLowerCase()))).length === 0 ? (
-                  <p style={{ color: '#94a3b8', fontSize: 13 }}>İzlədiyin dostların burada görünəcək.</p>
+                  <p style={{ color: '#94a3b8', fontSize: 13 }}>Sənin izləyicilərin burada görünəcək.</p>
                 ) : callFriends.filter(friend => !isBlocked(blockedIds, friend.id) && (!listSearch.trim() || `${friend.name} ${friend.surname || ''} ${friend.handle}`.toLowerCase().includes(listSearch.toLowerCase()))).map(friend => {
                   const chat = chats.find(item => item.id === friend.id) || {
                     chatId: buildChatId(myId, friend.id), id: friend.id,
@@ -1817,7 +1817,7 @@ export default function MessagesPageClient() {
                       <img src={chat.avatar} alt="" className={styles.avatar} />
                       <div className={styles.msgChatBody}>
                         <span className={styles.msgChatName}>{chat.name}</span>
-                        <p className={styles.msgChatPreview}>İzlədiyin istifadəçi</p>
+                        <p className={styles.msgChatPreview}>Səni izləyir</p>
                       </div>
                       <button type="button" className={`${styles.msgHubIconBtn} ${styles.msgHubIconBtnAccent}`} onClick={() => { setSelectedChat(chat); void handleStartCall('voice', chat); }} aria-label="Səsli zəng et"><IconPhone /></button>
                       <button type="button" className={styles.msgHubIconBtn} onClick={() => { setSelectedChat(chat); void handleStartCall('video', chat); }} aria-label="Video zəng et">📹</button>
