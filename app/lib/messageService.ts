@@ -666,7 +666,9 @@ export function listenChatMessages(
 
   void load();
   // Socket hadisəsi itərsə tarixçəni yeniləmək üçün ehtiyat sinxronizasiya.
-  const interval = setInterval(() => { void load(); }, 30_000);
+  // Socket.IO çatdırılma siqnalı əsas yoldur; bu qısa interval yalnız
+  // mobil şəbəkədə socket kəsiləndə ehtiyat sinxronizasiya üçündür.
+  const interval = setInterval(() => { void load(); }, 5_000);
   return () => {
     cancelled = true;
     clearInterval(interval);
