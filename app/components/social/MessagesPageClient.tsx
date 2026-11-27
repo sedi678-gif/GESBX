@@ -756,10 +756,19 @@ export default function MessagesPageClient() {
   }, [realtimeHub.onlineUserIds]);
 
   useEffect(() => {
-    const targetId = searchParams.get('user');
-    if (!targetId || deepLinkHandled.current || isBlocked(blockedIds, targetId)) return;
-    deepLinkHandled.current = true;
+    const targetId = String(searchParams.get('user') || '').trim();
+    // UserContext can initially expose "guest" while Firebase/profile identity
+    // is still loading. Do not consume the one-shot deep link until identity is ready.
+    if (
+      !targetId ||
+      !myId ||
+      myId === 'guest' ||
+      myId === 'anonim_user_id' ||
+      deepLinkHandled.current ||
+      isBlocked(blockedIds, targetId)
+    ) return;
 
+    deepLinkHandled.current = true;
     void (async () => {
       try {
         const profile = await getUserProfile(targetId);
@@ -768,9 +777,15 @@ export default function MessagesPageClient() {
           return;
         }
         const users = await searchMessageUsers(targetId, myId);
-        const u = users.find((x) => x.id === targetId) || users[0];
-        if (u) await startChatWithUser(u);
+        const match = users.find((user) => String(user.id) === targetId);
+        if (match) {
+          await startChatWithUser(match);
+          return;
+        }
+        console.warn('[Message] keçid profili tapılmadı:', targetId);
       } catch (error) {
+        // Allow a later auth/network recovery to retry the same deep link.
+        deepLinkHandled.current = false;
         console.error('[Message] keçid söhbəti açıla bilmədi:', error);
       }
     })();
