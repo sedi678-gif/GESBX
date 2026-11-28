@@ -24,7 +24,7 @@ import { watchVideoTrackActivity } from '@/app/lib/callVideoUtils';
 import styles from './callOverlay.module.css';
 
 interface CallOverlayProps {
-  mode: 'outgoing' | 'incoming' | 'connecting' | 'active';
+  mode: 'outgoing' | 'incoming' | 'ringing' | 'connecting' | 'active';
   callType: CallType;
   peerName: string;
   peerAvatar?: string;
