@@ -579,8 +579,11 @@ function bindZimListeners(zim: ZimLike) {
           if (!primed.audio) {
             throw new Error(primed.error || 'Mikrofon icazəsi verilməyib.');
           }
-          await zim.callAccept(callID, { extendedData: '' });
+          // Media engine-i qəbul siqnalından əvvəl başladırıq. Beləliklə,
+          // qarşı tərəf "accepted" hadisəsini alanadək bu cihazda ZEGO
+          // joinRoom hazırlığı artıq başlamış olur.
           await joinMediaRoom(acceptedRoomId, acceptedCallType);
+          await zim.callAccept(callID, { extendedData: '' });
         })().catch((err) => {
           console.error('[ZIM] callAccept', err);
           stopCallUi('accept_failed');
