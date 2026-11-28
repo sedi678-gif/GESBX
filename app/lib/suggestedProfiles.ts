@@ -88,7 +88,7 @@ export async function getFollowerProfiles(userId: string, max = 100): Promise<Ap
       name: String(d.name || ''),
       surname: d.surname ? String(d.surname) : undefined,
       handle: String(d.handle || ''),
-      avatar: d.avatar ? String(d.avatar) : undefined,
+      avatar: String(d.avatar || d.photoURL || d.photoUrl || d.userAvatar || d.avatarUrl || d.profileImage || d.profilePhoto || '') || undefined,
     } as AppUserProfile;
   }));
   return rows.filter((profile): profile is AppUserProfile => Boolean(profile));
