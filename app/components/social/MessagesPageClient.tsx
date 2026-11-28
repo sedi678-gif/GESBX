@@ -264,7 +264,7 @@ function MessageBubble({
           <span className={styles.waDocIcon}>{ext.slice(0, 4)}</span>
           <span className={styles.waDocInfo}>
             <span className={styles.waDocName}>{m.fileName || 'Sənəd'}</span>
-            <span className={styles.waDocMeta}>Aç / yüklə · {timeLabel}</span>
+            <span className={styles.waDocMeta}>Aç / yüklə · {timeLabel} {statusMark && <span className={statusClass} title={statusMark} aria-label={statusMark} />}</span>
           </span>
         </button>
       </div>
@@ -280,7 +280,7 @@ function MessageBubble({
         <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={styles.waLocationCard}>
           <img src={staticMapUrl(m.locationLat, m.locationLng)} alt="Xəritə" className={styles.waLocationMap} />
           <span className={styles.waLocationLabel}>📍 {m.text || 'Konum'}</span>
-          <span className={styles.waLocationMeta}>Xəritədə aç · {timeLabel}</span>
+          <span className={styles.waLocationMeta}>Xəritədə aç · {timeLabel} {statusMark && <span className={statusClass} title={statusMark} aria-label={statusMark} />}</span>
         </a>
       </div>
     );
