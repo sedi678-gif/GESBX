@@ -535,6 +535,7 @@ const STRINGS: Record<AppLanguage, AppStrings> = {
       videoCall: 'Видеозвонок',
       callIncoming: 'Входящий вызов',
       callOutgoing: 'Вызов…',
+      callRinging: 'Идёт вызов…',
       callConnecting: 'Соединение…',
       callInProgress: 'Разговор',
       callDecline: 'Отклонить',
