@@ -828,7 +828,7 @@ export default function MessagesPageClient() {
       id: u.id,
       name: [u.name, u.surname].filter(Boolean).join(' '),
       username: u.handle,
-      avatar: u.avatar || DEFAULT_AVATAR,
+      avatar: u.avatar || '',
       isOnline: false,
       lastMsg: 'Yeni söhbət',
       time: 'İndi',
