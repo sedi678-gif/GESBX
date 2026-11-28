@@ -127,7 +127,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
   }
 
   return (
-    <section className={className} style={{ marginBottom: 20 }}>
+    <section className={className} style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Referral Header & Code */}
       <section style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: 20, padding: 0, overflow: 'hidden', border: 'none' }}>
         <div style={{ padding: '20px 24px 16px' }}>
@@ -187,7 +187,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
         </div>
       </section>
       {/* Earnings & List */}
-      <section style={{ borderRadius: 20, padding: 0, overflow: 'hidden', marginBottom: 20, border: '1px solid rgba(34,197,94,0.15)', background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)' }}>
+      <section style={{ borderRadius: 20, padding: 0, overflow: 'hidden', margin: 0, border: '1px solid rgba(34,197,94,0.15)', background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)' }}>
         <div style={{ padding: '20px 24px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <div>
@@ -214,7 +214,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
         </div>
       </section>
       {/* Invited users is a separate section, not nested inside the earnings panel. */}
-      <section style={{ marginTop: 18, marginBottom: 20, padding: '22px 18px', border: '1px solid #e2e8f0', borderRadius: 16, background: '#fff', boxShadow: '0 4px 14px rgba(15,23,42,0.04)' }}>
+      <section style={{ margin: 0, padding: '22px 18px', border: '1px solid #e2e8f0', borderRadius: 16, background: '#fff', boxShadow: '0 4px 14px rgba(15,23,42,0.04)' }}>
             <h3 style={{ margin: '0 0 14px', color: '#0f172a', fontSize: 15, fontWeight: 800, textTransform: 'none', letterSpacing: 0 }}>Dəvət olunmuş istifadəçilər</h3>
             {referralsLoading ? (
               <div style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>Yüklənir…</div>
