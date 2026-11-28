@@ -133,8 +133,8 @@ module.exports = async function socialLikes(req, res) {
     const profileId = String(body.userId || '').trim();
     const kind = String(body.kind || '');
     const targetId = String(body.targetId || '').trim();
-    if (!profileId || !['post', 'comment', 'comment-create', 'post-delete', 'comment-edit', 'comment-delete', 'comment-report'].includes(kind)
-      || (kind !== 'comment-create' && !targetId)) {
+    if (!profileId || !['post', 'comment', 'comment-create', 'post-delete', 'comment-edit', 'comment-delete', 'comment-report', 'likes-recount'].includes(kind)
+      || (!['comment-create', 'likes-recount'].includes(kind) && !targetId)) {
       throw new ApiError(400, 'LIKE_FIELDS_INVALID');
     }
 
@@ -142,6 +142,21 @@ module.exports = async function socialLikes(req, res) {
     const profile = await db.doc(`users/${profileId}`).get();
     if (!profile.exists || profile.data().firebaseUid !== identity.uid) {
       throw new ApiError(403, 'PROFILE_ACCOUNT_MISMATCH');
+    }
+
+    if (kind === 'likes-recount') {
+      // Bərpa: əvvəlki versiyalarda post_likes saxlanılırdı, amma
+      // users.likesReceived sayğacı artırılmırdı. Davamlı tarixçədən yenidən hesabla.
+      const likesCountSnap = await db.collection('post_likes')
+        .where('ownerId', '==', profileId)
+        .count()
+        .get();
+      const likesReceived = Math.max(0, Number(likesCountSnap.data().count) || 0);
+      await db.doc(`users/${profileId}`).set({
+        likesReceived,
+        likesReceivedUpdatedAt: Date.now(),
+      }, { merge: true });
+      return sendJson(res, 200, { likesReceived });
     }
 
     if (kind === 'post-delete') {
@@ -258,6 +273,10 @@ module.exports = async function socialLikes(req, res) {
         if (likeSnap.exists) return { liked: true, likes, alreadyLiked: true };
 
         const ownerId = String(post.userId || '');
+        if (!ownerId) throw new ApiError(400, 'POST_OWNER_MISSING');
+        const ownerRef = db.doc(`users/${ownerId}`);
+        const ownerSnap = await tx.get(ownerRef);
+        const ownerLikes = Math.max(0, Number(ownerSnap.data()?.likesReceived) || 0);
         tx.create(likeRef, {
           postId: targetId,
           userId: profileId,
@@ -265,6 +284,11 @@ module.exports = async function socialLikes(req, res) {
           createdAt: Date.now(),
         });
         tx.update(postRef, { likes: likes + 1, lastLikedBy: profileId });
+        // Profilin ümumi bəyənmə sayı post silindikdə və 24 saat bitdikdə də qalır.
+        tx.set(ownerRef, {
+          likesReceived: ownerLikes + 1,
+          likesReceivedUpdatedAt: Date.now(),
+        }, { merge: true });
         return { liked: true, likes: likes + 1, alreadyLiked: false };
       });
       return sendJson(res, 200, result);
