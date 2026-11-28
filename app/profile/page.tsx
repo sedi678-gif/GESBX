@@ -461,12 +461,12 @@ function ProfilePageContent() {
     }
     const unsubscribe = listenUserLikesReceived(currentUser.id, (likes) => {
       writeCachedLikesReceived(currentUser.id, likes);
-      setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, likes) }));
+      setStats((prev) => ({ ...prev, likes }));
     });
     // Köhnə post_likes tarixçəsini profilin daimi sayğacına bərpa et.
     void reconcileUserLikesReceived(currentUser.id).then((likes) => {
       writeCachedLikesReceived(currentUser.id, likes);
-      setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, likes) }));
+      setStats((prev) => ({ ...prev, likes }));
     }).catch((error) => console.warn('Profil bəyənmələri bərpa edilmədi:', error));
     return unsubscribe;
   }, [currentUser.id, isRegistered]);
