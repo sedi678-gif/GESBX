@@ -503,7 +503,7 @@ export async function reportMessageUser(userId: string, targetUserId: string, re
 }
 
 export function listenUserChats(userId: string, callback: (chats: ChatSummary[]) => void, onError?: (error: Error) => void): Unsubscribe {
-  let cancelled = false, loading = false, lastSignature = '';
+  let cancelled = false, loading = false, reportedError = false, lastSignature = '';
   const load = async () => {
     if (cancelled || loading) return;
     loading = true;
