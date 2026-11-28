@@ -223,7 +223,7 @@ async function handleGet(req, res, db, profileId, action) {
       if (![name, surname, handle, doc.id].join(' ').toLowerCase().includes(query)) return;
       users.push({
         id: doc.id, name, surname, handle,
-        avatar: text(data.avatar, 1500),
+        avatar: profileAvatar(data),
         region: text(data.region, 80),
         gender: text(data.gender, 40),
       });
