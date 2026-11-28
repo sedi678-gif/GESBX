@@ -6,7 +6,7 @@ const {
   getAdminFirestore,
   sendJson,
   verifySecureRequest,
-} = require('../services/apiSecurity');
+} = require('../apiSecurity');
 
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const storedXp = (player) => {
