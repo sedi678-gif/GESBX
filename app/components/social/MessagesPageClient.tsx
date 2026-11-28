@@ -718,6 +718,17 @@ export default function MessagesPageClient() {
     const unsubMessages = subscribePrivateMessages((message) => {
       if (message.senderId === myId) return;
       applyIncomingMessage(message);
+      const isOpenAndVisible =
+        selectedChatRef.current?.chatId === message.chatId &&
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible';
+      const receivedAt = Date.now();
+      void markMessagesReceived(
+        message.chatId,
+        [message.id],
+        { deliveredAt: receivedAt, ...(isOpenAndVisible ? { readAt: receivedAt } : {}) },
+        String(myId)
+      ).catch((error) => console.warn('[Message] incoming delivery status failed:', error));
     });
     const unsubErrors = onChatError((payload) => {
       if (/private message.*expired|expired.*private message/i.test(payload.message || '')) {

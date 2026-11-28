@@ -509,12 +509,16 @@ export function listenUserChats(userId: string, callback: (chats: ChatSummary[])
     loading = true;
     try {
       const result = await privateMessagesRequest<{ chats: ChatSummary[] }>('chats', userId);
+      reportedError = false;
       if (cancelled) return;
       const chats = result.chats || [];
       const signature = chats.map((chat) => [chat.chatId, chat.lastMessageAt, chat.unreadCount || 0, chat.archived ? 1 : 0].join(':')).join('|');
       if (signature !== lastSignature) { lastSignature = signature; callback(chats); }
     } catch (error) {
-      if (!cancelled) onError?.(error instanceof Error ? error : new Error(String(error)));
+      if (!cancelled && !reportedError) {
+        reportedError = true;
+        onError?.(error instanceof Error ? error : new Error(String(error)));
+      }
     } finally { loading = false; }
   };
   void load();
@@ -641,6 +645,7 @@ export function listenChatMessages(
 ): Unsubscribe {
   let cancelled = false;
   let loading = false;
+  let reportedError = false;
   let lastSignature = '';
 
   // Mesaj tarixçəsini əvvəlcə təsdiqlənmiş server API-sindən alırıq.
@@ -652,6 +657,7 @@ export function listenChatMessages(
       const result = await privateMessagesRequest<{ messages: StoredMessage[] }>(
         'messages', userId, 'GET', { chatId }
       );
+      reportedError = false;
       if (cancelled) return;
       const messages = (result.messages || [])
         .map((message) => ({
@@ -669,7 +675,10 @@ export function listenChatMessages(
         callback(messages);
       }
     } catch (error) {
-      if (!cancelled) onError?.(error instanceof Error ? error : new Error(String(error)));
+      if (!cancelled && !reportedError) {
+        reportedError = true;
+        onError?.(error instanceof Error ? error : new Error(String(error)));
+      }
     } finally {
       loading = false;
     }
@@ -679,7 +688,7 @@ export function listenChatMessages(
   // Socket hadisəsi itərsə tarixçəni yeniləmək üçün ehtiyat sinxronizasiya.
   // Socket.IO çatdırılma siqnalı əsas yoldur; bu qısa interval yalnız
   // mobil şəbəkədə socket kəsiləndə ehtiyat sinxronizasiya üçündür.
-  const interval = window.setInterval(() => { void load(); }, 1_500);
+  const interval = window.setInterval(() => { void load(); }, 2_500);
   const refresh = () => { void load(); };
   window.addEventListener('focus', refresh);
   window.addEventListener('online', refresh);
