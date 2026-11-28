@@ -699,6 +699,7 @@ const STRINGS: Record<AppLanguage, AppStrings> = {
       videoCall: 'Görüntülü arama',
       callIncoming: 'Gelen arama',
       callOutgoing: 'Aranıyor…',
+      callRinging: 'Çalıyor…',
       callConnecting: 'Bağlanıyor…',
       callInProgress: 'Görüşme',
       callDecline: 'Reddet',
