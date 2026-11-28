@@ -68,7 +68,8 @@ module.exports = async function getMyReferralCodeHandler(req, res) {
     if (player.firebaseUid !== identity.uid || user.firebaseUid !== identity.uid) {
       throw new ApiError(403, 'PROFILE_OWNER_MISMATCH');
     }
-    if (verifiedAtMillis(player.identityVerifiedAt) <= 0) {
+    const identityVerifiedAt = verifiedAtMillis(player.identityVerifiedAt);
+    if (!Number.isFinite(identityVerifiedAt) || identityVerifiedAt <= 0) {
       throw new ApiError(409, 'PROFILE_NOT_VERIFIED');
     }
     if (player.frozen === true || user.frozen === true || user.banned === true) {
