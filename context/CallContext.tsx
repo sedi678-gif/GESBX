@@ -51,7 +51,7 @@ function describeCallError(error: unknown): string {
       // Use the safe fallback below.
     }
   }
-  return 'Zəng xidməti cavab vermədi. İnternet bağlantısını yoxlayıb yenidən cəhd edin.';
+  return 'Zəng xidməti cavab vermədi. Bir az sonra yenidən cəhd edin.';
 }
 
 interface ActiveCallState {
