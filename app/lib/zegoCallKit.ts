@@ -561,7 +561,7 @@ function bindZimListeners(zim: ZimLike) {
       mode: 'incoming',
       callType,
       peerName: payload?.peerName || inviter.userName || inviter.userID || 'İstifadəçi',
-      peerAvatar: payload?.peerAvatar,
+      peerAvatar: payload?.peerAvatar || inviter.userAvatar || inviter.avatar,
       accept: () => {
         void (async () => {
           // Prepare camera BEFORE accepting: ZIM may emit the accepted event
