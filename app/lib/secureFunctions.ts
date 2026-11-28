@@ -109,9 +109,9 @@ async function callSecureApiInternal<TPayload extends Record<string, unknown>, T
   }
   let appCheckToken: string;
   try {
-    // Force a new token so a browser cache from a previous Firebase project
-    // cannot be sent to the gesbx-c4312 Admin SDK verifier.
-    appCheckToken = (await getToken(appCheck, true)).token;
+    // Reuse the SDK-cached token. Forcing a fresh token on every request can
+    // trigger Firebase App Check 429 rate_limited responses.
+    appCheckToken = (await getToken(appCheck)).token;
   } catch (error) {
     const reason = error instanceof Error ? ` (${error.message})` : '';
     throw new Error(`Firebase App Check tokeni alınmadı${reason}`);
