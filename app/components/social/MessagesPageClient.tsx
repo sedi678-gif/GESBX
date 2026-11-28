@@ -241,7 +241,7 @@ function MessageBubble({
           )}
         </button>
         <div className={styles.bubbleMeta}>
-          {m.type === 'image' ? '📷 Şəkil' : '🎬 Video'} · {timeLabel} {statusMark && <span className={statusClass}>{statusMark}</span>}
+          {m.type === 'image' ? '📷 Şəkil' : '🎬 Video'} · {timeLabel} {statusMark && <span className={statusClass} title="Mesaj statusu" aria-label="Mesaj statusu" />}
         </div>
       </div>
     );
@@ -298,7 +298,7 @@ function MessageBubble({
       <div className={styles.bubbleTime}>
         {timeLabel}
         {editedLabel}
-        {statusMark && <span className={statusClass}> {statusMark}</span>}
+        {statusMark && <span className={statusClass} title="Mesaj statusu" aria-label="Mesaj statusu" />}
       </div>
     </div>
   );
