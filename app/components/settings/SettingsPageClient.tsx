@@ -97,7 +97,7 @@ export default function SettingsPageClient() {
         .then((profiles) => {
           setBlockedUsers(profiles.filter((profile): profile is AppUserProfile => Boolean(profile)));
         })
-        .catch(() => notify('Bloklanmış profilləri yükləmək mümkün olmadı.'))
+        .catch(() => notify('Əngəllənmiş hesabları yükləmək mümkün olmadı.'))
         .finally(() => setBlockedLoading(false));
     });
   }, [userId]);
@@ -418,7 +418,7 @@ export default function SettingsPageClient() {
           {blockedLoading ? (
             <p className={styles.settingsHint}>Yüklənir...</p>
           ) : blockedUsers.length === 0 ? (
-            <p className={styles.settingsHint}>Bloklanmış profil yoxdur.</p>
+            <p className={styles.settingsHint}>Əngəllənmiş hesab yoxdur.</p>
           ) : (
             <div style={{ display: 'grid', gap: 10 }}>
               {blockedUsers.map((profile) => (
