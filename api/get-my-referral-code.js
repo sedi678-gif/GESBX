@@ -10,7 +10,7 @@ const {
   verifySecureRequest,
 } = require('../services/apiSecurity');
 
-const USER_ID_PATTERN = /^\\d{1,20}$/;
+const USER_ID_PATTERN = /^\d{1,20}$/;
 
 function deriveReferralKey() {
   const privateKey = getServiceAccount().private_key;
