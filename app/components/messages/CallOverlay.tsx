@@ -141,7 +141,9 @@ export default function CallOverlay({
       ? t.messages.callIncoming
       : mode === 'outgoing'
         ? t.messages.callOutgoing
-        : mode === 'connecting'
+        : mode === 'ringing'
+          ? t.messages.callRinging
+          : mode === 'connecting'
           ? t.messages.callConnecting
           : t.messages.callInProgress;
 
