@@ -68,12 +68,14 @@ export default function RegisterPage() {
         throw new Error('Firebase sessiyası saxlanmadı. Zəhmət olmasa yenidən cəhd edin.');
       }
 
-      // Email verification must not block account creation or page navigation.
+      // Təsdiq məktubu uğurla göndərilmədən qeydiyyatı tamamlanmış saymırıq.
       if (!user.emailVerified) {
-        void sendEmailVerification(user).catch((verificationError) => {
-          console.error('Təsdiq emaili göndərilmədi:', verificationError);
-        });
-        setSuccessMsg('Hesab yaradıldı. Təsdiq linki e-poçtunuza göndərilir. Profil mərhələsinə keçilir…');
+        await withTimeout(
+          sendEmailVerification(user),
+          15_000,
+          'Təsdiq məktubu göndərilmədi. İnternet bağlantısını yoxlayıb yenidən cəhd edin.'
+        );
+        setSuccessMsg('Hesab yaradıldı. Gmail-ə təsdiq məktubu göndərildi. Məktubdakı linki açaraq emailinizi təsdiqləyin.');
       } else {
         setSuccessMsg('E-poçt artıq təsdiqlənib. Profilinizi tamamlaya bilərsiniz.');
       }
