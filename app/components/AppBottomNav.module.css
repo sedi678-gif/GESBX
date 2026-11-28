@@ -119,8 +119,9 @@
 }
 
 .navLabel {
-  max-width: 100%;
-  overflow: hidden;
+  width: max-content;
+  max-width: none;
+  overflow: visible;
   color: #9caec3;
   font-family: inherit;
   font-size: 9px;
@@ -131,6 +132,7 @@
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+  word-break: keep-all;
   transition: color 0.18s ease;
 }
 
