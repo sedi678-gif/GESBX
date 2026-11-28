@@ -207,8 +207,8 @@ function MessageBubble({
   const cls = mine ? styles.bubbleMine : styles.bubbleTheirs;
   const timeLabel = formatTime(m.createdAt);
   const editedLabel = m.editedAt ? ' · redaktə olunub' : '';
-  const statusMark = mine ? (m.readAt ? '✓✓' : m.deliveredAt ? '✓✓' : '✓') : '';
-  const statusClass = m.readAt ? styles.messageStatusRead : styles.messageStatus;
+  const statusMark = mine ? (m.readAt ? 'Oxunub' : m.deliveredAt ? 'Çatdırılıb' : 'Göndərilib') : '';
+  const statusClass = m.readAt ? styles.messageStatusRead : m.deliveredAt ? styles.messageStatusDelivered : styles.messageStatusSent;
 
   if (m.type === 'audio' && m.audioUrl) {
     return (
@@ -216,7 +216,7 @@ function MessageBubble({
         <ReplyQuote m={m} myId={myId} />
         {m.forwardedFrom && <div className={styles.messageForwarded}>↗️ Ötürülüb</div>}
         <VoiceMessagePlayer src={m.audioUrl} durationMs={m.audioDurationMs} waveform={m.audioWaveform} />
-        <div className={styles.bubbleMeta}>🎤 Səs mesajı · {timeLabel} {statusMark && <span className={statusClass}>{statusMark}</span>}</div>
+        <div className={styles.bubbleMeta}>🎤 Səs mesajı · {timeLabel} {statusMark && <span className={statusClass} title={statusMark} aria-label={statusMark} />}</div>
       </div>
     );
   }
@@ -345,6 +345,7 @@ export default function MessagesPageClient() {
   const [reportReason, setReportReason] = useState('');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [messageInfo, setMessageInfo] = useState<StoredMessage | null>(null);
   const [contextMenu, setContextMenu] = useState<{ message: StoredMessage; anchor: DOMRect } | null>(null);
   const [editingMessage, setEditingMessage] = useState<StoredMessage | null>(null);
   const [replyTarget, setReplyTarget] = useState<StoredMessage | null>(null);
@@ -1650,6 +1651,7 @@ export default function MessagesPageClient() {
             onDelete={() => void deleteSelected()}
             onForward={() => { const message = getSelectedMessages()[0]; if (message) { setForwardingMessage(message); setSearchQuery(''); setSearchResults([]); setShowSearch(true); } clearSelection(); }}
             onMore={() => void copySelectedText()}
+            onInfo={() => { const message = getSelectedMessages()[0]; if (message) setMessageInfo(message); }}
           />
         ) : chatSelectionMode && !selectedChat ? (
           <div className={styles.selectionBar}>
@@ -2236,6 +2238,27 @@ export default function MessagesPageClient() {
             >
               Yeni pəncərədə aç
             </button>
+          </div>
+        </div>
+      )}
+
+      {messageInfo && (
+        <div className={styles.modalOverlay} onClick={() => setMessageInfo(null)}>
+          <div className={styles.modalSheet} role="dialog" aria-modal="true" aria-labelledby="message-info-title" onClick={(event) => event.stopPropagation()}>
+            <h2 id="message-info-title" className={styles.modalTitle}>ⓘ Mesaj məlumatı</h2>
+            <div className={styles.messageInfoRow}>
+              <span>Göndərildi</span>
+              <strong>{messageInfo.createdAt ? new Date(messageInfo.createdAt).toLocaleString('az-AZ') : 'Məlumat yoxdur'}</strong>
+            </div>
+            <div className={styles.messageInfoRow}>
+              <span>Çatdırıldı</span>
+              <strong>{messageInfo.deliveredAt ? new Date(messageInfo.deliveredAt).toLocaleString('az-AZ') : 'Hələ çatdırılmayıb'}</strong>
+            </div>
+            <div className={styles.messageInfoRow}>
+              <span>Oxundu</span>
+              <strong>{messageInfo.readAt ? new Date(messageInfo.readAt).toLocaleString('az-AZ') : 'Hələ oxunmayıb'}</strong>
+            </div>
+            <button type="button" className={styles.secondaryBtn} onClick={() => setMessageInfo(null)}>Bağla</button>
           </div>
         </div>
       )}
