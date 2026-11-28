@@ -140,7 +140,7 @@ async function listChats(db, profileId) {
       otherUserId: otherId,
       otherUserName: text(meta.name, 100) || 'İstifadəçi',
       otherUserHandle: text(meta.handle, 80),
-      otherUserAvatar: text(meta.avatar, 1500),
+      otherUserAvatar: profileAvatar(meta),
       lastMessage: text(data.lastMessage, 2000),
       lastMessageAt: Number(data.lastMessageAt) || 0,
       archived: Array.isArray(data.archivedBy) && data.archivedBy.map(String).includes(profileId),
