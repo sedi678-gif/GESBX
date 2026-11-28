@@ -1847,7 +1847,7 @@ export default function MessagesPageClient() {
                   };
                   return (
                     <div key={friend.id} className={styles.msgCallRow}>
-                      <img src={chat.avatar} alt="" className={styles.avatar} />
+                      <img src={chat.avatar || DEFAULT_AVATAR} alt="" className={styles.avatar} />
                       <div className={styles.msgChatBody}>
                         <span className={styles.msgChatName}>{chat.name}</span>
                         <p className={styles.msgChatPreview}>Səni izləyir</p>
