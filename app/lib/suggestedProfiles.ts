@@ -43,7 +43,7 @@ export async function getSuggestedProfiles(userId: string, max = 12): Promise<Ap
     const d = snap.data();
     if (d.frozen || d.banned || excluded.has(id)) return null;
     return { id, name: String(d.name || ''), surname: d.surname ? String(d.surname) : undefined,
-      handle: String(d.handle || ''), avatar: d.avatar ? String(d.avatar) : undefined,
+      handle: String(d.handle || ''), avatar: String(d.avatar || d.photoURL || d.photoUrl || d.userAvatar || d.avatarUrl || d.profileImage || d.profilePhoto || '') || undefined,
       region: d.region ? String(d.region) : undefined } as AppUserProfile;
   }));
   return profiles.filter((profile): profile is AppUserProfile => Boolean(profile)).slice(0, max);
