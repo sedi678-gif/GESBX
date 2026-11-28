@@ -597,13 +597,14 @@ function bindZimListeners(zim: ZimLike) {
       if (!user?.userID || user.userID === activeUserId) continue;
       if (user.state === 9) {
         const prev = getCallUiState();
-        if (prev?.mode === 'outgoing') {
-          patchCallUiState({ hint: 'Zəng qarşı tərəfin cihazına hələ çatmayıb. Qarşı tərəfin internetini və tətbiqin açıq olduğunu yoxlayın.' });
-        }
+        // ZEGO state 9 is a delivery state, not proof that the user's internet is offline.
+        if (prev?.mode === 'outgoing') patchCallUiState({ hint: 'Zəng göndərilir…' });
       }
       if (user.state === 5) {
         const prev = getCallUiState();
-        if (prev?.mode === 'outgoing') patchCallUiState({ hint: 'Zəng qarşı tərəfə çatdı, cavab gözlənilir…' });
+        if (prev?.mode === 'outgoing' || prev?.mode === 'ringing') {
+          setCallUiState({ ...prev, mode: 'ringing', hint: undefined });
+        }
       }
       if (user.state === 1) {
         remoteZimUsers.add(user.userID);
