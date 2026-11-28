@@ -463,7 +463,7 @@ export default function MessagesPageClient() {
           id: otherId,
           name: 'İstifadəçi',
           username: '',
-          avatar: DEFAULT_AVATAR,
+          avatar: '',
           isOnline: false,
           lastMsg: preview,
           time,
