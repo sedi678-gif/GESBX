@@ -24,6 +24,7 @@ export async function searchUsers(searchQuery: string, currentUserId?: string): 
 
   snap.forEach((d) => {
     const data = d.data() as AppUserProfile & { name?: string; surname?: string; handle?: string };
+    const raw = data as unknown as Record<string, unknown>;
     const id = data.id || d.id;
     if (currentUserId && id === currentUserId) return;
     if (data.frozen || data.banned) return;
@@ -38,7 +39,7 @@ export async function searchUsers(searchQuery: string, currentUserId?: string): 
         surname: data.surname,
         handle: data.handle || '',
         gender: data.gender,
-        avatar: data.avatar || (data as Record<string, unknown>).photoURL as string || (data as Record<string, unknown>).photoUrl as string || (data as Record<string, unknown>).userAvatar as string || (data as Record<string, unknown>).avatarUrl as string || (data as Record<string, unknown>).profileImage as string || (data as Record<string, unknown>).profilePhoto as string,
+        avatar: String(raw.avatar || raw.photoURL || raw.photoUrl || raw.userAvatar || raw.avatarUrl || raw.profileImage || raw.profilePhoto || '') || undefined,
         region: data.region,
       });
     }
