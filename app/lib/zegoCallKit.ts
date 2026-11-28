@@ -977,6 +977,7 @@ export async function sendZegoCallInvitation(
 
   const calleeZegoId = toZegoUserId(params.calleeId);
   const roomId = toZegoRoomId(params.roomId || params.calleeId, 'c_');
+  pendingZimCallId = '';
   pendingCalleeZegoId = calleeZegoId;
   pendingRoomId = roomId;
   pendingSessionId = params.roomId || '';
