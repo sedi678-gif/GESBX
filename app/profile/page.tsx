@@ -1304,7 +1304,7 @@ function ProfilePageContent() {
           <div className={profileStyles.profileAdBoltWrap}>
             <GoogleAdButton
               variant="bolt"
-              label="Videonu Kəşfə çıxar"
+              label="Videonu Kəşf etə çıxart"
               className={isDiscoverBoostActive(discoverBoostUntil, boostNow) ? profileStyles.profileAdBoltOn : undefined}
               onClick={() => setShowBoostOptions(true)}
             />
@@ -1823,10 +1823,10 @@ function ProfilePageContent() {
             style={{ ...modalContentStyle, width: '92%', maxWidth: 420, height: 'auto', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', padding: 22, gap: 14, color: '#f8fafc', background: '#111827', border: '1px solid #374151' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 id="discover-boost-title" style={{ margin: 0, fontSize: 19 }}>Videonu Kəşfə çıxar</h2>
+              <h2 id="discover-boost-title" style={{ margin: 0, fontSize: 19 }}>Videonu Kəşf etə çıxart</h2>
               <button type="button" onClick={() => setShowBoostOptions(false)} disabled={buyingDiscoverBoost} aria-label="Bağla" style={{ color: '#e5e7eb', background: 'transparent', border: 0, fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
-            <p style={{ margin: 0, color: '#9ca3af', fontSize: 13 }}>Boost profilinin video və şəkillərini Kəşf lentində önə çıxarır.</p>
+            <p style={{ margin: 0, color: '#9ca3af', fontSize: 13 }}>Boost seçilmiş videonu Kəşf et bölməsində önə çıxarır.</p>
             <button type="button" disabled style={{ textAlign: 'left', padding: 14, borderRadius: 12, border: '1px solid #374151', background: '#1f2937', color: '#d1d5db', cursor: 'not-allowed' }}>
               <strong style={{ display: 'block' }}>▶ Reklama bax · 2 dəqiqə</strong>
               <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#9ca3af' }}>AdMob reklamı və server təsdiqi qoşulandan sonra aktiv olacaq.</span>
