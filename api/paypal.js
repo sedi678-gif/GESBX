@@ -109,7 +109,8 @@ async function zegoRegisterUserApi(req, res) {
 
     const userName = String(req.body?.userName || [profile.name, profile.surname].filter(Boolean).join(' ') || userId).slice(0, 256);
     const rawAvatar = req.body?.userAvatar || profile.avatar || profile.photoURL || profile.photoUrl || profile.userAvatar || profile.avatarUrl || profile.profileImage || profile.profilePhoto || '';
-    const userAvatar = String(rawAvatar).includes('photo-1535713875002-d1d0cf377fde') ? '' : String(rawAvatar).slice(0, 500);
+    const avatarValue = String(rawAvatar);
+    const userAvatar = avatarValue.includes('photo-1535713875002-d1d0cf377fde') || avatarValue.startsWith('data:image/svg+xml,') ? '' : avatarValue.slice(0, 500);
     const zimResponse = await fetch('https://zim-api.zego.im/?' + params.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
