@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
-import { callSecureApi, callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
+import { callSecureApi, callSecureFunction } from '@/app/lib/secureFunctions';
 
 interface ReferralSectionProps {
   className?: string;
@@ -45,10 +45,10 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
     if (!userId || userId === 'anonim_user_id') return;
     setReferralsLoading(true);
     try {
-      const result = await callSecureFunction<
+      const result = await callSecureApi<
         { userId: string },
         { referrals: any[]; totalEarnings: number; activeCount: number; pendingCount: number; xpThreshold: number }
-      >('getMyReferrals', { userId });
+      >('/api/get-my-referrals', 'getMyReferrals', { userId });
       setReferrals(result.referrals || []);
       setTotalEarnings(result.totalEarnings || 0);
       setActiveCount(result.activeCount || 0);
@@ -82,11 +82,10 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
     setApplyBusy(true);
     setApplyMessage('');
     try {
-      const installationId = await getFirebaseInstallationId();
-      const result = await callSecureFunction<
-        { userId: string; code: string; installationId: string },
-        { status: string; eligibleAt: number }
-      >('applyReferral', { userId, code: applyCode, installationId });
+      const result = await callSecureApi<
+        { userId: string; code: string },
+        { status: string; xpThreshold: number }
+      >('/api/apply-referral', 'applyReferral', { userId, code: applyCode.trim().toUpperCase() });
       setApplyMessage(`Dəvət uğurla qeydə alındı. Status: ${result.status}`);
       setApplyCode('');
       void loadMyReferrals();
