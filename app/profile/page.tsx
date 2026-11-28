@@ -668,6 +668,7 @@ function ProfilePageContent() {
   const [xpModeOn, setXpModeOn] = useState(true);
   const [discoverBoostUntil, setDiscoverBoostUntil] = useState(0);
   const [showBoostOptions, setShowBoostOptions] = useState(false);
+  const boostOptionsScrollRef = useRef<HTMLDivElement>(null);
   const [buyingDiscoverBoost, setBuyingDiscoverBoost] = useState(false);
   const [selectedDiscoverBoostDuration, setSelectedDiscoverBoostDuration] = useState<number>(
     DISCOVER_BOOST_OPTIONS[0].durationMs,
@@ -1303,6 +1304,7 @@ function ProfilePageContent() {
           <div className={profileStyles.profileAdBoltWrap}>
             <GoogleAdButton
               variant="bolt"
+              label="Videonu Kəşfə çıxar"
               className={isDiscoverBoostActive(discoverBoostUntil, boostNow) ? profileStyles.profileAdBoltOn : undefined}
               onClick={() => setShowBoostOptions(true)}
             />
@@ -1829,7 +1831,9 @@ function ProfilePageContent() {
               <strong style={{ display: 'block' }}>▶ Reklama bax · 2 dəqiqə</strong>
               <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#9ca3af' }}>AdMob reklamı və server təsdiqi qoşulandan sonra aktiv olacaq.</span>
             </button>
+            <div style={{ position: 'relative', width: '100%', minWidth: 0 }}>
             <div
+              ref={boostOptionsScrollRef}
               role="group"
               aria-label="Boost müddəti və XP seçimi"
               onWheel={(event) => {
@@ -1891,6 +1895,15 @@ function ProfilePageContent() {
                   </button>
                 );
               })}
+            </div>
+            <button
+              type="button"
+              aria-label="Növbəti boost müddətlərinə keç"
+              title="Sağa sürüşdür"
+              disabled={buyingDiscoverBoost}
+              onClick={() => boostOptionsScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+              style={{ position: 'absolute', right: 2, top: '50%', transform: 'translateY(-50%)', width: 34, height: 42, border: '1px solid #6d28d9', borderRadius: 10, background: 'rgba(17,24,39,.94)', color: '#fff', fontSize: 24, lineHeight: 1, cursor: 'pointer', boxShadow: '0 0 14px rgba(0,0,0,.45)' }}
+            >→</button>
             </div>
             <button
               type="button"
