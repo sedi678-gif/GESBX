@@ -211,7 +211,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
             </div>
           </div>
 
-          <div style={{ marginTop: 26, paddingTop: 20, borderTop: '1px solid #e2e8f0', marginBottom: 16 }}>
+          <div style={{ marginTop: 26, padding: '22px 18px', border: '1px solid #e2e8f0', borderRadius: 16, background: '#fff', boxShadow: '0 4px 14px rgba(15,23,42,0.04)' }}>
             <h3 style={{ margin: '0 0 14px', color: '#0f172a', fontSize: 15, fontWeight: 800, textTransform: 'none', letterSpacing: 0 }}>Dəvət olunmuş istifadəçilər</h3>
             {referralsLoading ? (
               <div style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>Yüklənir…</div>
