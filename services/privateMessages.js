@@ -54,11 +54,9 @@ async function authenticate(req, db, profileId) {
 function profileAvatar(data = {}) {
   const candidates = [data.avatar, data.photoURL, data.photoUrl, data.userAvatar,
     data.avatarUrl, data.profileImage, data.profilePhoto];
-  const value = candidates.find((item) => typeof item === 'string' && item.trim());
-  const avatar = text(value, 1500);
-  // Köhnə UI-nin ümumi Unsplash şəkli profil fotosu deyil; onu real profildən bərpa et.
-  if (!avatar || avatar.includes('photo-1535713875002-d1d0cf377fde')) return '';
-  return avatar;
+  const value = candidates.find((item) => typeof item === 'string' && item.trim()
+    && !item.includes('photo-1535713875002-d1d0cf377fde'));
+  return text(value, 1500);
 }
 
 function profileMeta(data = {}) {
