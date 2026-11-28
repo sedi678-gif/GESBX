@@ -16,6 +16,7 @@ import {
   toggleLikePost,
   listenUserLikedPostIds,
   listenUserLikesReceived,
+  reconcileUserLikesReceived,
   listenUserViewsReceived,
   readCachedViewsReceived,
   writeCachedViewsReceived,
@@ -458,10 +459,16 @@ function ProfilePageContent() {
     if (cached > 0) {
       setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, cached) }));
     }
-    return listenUserLikesReceived(currentUser.id, (likes) => {
+    const unsubscribe = listenUserLikesReceived(currentUser.id, (likes) => {
       writeCachedLikesReceived(currentUser.id, likes);
       setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, likes) }));
     });
+    // Köhnə post_likes tarixçəsini profilin daimi sayğacına bərpa et.
+    void reconcileUserLikesReceived(currentUser.id).then((likes) => {
+      writeCachedLikesReceived(currentUser.id, likes);
+      setStats((prev) => ({ ...prev, likes: Math.max(prev.likes, likes) }));
+    }).catch((error) => console.warn('Profil bəyənmələri bərpa edilmədi:', error));
+    return unsubscribe;
   }, [currentUser.id, isRegistered]);
 
   useEffect(() => {
