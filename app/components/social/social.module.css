@@ -730,18 +730,38 @@
 
 .voiceMsgWaveBarPlaying { animation: none !important; }
 
-.messageStatus {
-  margin-left: 3px;
-  color: rgba(255, 255, 255, 0.62);
-  font-weight: 800;
-  letter-spacing: -2px;
+.messageStatusSent,
+.messageStatusDelivered,
+.messageStatusRead {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  vertical-align: middle;
+  flex: 0 0 7px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-.messageStatusRead {
-  margin-left: 3px;
-  color: #53bdeb;
-  font-weight: 900;
-  letter-spacing: -2px;
+.messageStatusSent { background: #ef4444; }
+.messageStatusDelivered { background: #facc15; }
+.messageStatusRead { background: #22c55e; }
+
+.messageInfoRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  font-size: 13px;
+}
+
+.messageInfoRow span { color: rgba(226, 232, 240, 0.72); }
+.messageInfoRow strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .voiceMsgDuration {
