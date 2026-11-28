@@ -37,6 +37,7 @@ export type AppStrings = {
     videoCall: string;
     callIncoming: string;
     callOutgoing: string;
+    callRinging: string;
     callConnecting: string;
     callInProgress: string;
     callDecline: string;
