@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
-import { callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
+import { callSecureApi, callSecureFunction, getFirebaseInstallationId } from '@/app/lib/secureFunctions';
 
 interface ReferralSectionProps {
   className?: string;
@@ -27,16 +27,15 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
     setReferralCodeLoading(true);
     setReferralCodeError('');
     try {
-      const installationId = await getFirebaseInstallationId();
-      const result = await callSecureFunction<
-        { userId: string; installationId: string },
+      const result = await callSecureApi<
+        { userId: string },
         { code: string }
-      >('getMyReferralCode', { userId, installationId });
+      >('/api/get-my-referral-code', 'getMyReferralCode', { userId });
       setMyReferralCode(result.code);
       void loadMyReferrals();
     } catch (err) {
       console.error('Referral code load error:', err);
-      setReferralCodeError('Dəvət kodunu əldə etmək mümkün olmadı. Yenidən yoxlayın.');
+      setReferralCodeError(err instanceof Error ? err.message : 'Dəvət kodunu əldə etmək mümkün olmadı. Yenidən yoxlayın.');
     } finally {
       setReferralCodeLoading(false);
     }
@@ -202,8 +201,8 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
-            <div style={{ flex: 1, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: 14, padding: 14 }}>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 24, paddingTop: 4 }}>
+            <div style={{ flex: 1, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: 14, padding: 16, minHeight: 72, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
               <div style={{ fontSize: 11, color: '#15803d', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>{activeCount}</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Aktiv</div>
             </div>
@@ -213,8 +212,8 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
             </div>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <h3 style={{ margin: '0 0 12px', color: '#0f172a', fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>Dəvət Edilmiş İstifadəçilər</h3>
+          <div style={{ marginTop: 26, paddingTop: 20, borderTop: '1px solid #e2e8f0', marginBottom: 16 }}>
+            <h3 style={{ margin: '0 0 14px', color: '#0f172a', fontSize: 15, fontWeight: 800, textTransform: 'none', letterSpacing: 0 }}>Dəvət olunmuş istifadəçilər</h3>
             {referralsLoading ? (
               <div style={{ padding: 24, textAlign: 'center', color: '#64748b' }}>Yüklənir…</div>
             ) : referrals.length === 0 ? (
