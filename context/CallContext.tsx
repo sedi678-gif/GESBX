@@ -98,17 +98,18 @@ interface CallContextType {
 const CallContext = createContext<CallContextType | null>(null);
 
 function getMyProfileMeta(): { name: string; avatar: string } {
-  if (typeof window === 'undefined') return { name: '', avatar: DEFAULT_AVATAR };
+  if (typeof window === 'undefined') return { name: '', avatar: '' };
   try {
     const raw = localStorage.getItem('app_current_user_v6');
-    if (!raw) return { name: getLocalProfileDisplayName(), avatar: DEFAULT_AVATAR };
+    if (!raw) return { name: getLocalProfileDisplayName(), avatar: '' };
     const u = JSON.parse(raw);
+    const avatar = u.avatar || u.photoURL || u.photoUrl || u.userAvatar || u.avatarUrl || u.profileImage || u.profilePhoto || '';
     return {
       name: [u.name, u.surname].filter(Boolean).join(' ') || getLocalProfileDisplayName(),
-      avatar: u.avatar || DEFAULT_AVATAR,
+      avatar: typeof avatar === 'string' && !avatar.includes('photo-1535713875002-d1d0cf377fde') ? avatar : '',
     };
   } catch {
-    return { name: getLocalProfileDisplayName(), avatar: DEFAULT_AVATAR };
+    return { name: getLocalProfileDisplayName(), avatar: '' };
   }
 }
 
