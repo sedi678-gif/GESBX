@@ -38,7 +38,7 @@ export async function searchUsers(searchQuery: string, currentUserId?: string): 
         surname: data.surname,
         handle: data.handle || '',
         gender: data.gender,
-        avatar: data.avatar,
+        avatar: data.avatar || (data as Record<string, unknown>).photoURL as string || (data as Record<string, unknown>).photoUrl as string || (data as Record<string, unknown>).userAvatar as string || (data as Record<string, unknown>).avatarUrl as string || (data as Record<string, unknown>).profileImage as string || (data as Record<string, unknown>).profilePhoto as string,
         region: data.region,
       });
     }
