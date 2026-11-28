@@ -164,8 +164,6 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
             )}
           </div>
 
-          {!myReferralCode && !referralCodeLoading && <button type="button" onClick={() => void loadMyReferralCode()} style={{ width: '100%', marginBottom: 10, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: 10, borderRadius: 10, fontWeight: 700 }}>Dəvət kodunu göstər</button>}
-
           <button type="button" onClick={shareReferral} disabled={!myReferralCode} style={{ width: '100%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: !myReferralCode ? 'not-allowed' : 'pointer', marginBottom: 16 }}>
             {myReferralCode ? 'Dəvət Linkini Paylaş / Kopyala' : 'Dəvət kodunu gözləyin'}
           </button>
