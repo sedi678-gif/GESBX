@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 
 const STEPS = [
   { title: 'Profilini tamamla', description: 'Adını, şəklini və oyun məlumatlarını əlavə et.', href: '/profile', action: 'Profilə keç' },
@@ -16,6 +16,8 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
 
   useEffect(() => {
     // Firebase Auth bərpa olunmamışdan əvvəl currentUser müvəqqəti null ola bilər.
@@ -57,12 +59,32 @@ export default function OnboardingPage() {
         <div style={styles.status} role="status">
           E-poçt təsdiqi: <strong>{emailVerified ? 'təsdiqlənib' : 'təsdiq gözləyir'}</strong>
           {!emailVerified && <>
-            <span> — gələnlər qutusundakı təsdiq linkini aç. </span>
-            <button type="button" onClick={async () => {
-              await auth.currentUser?.reload();
-              setEmailVerified(Boolean(auth.currentUser?.emailVerified));
-            }} style={styles.refresh}>Yoxla
-            </button>
+            <span> — Gmail-dəki təsdiq linkini aç. Təsdiqləmədən tətbiqə daxil olmaq mümkün deyil. </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+              <button type="button" disabled={sendingVerification} onClick={async () => {
+                const user = auth.currentUser;
+                if (!user) return;
+                setSendingVerification(true);
+                setVerificationMessage('');
+                try {
+                  await sendEmailVerification(user);
+                  setVerificationMessage('Təsdiq məktubu yenidən göndərildi. Gmail-in Spam qovluğunu da yoxla.');
+                } catch (error: any) {
+                  setVerificationMessage(error?.code === 'auth/too-many-requests'
+                    ? 'Çox tez-tez sorğu göndərilib. Bir az gözlə və yenidən yoxla.'
+                    : 'Məktub göndərilmədi. İnternet bağlantısını yoxla və yenidən cəhd et.');
+                } finally {
+                  setSendingVerification(false);
+                }
+              }} style={styles.refresh}>{sendingVerification ? 'Göndərilir…' : 'Təsdiq məktubunu yenidən göndər'}</button>
+              <button type="button" onClick={async () => {
+                await auth.currentUser?.reload();
+                const verified = Boolean(auth.currentUser?.emailVerified);
+                setEmailVerified(verified);
+                setVerificationMessage(verified ? 'Email təsdiqləndi. İndi davam edə bilərsən.' : 'Hələ təsdiqlənməyib. Gmail-dəki linki aç.');
+              }} style={styles.refresh}>Yoxla</button>
+            </div>
+            {verificationMessage && <p style={{ margin: '10px 0 0', fontSize: 13 }}>{verificationMessage}</p>}
           </>}
         </div>
         <ol style={styles.steps}>
@@ -77,10 +99,10 @@ export default function OnboardingPage() {
             </li>
           ))}
         </ol>
-        <button type="button" onClick={() => {
+        <button type="button" disabled={!emailVerified} onClick={() => {
           localStorage.setItem('gesbx:onboarding-completed', 'true');
           router.push('/');
-        }} style={styles.button}>Tətbiqə başla</button>
+        }} style={{ ...styles.button, opacity: emailVerified ? 1 : 0.45, cursor: emailVerified ? 'pointer' : 'not-allowed' }}>Tətbiqə başla</button>
       </section>
     </main>
   );
