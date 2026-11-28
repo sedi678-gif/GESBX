@@ -139,20 +139,19 @@ function chatSummaryToItem(chat: ChatSummary): ChatItem {
 }
 
 function getMyProfileMeta(): { name: string; handle: string; avatar: string } {
-  if (typeof window === 'undefined') {
-    return { name: '', handle: '', avatar: DEFAULT_AVATAR };
-  }
+  if (typeof window === 'undefined') return { name: '', handle: '', avatar: '' };
   try {
     const raw = localStorage.getItem('app_current_user_v6');
-    if (!raw) return { name: '', handle: '', avatar: DEFAULT_AVATAR };
+    if (!raw) return { name: '', handle: '', avatar: '' };
     const u = JSON.parse(raw);
+    const avatar = u.avatar || u.photoURL || u.photoUrl || u.userAvatar || u.avatarUrl || u.profileImage || u.profilePhoto || '';
     return {
       name: [u.name, u.surname].filter(Boolean).join(' '),
       handle: u.handle || '',
-      avatar: u.avatar || DEFAULT_AVATAR,
+      avatar: typeof avatar === 'string' && !avatar.includes('photo-1535713875002-d1d0cf377fde') ? avatar : '',
     };
   } catch {
-    return { name: '', handle: '', avatar: DEFAULT_AVATAR };
+    return { name: '', handle: '', avatar: '' };
   }
 }
 
