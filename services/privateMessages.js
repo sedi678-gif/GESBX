@@ -55,7 +55,8 @@ function profileAvatar(data = {}) {
   const candidates = [data.avatar, data.photoURL, data.photoUrl, data.userAvatar,
     data.avatarUrl, data.profileImage, data.profilePhoto];
   const value = candidates.find((item) => typeof item === 'string' && item.trim()
-    && !item.includes('photo-1535713875002-d1d0cf377fde'));
+    && !item.includes('photo-1535713875002-d1d0cf377fde')
+    && !item.startsWith('data:image/svg+xml,'));
   return text(value, 1500);
 }
 
