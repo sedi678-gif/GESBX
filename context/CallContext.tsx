@@ -326,7 +326,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         }
 
         await sessionPromise.catch((err) => console.warn('[Call] Firebase session unavailable; continuing with ZEGO invitation:', err));
-        await sendZegoCallInvitation(zp, {
+        const invitation = await sendZegoCallInvitation(zp, {
           calleeId,
           calleeName: params.calleeName,
           calleeAvatar: params.calleeAvatar,
@@ -335,6 +335,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           roomId: callId,
           callerAvatar: myMeta.avatar,
         });
+        if (invitation.errorInvitees.length) {
+          clearFailedCall();
+          setCallError('Zəng qarşı tərəfə göndərilmədi. Bir az sonra yenidən cəhd edin.');
+        }
       } catch (err) {
         console.error('[Zego] sendCallInvitation failed:', err);
         clearFailedCall();
