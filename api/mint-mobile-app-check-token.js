@@ -63,7 +63,7 @@ module.exports = async function mintMobileAppCheckTokenHandler(req, res) {
       );
     }
     await enforceClientRateLimits(decoded.uid, installationId, getClientIp(req), 'mintMobileAppCheckToken', {
-      max: 20,
+      max: 120,
       windowMs: 60 * 60 * 1000,
     });
 
@@ -78,7 +78,7 @@ module.exports = async function mintMobileAppCheckTokenHandler(req, res) {
       const previous = rateSnap.exists ? rateSnap.data() : {};
       const sameHour = Number(previous.windowStartedAt) > now - 60 * 60 * 1000;
       const count = sameHour ? Number(previous.count) || 0 : 0;
-      if (count >= 20) throw new ApiError(429, 'RATE_LIMITED');
+      if (count >= 120) throw new ApiError(429, 'RATE_LIMITED');
       tx.set(rateRef, {
         windowStartedAt: sameHour ? previous.windowStartedAt : now,
         count: count + 1,
