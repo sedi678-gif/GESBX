@@ -58,6 +58,7 @@ export default function SettingsPageClient() {
   const [deleteWord, setDeleteWord] = useState('');
   const [accountBusy, setAccountBusy] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<AppUserProfile[]>([]);
   const [blockedLoading, setBlockedLoading] = useState(true);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
@@ -338,16 +339,6 @@ export default function SettingsPageClient() {
             onChange={(v) => void updateSettings({ account: { ...settings.account, autoPlayVideos: v } })}
           />
 
-          <button
-            type="button"
-            className={styles.secondaryBtn}
-            disabled={loggingOut || accountBusy}
-            onClick={() => void handleLogout()}
-            style={{ width: '100%', marginTop: 12 }}
-          >
-            {loggingOut ? 'Çıxış edilir...' : '↪ Hesabdan çıxış'}
-          </button>
-
           <div className={styles.dangerZone}>
             <h3 className={styles.dangerZoneTitle}>⚠️ {t.dangerZone}</h3>
             <p className={styles.settingsHint}>{t.dangerHint}</p>
@@ -484,11 +475,52 @@ export default function SettingsPageClient() {
         </section>
 
         <section className={styles.settingsSection}>
-          <h2>ℹ️ {t.about}</h2>
+          <button
+            type="button"
+            className={styles.settingsRow}
+            onClick={() => setAboutOpen(true)}
+            style={{ width: '100%', cursor: 'pointer', textAlign: 'left', border: 0, background: 'transparent', color: 'inherit', font: 'inherit' }}
+          >
+            <span>ℹ️ {t.about}</span>
+            <span aria-hidden="true">›</span>
+          </button>
+        </section>
+
+        <section className={styles.settingsSection} style={{ paddingBottom: 28 }}>
+          <button
+            type="button"
+            className={styles.dangerBtn}
+            disabled={loggingOut || accountBusy}
+            onClick={() => void handleLogout()}
+            style={{ width: '100%', minHeight: 50, marginTop: 4, background: '#dc2626', border: '1px solid #b91c1c', color: '#fff', fontWeight: 800 }}
+          >
+            {loggingOut ? 'Çıxış edilir…' : '↪ Hesabdan çıxış'}
+          </button>
         </section>
       </div>
 
       <AppBottomNav activeTab="profile" />
+
+      {aboutOpen && (
+        <div className={styles.confirmOverlay} onClick={() => setAboutOpen(false)} role="presentation">
+          <div className={styles.confirmSheet} role="dialog" aria-modal="true" aria-labelledby="gesbx-about-title" onClick={(e) => e.stopPropagation()}>
+            <h2 id="gesbx-about-title" className={styles.modalTitle}>GESBX — Rəqəmsal sosial platforma</h2>
+            <p className={styles.settingsHint}>
+              GESBX insanları bir araya gətirən, ünsiyyət və yaradıcılığı bir platformada birləşdirən sosial tətbiqdir.
+            </p>
+            <div style={{ display: 'grid', gap: 10, margin: '16px 0' }}>
+              <div><strong>💬 Ünsiyyət:</strong> şəxsi mesajlar və media paylaşımı.</div>
+              <div><strong>👥 İcma:</strong> profillər, izləmə, dostluq və istifadəçiləri kəşf etmə.</div>
+              <div><strong>🎬 Paylaşımlar:</strong> foto, video və qısa məzmunlarla qarşılıqlı əlaqə.</div>
+              <div><strong>🎮 Aktivlik:</strong> XP, nailiyyətlər və dəvət sistemi.</div>
+              <div><strong>🔐 Nəzarət:</strong> məxfilik, bildirişlər və hesab təhlükəsizliyi ayarları.</div>
+            </div>
+            <p className={styles.settingsHint}>Məqsədimiz ünsiyyəti, paylaşmağı və icma qurmağı bir yerdə rahat və təhlükəsiz etməkdir.</p>
+            <p className={styles.settingsHint}>Versiya: GESBX v0.1.0</p>
+            <button type="button" className={styles.primaryBtn} onClick={() => setAboutOpen(false)}>Bağla</button>
+          </div>
+        </div>
+      )}
 
       {confirmAction && (
         <div className={styles.confirmOverlay} onClick={closeConfirm} role="presentation">
