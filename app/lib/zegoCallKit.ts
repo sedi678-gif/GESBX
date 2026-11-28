@@ -40,6 +40,9 @@ const optionsRef: { current: ZegoCallKitOptions } = { current: {} };
 let zpInstance: ZegoInstance | null = null;
 let mediaZp: ZegoInstance | null = null;
 let mediaRoomId: string | null = null;
+let mediaJoinPromise: Promise<void> | null = null;
+let mediaJoinRoomId: string | null = null;
+
 let activeUserId: string | null = null;
 let activeUserName: string | null = null;
 let initPromise: Promise<ZegoInstance | null> | null = null;
@@ -679,6 +682,39 @@ function mediaRoomConfig(
 }
 
 async function joinMediaRoom(roomId: string, callType: CallType): Promise<void> {
+  const rid = String(roomId || '');
+  if (!rid) return;
+
+  // ZIM-in callUserStateChanged və qəbul düyməsi eyni anda qoşulmanı başlada bilər.
+  // Eyni otaq üçün yalnız bir ZEGO media join işləsin; paralel create/destroy
+  // əməliyyatları mikrofonun gec açılmasına və səsin gec gəlməsinə səbəb olur.
+  if (mediaZp && mediaRoomId === rid) {
+    unmuteKit(mediaZp);
+    return;
+  }
+  if (mediaJoinPromise) {
+    if (mediaJoinRoomId === rid) return mediaJoinPromise;
+    await mediaJoinPromise.catch(() => undefined);
+    if (mediaZp && mediaRoomId === rid) {
+      unmuteKit(mediaZp);
+      return;
+    }
+  }
+
+  const task = performJoinMediaRoom(rid, callType);
+  mediaJoinPromise = task;
+  mediaJoinRoomId = rid;
+  try {
+    await task;
+  } finally {
+    if (mediaJoinPromise === task) {
+      mediaJoinPromise = null;
+      mediaJoinRoomId = null;
+    }
+  }
+}
+
+async function performJoinMediaRoom(roomId: string, callType: CallType): Promise<void> {
   const rid = String(roomId || '');
   const uid = String(activeUserId || '');
   if (!rid || !uid) return;
