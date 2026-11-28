@@ -47,7 +47,23 @@ export function listenCallHistory(
       callType: (data.callType as 'voice' | 'video') || 'voice',
       direction,
       status: String(data.status || 'ended'),
-      createdAt: (data.createdAt as number) || 0,
+      createdAt: (() => {
+        const raw = data.createdAt ?? data.startedAt ?? data.startTime ?? data.timestamp;
+        if (typeof raw === 'number' && Number.isFinite(raw)) {
+          return raw > 0 && raw < 100_000_000_000 ? raw * 1000 : raw;
+        }
+        if (raw && typeof raw === 'object') {
+          const timestamp = raw as { toMillis?: () => number; seconds?: number; _seconds?: number };
+          if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
+          const seconds = Number(timestamp.seconds ?? timestamp._seconds);
+          if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+        }
+        if (typeof raw === 'string') {
+          const parsed = Date.parse(raw);
+          if (Number.isFinite(parsed)) return parsed;
+        }
+        return 0;
+      })(),
     });
     merge();
   };
