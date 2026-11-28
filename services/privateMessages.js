@@ -142,6 +142,7 @@ async function listChats(db, profileId) {
       otherUserAvatar: profileAvatar(meta),
       lastMessage: text(data.lastMessage, 2000),
       lastMessageAt: Number(data.lastMessageAt) || 0,
+      unreadCount: Math.max(0, Number(data.unreadCounts?.[profileId]) || 0),
       archived: Array.isArray(data.archivedBy) && data.archivedBy.map(String).includes(profileId),
     });
   });
@@ -329,43 +330,31 @@ async function handlePost(req, res, db, profileId, action) {
     }
     // Mobil şəbəkədə cavab itərsə klient eyni message ID ilə sorğunu təkrar edir.
     // Mövcud mesajı yenidən yaratmağa çalışmaq əvəzinə əvvəlki nəticəni qaytar.
-    const alreadySaved = await messageRef.get();
-    if (alreadySaved.exists) {
-      const saved = alreadySaved.data() || {};
-      if (String(saved.chatId || '') !== chatId || String(saved.senderId || '') !== senderId) {
-        throw new ApiError(409, 'MESSAGE_ID_CONFLICT');
+    const savedMessage = await db.runTransaction(async (transaction) => {
+      const [savedSnap, freshChatSnap] = await Promise.all([transaction.get(messageRef), transaction.get(chatRef)]);
+      if (savedSnap.exists) {
+        const saved = savedSnap.data() || {};
+        if (String(saved.chatId || '') !== chatId || String(saved.senderId || '') !== senderId) throw new ApiError(409, 'MESSAGE_ID_CONFLICT');
+        return { ...saved, id: messageId };
       }
-      return sendJson(res, 200, { message: { ...saved, id: messageId } });
-    }
-
-    const batch = db.batch();
-    const previousMeta = existing.exists ? (existing.data()?.participantMeta || {}) : {};
-    const senderMeta = previousMeta[senderId] || {};
-    const recipientMeta = previousMeta[recipientId] || {};
-    batch.set(chatRef, {
-      chatId,
-      participants: [senderId, recipientId].sort(),
-      hiddenBy: [],
-      participantMeta: {
-        ...previousMeta,
-        [senderId]: profileMeta({
-          name: meta.senderName || senderMeta.name,
-          handle: meta.senderHandle || senderMeta.handle,
-          avatar: meta.senderAvatar || senderMeta.avatar,
-        }),
-        [recipientId]: profileMeta({
-          name: meta.recipientName || recipientMeta.name,
-          handle: meta.recipientHandle || recipientMeta.handle,
-          avatar: meta.recipientAvatar || recipientMeta.avatar,
-        }),
-      },
-      lastMessage: messagePreview(message),
-      lastMessageAt: message.createdAt,
-      updatedAt: now,
-    }, { merge: true });
-    batch.create(messageRef, message);
-    await batch.commit();
-    return sendJson(res, 200, { message });
+      const freshChat = freshChatSnap.exists ? (freshChatSnap.data() || {}) : {};
+      const previousMeta = freshChat.participantMeta && typeof freshChat.participantMeta === 'object' ? freshChat.participantMeta : {};
+      const senderMeta = previousMeta[senderId] || {}, recipientMeta = previousMeta[recipientId] || {};
+      const unreadCounts = freshChat.unreadCounts && typeof freshChat.unreadCounts === 'object' ? { ...freshChat.unreadCounts } : {};
+      unreadCounts[recipientId] = Math.max(0, Number(unreadCounts[recipientId]) || 0) + 1;
+      transaction.set(chatRef, {
+        chatId, participants: [senderId, recipientId].sort(),
+        participantMeta: {
+          ...previousMeta,
+          [senderId]: profileMeta({ name: meta.senderName || senderMeta.name, handle: meta.senderHandle || senderMeta.handle, avatar: meta.senderAvatar || senderMeta.avatar }),
+          [recipientId]: profileMeta({ name: meta.recipientName || recipientMeta.name, handle: meta.recipientHandle || recipientMeta.handle, avatar: meta.recipientAvatar || recipientMeta.avatar }),
+        },
+        unreadCounts, lastMessage: messagePreview(message), lastMessageAt: message.createdAt, updatedAt: now,
+      }, { merge: true });
+      transaction.create(messageRef, message);
+      return message;
+    });
+    return sendJson(res, 200, { message: savedMessage });
   }
 
   if (action === 'delete-chat') {
@@ -627,7 +616,19 @@ async function handlePost(req, res, db, profileId, action) {
         updated += 1;
       }
     });
-    if (updated) await batch.commit();
+    if (updated) {
+      await batch.commit();
+      if (Number(body.readAt) > 0) {
+        const chatRef = db.doc(`private_chats/${chatId}`);
+        await db.runTransaction(async (transaction) => {
+          const chatSnap = await transaction.get(chatRef);
+          if (!chatSnap.exists) return;
+          const counts = { ...(chatSnap.data()?.unreadCounts || {}) };
+          counts[profileId] = Math.max(0, (Number(counts[profileId]) || 0) - updated);
+          transaction.set(chatRef, { unreadCounts: counts, updatedAt: now }, { merge: true });
+        });
+      }
+    }
     return sendJson(res, 200, { updated });
   }
 

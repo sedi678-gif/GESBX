@@ -111,6 +111,7 @@ interface ChatItem {
   lastMsg: string;
   time: string;
   isArchived?: boolean;
+  unreadCount?: number;
 }
 
 function formatTime(ts: number): string {
@@ -134,6 +135,7 @@ function chatSummaryToItem(chat: ChatSummary): ChatItem {
     lastMsg: chat.lastMessage || 'Söhbət',
     time: formatTime(chat.lastMessageAt),
     isArchived: Boolean(chat.archived),
+    unreadCount: Math.max(0, Number(chat.unreadCount) || 0),
   };
 }
 
@@ -381,6 +383,7 @@ export default function MessagesPageClient() {
 
   useEffect(() => {
     selectedChatRef.current = selectedChat;
+    if (selectedChat?.chatId) setChats((prev) => prev.map((chat) => chat.chatId === selectedChat.chatId ? { ...chat, unreadCount: 0 } : chat));
     keepChatAtBottomRef.current = true;
     setSelectionMode(false);
     setSelectedIds([]);
@@ -468,11 +471,12 @@ export default function MessagesPageClient() {
           isOnline: false,
           lastMsg: preview,
           time,
+          unreadCount: message.recipientId === String(myId) && selectedChatRef.current?.chatId !== message.chatId ? 1 : 0,
         };
         return [chat, ...prev];
       }
       const next = [...prev];
-      const item = { ...next[idx], lastMsg: preview, time };
+      const item = { ...next[idx], lastMsg: preview, time, unreadCount: message.recipientId === String(myId) && selectedChatRef.current?.chatId !== message.chatId ? (next[idx].unreadCount || 0) + 1 : next[idx].unreadCount };
       next.splice(idx, 1);
       return [item, ...next];
     });
@@ -1794,6 +1798,7 @@ export default function MessagesPageClient() {
                       </div>
                       <p className={styles.msgChatPreview}>{chat.lastMsg}</p>
                     </div>
+                    {!chatSelectionMode && (chat.unreadCount || 0) > 0 && <span className={styles.unreadMessageBadge} aria-label={`${chat.unreadCount} oxunmamış mesaj`}>{chat.unreadCount! > 99 ? '99+' : chat.unreadCount}</span>}
                     {!chatSelectionMode && (
                       <button
                         type="button"

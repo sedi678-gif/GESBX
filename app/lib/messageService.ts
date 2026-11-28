@@ -21,6 +21,7 @@ export interface ChatSummary {
   otherUserAvatar: string;
   lastMessage: string;
   lastMessageAt: number;
+  unreadCount?: number;
   archived?: boolean;
 }
 
@@ -501,20 +502,30 @@ export async function reportMessageUser(userId: string, targetUserId: string, re
   await privateMessagesRequest('report', userId, 'POST', { targetUserId, reason });
 }
 
-export function listenUserChats(
-  userId: string,
-  callback: (chats: ChatSummary[]) => void,
-  onError?: (error: Error) => void
-): Unsubscribe {
-  let cancelled = false;
-  void privateMessagesRequest<{ chats: ChatSummary[] }>('chats', userId)
-    .then((result) => {
-      if (!cancelled) callback(result.chats || []);
-    })
-    .catch((error) => {
+export function listenUserChats(userId: string, callback: (chats: ChatSummary[]) => void, onError?: (error: Error) => void): Unsubscribe {
+  let cancelled = false, loading = false, lastSignature = '';
+  const load = async () => {
+    if (cancelled || loading) return;
+    loading = true;
+    try {
+      const result = await privateMessagesRequest<{ chats: ChatSummary[] }>('chats', userId);
+      if (cancelled) return;
+      const chats = result.chats || [];
+      const signature = chats.map((chat) => [chat.chatId, chat.lastMessageAt, chat.unreadCount || 0, chat.archived ? 1 : 0].join(':')).join('|');
+      if (signature !== lastSignature) { lastSignature = signature; callback(chats); }
+    } catch (error) {
       if (!cancelled) onError?.(error instanceof Error ? error : new Error(String(error)));
-    });
-  return () => { cancelled = true; };
+    } finally { loading = false; }
+  };
+  void load();
+  const interval = window.setInterval(() => { void load(); }, 2500);
+  const refresh = () => { void load(); };
+  window.addEventListener('focus', refresh);
+  window.addEventListener('online', refresh);
+  return () => {
+    cancelled = true; window.clearInterval(interval);
+    window.removeEventListener('focus', refresh); window.removeEventListener('online', refresh);
+  };
 }
 
 function docToStoredMessage(d: { id: string; data: () => Record<string, unknown> }): StoredMessage {
@@ -668,9 +679,14 @@ export function listenChatMessages(
   // Socket hadisəsi itərsə tarixçəni yeniləmək üçün ehtiyat sinxronizasiya.
   // Socket.IO çatdırılma siqnalı əsas yoldur; bu qısa interval yalnız
   // mobil şəbəkədə socket kəsiləndə ehtiyat sinxronizasiya üçündür.
-  const interval = setInterval(() => { void load(); }, 5_000);
+  const interval = window.setInterval(() => { void load(); }, 1_500);
+  const refresh = () => { void load(); };
+  window.addEventListener('focus', refresh);
+  window.addEventListener('online', refresh);
+  document.addEventListener('visibilitychange', refresh);
   return () => {
-    cancelled = true;
-    clearInterval(interval);
+    cancelled = true; window.clearInterval(interval);
+    window.removeEventListener('focus', refresh); window.removeEventListener('online', refresh);
+    document.removeEventListener('visibilitychange', refresh);
   };
 }
