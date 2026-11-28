@@ -13,7 +13,8 @@ const {
 const USER_ID_PATTERN = /^\d{1,20}$/;
 
 function deriveReferralKey() {
-  const privateKey = getServiceAccount().private_key;
+  const configuredSecret = String(process.env.REFERRAL_CODE_SECRET || '').trim();
+  const privateKey = configuredSecret || getServiceAccount().private_key;
   return Buffer.from(crypto.hkdfSync(
     'sha256',
     Buffer.from(privateKey, 'utf8'),
@@ -76,6 +77,21 @@ module.exports = async function getMyReferralCodeHandler(req, res) {
       throw new ApiError(403, 'PROFILE_UNAVAILABLE');
     }
 
+    // Reuse an already-issued code so users keep the same referral identity
+    // even if the server credential is rotated later.
+    const previousCodes = await db.collection('referral_codes')
+      .where('authUid', '==', identity.uid)
+      .limit(1)
+      .get();
+    if (!previousCodes.empty) {
+      const previous = previousCodes.docs[0];
+      const previousData = previous.data() || {};
+      if (String(previousData.playerId || '') !== userId) {
+        throw new ApiError(409, 'REFERRAL_PROFILE_MISMATCH');
+      }
+      return sendJson(res, 200, { code: previous.id });
+    }
+
     const code = makeReferralCode(identity.uid);
     const codeRef = db.doc(`referral_codes/${code}`);
     const installationHash = hmacRiskHash(identity.installationId, 'installation');
@@ -106,7 +122,7 @@ module.exports = async function getMyReferralCodeHandler(req, res) {
       'PLAY_INTEGRITY_REQUIRED', 'PLAY_INTEGRITY_NOT_CONFIGURED', 'PLAY_INTEGRITY_REJECTED',
       'PLAY_INTEGRITY_UNAVAILABLE', 'RATE_LIMITED', 'SECURITY_CONFIGURATION_MISSING',
       'INVALID_REQUEST', 'PROFILE_NOT_FOUND', 'PROFILE_OWNER_MISMATCH',
-      'PROFILE_NOT_VERIFIED', 'PROFILE_UNAVAILABLE', 'REFERRAL_CODE_COLLISION',
+      'PROFILE_NOT_VERIFIED', 'PROFILE_UNAVAILABLE', 'REFERRAL_CODE_COLLISION', 'REFERRAL_PROFILE_MISMATCH',
     ]);
     const code = knownCodes.has(error.code) ? error.code : 'REFERRAL_CODE_UNAVAILABLE';
     if (status >= 500) console.error('get-my-referral-code failed:', error.message);
