@@ -215,9 +215,6 @@ export default function CallOverlay({
           <IconCallMinimize />
         </button>
         <div className={styles.encryptWrap}>
-          <span className={styles.hearts} aria-hidden>
-            💙❤️💚
-          </span>
           <p className={styles.encrypt}>
             <IconCallLock /> {t.messages.callEncrypt}
           </p>
