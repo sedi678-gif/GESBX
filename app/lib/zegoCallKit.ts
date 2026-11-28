@@ -1008,8 +1008,7 @@ export async function sendZegoCallInvitation(
 
   const zim = await waitForZim(zp);
   if (!zim) {
-    patchCallUiState({ hint: 'Zəng siqnalı hazır deyil. Səhifəni bağlayıb yenidən yoxlayın.' });
-    return { errorInvitees: [] };
+    throw new Error('Zəng siqnalı hazır deyil. Tətbiqi yenidən açıb cəhd edin.');
   }
 
   bindZimListeners(zim);
