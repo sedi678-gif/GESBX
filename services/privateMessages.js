@@ -165,9 +165,7 @@ async function listChats(db, profileId) {
         ? chat.otherUserName
         : text(user.name || player.name, 100) || 'İstifadəçi';
       chat.otherUserHandle = chat.otherUserHandle || text(user.handle || player.handle, 80);
-      chat.otherUserAvatar = chat.otherUserAvatar
-        || text(user.avatar || user.photoURL || user.photoUrl || user.userAvatar
-          || player.avatar || player.photoURL || player.photoUrl || player.userAvatar, 1500);
+      chat.otherUserAvatar = chat.otherUserAvatar || profileAvatar(user) || profileAvatar(player);
     });
   }
   return visible;
