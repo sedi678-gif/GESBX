@@ -51,11 +51,21 @@ async function authenticate(req, db, profileId) {
   return identity;
 }
 
+function profileAvatar(data = {}) {
+  const candidates = [data.avatar, data.photoURL, data.photoUrl, data.userAvatar,
+    data.avatarUrl, data.profileImage, data.profilePhoto];
+  const value = candidates.find((item) => typeof item === 'string' && item.trim());
+  const avatar = text(value, 1500);
+  // Köhnə UI-nin ümumi Unsplash şəkli profil fotosu deyil; onu real profildən bərpa et.
+  if (!avatar || avatar.includes('photo-1535713875002-d1d0cf377fde')) return '';
+  return avatar;
+}
+
 function profileMeta(data = {}) {
   return {
     name: text(data.name, 100),
     handle: text(data.handle, 80),
-    avatar: text(data.avatar, 1500),
+    avatar: profileAvatar(data),
   };
 }
 
