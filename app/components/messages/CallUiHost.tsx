@@ -45,10 +45,14 @@ export default function CallUiHost() {
     }
 
     try {
-      if (ui.mode === 'incoming' || ui.mode === 'outgoing') {
+      if (ui.mode === 'incoming') {
+        stopRingtone();
         void startRingtone();
-        if (ui.mode === 'incoming') startCallPulse();
-        else stopCallPulse();
+        startCallPulse();
+      } else if (ui.mode === 'ringing') {
+        stopRingtone();
+        stopCallPulse();
+        void startRingback();
       } else {
         stopRingtone();
         stopCallPulse();
