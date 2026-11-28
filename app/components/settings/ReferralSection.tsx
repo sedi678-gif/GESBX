@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@/context/UserContext';
-import { callSecureApi, callSecureFunction } from '@/app/lib/secureFunctions';
+import { callSecureApi } from '@/app/lib/secureFunctions';
 
 interface ReferralSectionProps {
   className?: string;
@@ -62,10 +62,10 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
 
   const checkReferralActivation = async (referralId: string) => {
     try {
-      const result = await callSecureFunction<
+      const result = await callSecureApi<
         { referralId: string },
         { status: string; rewardXp: number; alreadyActive?: boolean; notActive?: boolean; currentXp?: number; progressPercent?: number; xpThreshold?: number }
-      >('checkReferralActivation', { referralId });
+      >('/api/check-referral-activation', 'checkReferralActivation', { referralId });
       if (result.status === 'active') {
         await loadMyReferrals();
       } else if (result.notActive) {
