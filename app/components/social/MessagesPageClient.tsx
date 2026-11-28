@@ -1459,7 +1459,7 @@ export default function MessagesPageClient() {
         id: String(user.id),
         name: [user.name, user.surname].filter(Boolean).join(' ') || user.handle || 'İstifadəçi',
         username: user.handle || '',
-        avatar: user.avatar || DEFAULT_AVATAR,
+        avatar: user.avatar || '',
         isOnline: false,
         lastMsg: messagePreview(forwarded),
         time: formatTime(forwarded.createdAt),
