@@ -30,7 +30,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
       const result = await callSecureApi<
         { userId: string },
         { code: string }
-      >('/api/get-my-referral-code', 'getMyReferralCode', { userId });
+      >('/api/referrals?action=getMyReferralCode', 'getMyReferralCode', { userId });
       setMyReferralCode(result.code);
       void loadMyReferrals();
     } catch (err) {
@@ -48,7 +48,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
       const result = await callSecureApi<
         { userId: string },
         { referrals: any[]; totalEarnings: number; activeCount: number; pendingCount: number; xpThreshold: number }
-      >('/api/get-my-referrals', 'getMyReferrals', { userId });
+      >('/api/referrals?action=getMyReferrals', 'getMyReferrals', { userId });
       setReferrals(result.referrals || []);
       setTotalEarnings(result.totalEarnings || 0);
       setActiveCount(result.activeCount || 0);
@@ -65,7 +65,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
       const result = await callSecureApi<
         { referralId: string },
         { status: string; rewardXp: number; alreadyActive?: boolean; notActive?: boolean; currentXp?: number; progressPercent?: number; xpThreshold?: number }
-      >('/api/check-referral-activation', 'checkReferralActivation', { referralId });
+      >('/api/referrals?action=checkReferralActivation', 'checkReferralActivation', { referralId });
       if (result.status === 'active') {
         await loadMyReferrals();
       } else if (result.notActive) {
@@ -85,7 +85,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
       const result = await callSecureApi<
         { userId: string; code: string },
         { status: string; xpThreshold: number }
-      >('/api/apply-referral', 'applyReferral', { userId, code: applyCode.trim().toUpperCase() });
+      >('/api/referrals?action=applyReferral', 'applyReferral', { userId, code: applyCode.trim().toUpperCase() });
       setApplyMessage(`Dəvət uğurla qeydə alındı. Status: ${result.status}`);
       setApplyCode('');
       void loadMyReferrals();
