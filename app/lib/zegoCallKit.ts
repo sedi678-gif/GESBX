@@ -3,6 +3,7 @@
 import { unlockCallAudio } from '@/app/lib/audioUnlock';
 import { resetNativeCallAudio, setNativeCallSpeakerEnabled } from '@/app/lib/callAudioRoute';
 import { auth } from '@/firebase';
+import { getUserProfile } from '@/app/lib/socialService';
 import { primeCallMedia, releaseMediaStream } from '@/app/lib/mediaPermissions';
 import {
   ensureZegoConfig,
