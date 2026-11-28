@@ -1883,7 +1883,7 @@ export default function MessagesPageClient() {
                           id: call.peerId,
                           name: call.peerName,
                           username: '',
-                          avatar: DEFAULT_AVATAR,
+                          avatar: '',
                           isOnline: false,
                           lastMsg: '',
                           time: '',
