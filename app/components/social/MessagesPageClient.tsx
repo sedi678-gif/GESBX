@@ -1276,7 +1276,7 @@ export default function MessagesPageClient() {
       id: contact.contactId,
       name: contact.contactName || 'İstifadəçi',
       username: contact.contactHandle || '',
-      avatar: contact.contactAvatar || DEFAULT_AVATAR,
+      avatar: contact.contactAvatar || '',
       isOnline: false,
       lastMsg: contact.lastPreview || 'Mesaj istəyi',
       time: 'İndi',
