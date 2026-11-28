@@ -60,7 +60,7 @@ export async function getFollowingProfiles(userId: string, max = 100): Promise<A
     const d = snap.data();
     if (d.frozen || d.banned) return null;
     return { id, name: String(d.name || ''), surname: d.surname ? String(d.surname) : undefined,
-      handle: String(d.handle || ''), avatar: d.avatar ? String(d.avatar) : undefined } as AppUserProfile;
+      handle: String(d.handle || ''), avatar: String(d.avatar || d.photoURL || d.photoUrl || d.userAvatar || d.avatarUrl || d.profileImage || d.profilePhoto || '') || undefined } as AppUserProfile;
   }));
   return rows.filter((p): p is AppUserProfile => Boolean(p));
 }
