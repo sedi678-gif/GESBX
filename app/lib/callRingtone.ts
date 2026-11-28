@@ -1,4 +1,4 @@
-/** Gələn zəng melodiyası — Web Audio ilə (asset lazım deyil) */
+/** Zəng səsləri Web Audio ilə yaradılır; ayrıca media faylı tələb etmir. */
 
 let audioCtx: AudioContext | null = null;
 let ringTimer: ReturnType<typeof setInterval> | null = null;
@@ -7,66 +7,86 @@ let activeOscillators: OscillatorNode[] = [];
 
 function stopOscillators() {
   activeOscillators.forEach((osc) => {
-    try {
-      osc.stop();
-      osc.disconnect();
-    } catch {
-      /* already stopped */
-    }
+    try { osc.stop(); osc.disconnect(); } catch { /* artıq dayanıb */ }
   });
   activeOscillators = [];
 }
 
-function playTone(freq: number, durationMs: number, ctx: AudioContext, startAt: number) {
+function playTone(freq: number, durationMs: number, ctx: AudioContext, startAt: number, volume = 0.16) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = 'sine';
   osc.frequency.value = freq;
   gain.gain.setValueAtTime(0, startAt);
-  gain.gain.linearRampToValueAtTime(0.18, startAt + 0.02);
+  gain.gain.linearRampToValueAtTime(volume, startAt + 0.025);
+  gain.gain.setValueAtTime(volume, Math.max(startAt + 0.03, startAt + durationMs / 1000 - 0.04));
   gain.gain.linearRampToValueAtTime(0, startAt + durationMs / 1000);
   osc.connect(gain);
   gain.connect(ctx.destination);
   osc.start(startAt);
-  osc.stop(startAt + durationMs / 1000 + 0.05);
+  osc.stop(startAt + durationMs / 1000 + 0.06);
   activeOscillators.push(osc);
 }
 
-function playRingBurst() {
+function stopTonePlayback() {
+  if (ringTimer) clearInterval(ringTimer);
+  ringTimer = null;
+  stopOscillators();
+  if (audioCtx) {
+    const old = audioCtx;
+    audioCtx = null;
+    void old.close().catch((error: unknown) => console.debug('[callRingtone] Audio context close failed.', error));
+  }
+}
+
+function createAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  return Ctx ? new Ctx() : null;
+}
+
+function playIncomingBurst() {
   if (!audioCtx || audioCtx.state === 'closed') return;
   const now = audioCtx.currentTime;
-  playTone(440, 400, audioCtx, now);
-  playTone(480, 400, audioCtx, now + 0.45);
+  playTone(440, 420, audioCtx, now, 0.13);
+  playTone(480, 420, audioCtx, now + 0.46, 0.13);
+}
+
+function playRingbackBurst() {
+  if (!audioCtx || audioCtx.state === 'closed') return;
+  // Klassik telefon çağırış tonu: 425 Hz, təxminən 1 saniyə səs və fasilə.
+  playTone(425, 950, audioCtx, audioCtx.currentTime, 0.12);
 }
 
 export async function startRingtone(): Promise<void> {
-  if (typeof window === 'undefined') return;
-  stopRingtone();
-
+  stopTonePlayback();
   try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    audioCtx = new Ctx();
+    audioCtx = createAudioContext();
+    if (!audioCtx) return;
     if (audioCtx.state === 'suspended') await audioCtx.resume();
-    playRingBurst();
-    ringTimer = setInterval(playRingBurst, 2200);
+    playIncomingBurst();
+    ringTimer = setInterval(playIncomingBurst, 2400);
   } catch {
-    /* ignore */
+    stopTonePlayback();
+  }
+}
+
+/** Zəng edən tərəfdə qarşı tərəfin cavabını gözləyərkən eşidilən xətt tonu. */
+export async function startRingback(): Promise<void> {
+  stopTonePlayback();
+  try {
+    audioCtx = createAudioContext();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    playRingbackBurst();
+    ringTimer = setInterval(playRingbackBurst, 4500);
+  } catch {
+    stopTonePlayback();
   }
 }
 
 export function stopRingtone(): void {
-  if (ringTimer) {
-    clearInterval(ringTimer);
-    ringTimer = null;
-  }
-  stopOscillators();
-  if (audioCtx) {
-    void audioCtx.close().catch((error: unknown) => {
-      console.debug('[callRingtone] Audio context close failed.', error);
-    });
-    audioCtx = null;
-  }
+  stopTonePlayback();
   stopCallPulse();
 }
 
@@ -74,15 +94,11 @@ export function startCallPulse(): void {
   if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
   stopCallPulse();
   navigator.vibrate([400, 180, 400, 180, 400, 1200]);
-  pulseTimer = setInterval(() => {
-    navigator.vibrate?.([400, 180, 400, 180, 400, 1200]);
-  }, 2400);
+  pulseTimer = setInterval(() => navigator.vibrate?.([400, 180, 400, 180, 400, 1200]), 2400);
 }
 
 export function stopCallPulse(): void {
-  if (pulseTimer) {
-    clearInterval(pulseTimer);
-    pulseTimer = null;
-  }
-  navigator.vibrate?.(0);
+  if (pulseTimer) clearInterval(pulseTimer);
+  pulseTimer = null;
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(0);
 }
