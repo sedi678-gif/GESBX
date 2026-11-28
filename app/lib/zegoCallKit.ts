@@ -591,7 +591,7 @@ function bindZimListeners(zim: ZimLike) {
     // ZIM invitations may omit UserAvatar. Resolve the caller's public
     // GESBX profile by numeric app user ID so the real photo is displayed.
     const inviterProfileId = String(inviter.userID || '');
-    if (/^\\d{1,20}$/.test(inviterProfileId) && !(payload?.peerAvatar || inviter.userAvatar || inviter.avatar)) {
+    if (/^\d{1,20}$/.test(inviterProfileId) && !(payload?.peerAvatar || inviter.userAvatar || inviter.avatar)) {
       void getUserProfile(inviterProfileId).then((profile) => {
         const current = getCallUiState();
         if (pendingZimCallId === callID && current?.mode === 'incoming' && profile?.avatar) {
