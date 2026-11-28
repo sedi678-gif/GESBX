@@ -98,7 +98,7 @@ function cacheInviteeRegistration(key: string, registered: boolean): void {
 }
 
 
-type ZimUser = { userID: string; userName?: string };
+type ZimUser = { userID: string; userName?: string; userAvatar?: string; avatar?: string };
 type ZimLike = {
   callInvite: (
     invitees: string[],
