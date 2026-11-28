@@ -12,6 +12,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
   const { userId } = useUser();
   const [myReferralCode, setMyReferralCode] = useState<string>('');
   const [referralCodeLoading, setReferralCodeLoading] = useState(false);
+  const [referralCodeError, setReferralCodeError] = useState('');
   const [referrals, setReferrals] = useState<any[]>([]);
   const [referralsLoading, setReferralsLoading] = useState(false);
   const [totalEarnings, setTotalEarnings] = useState(0);
@@ -24,6 +25,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
   const loadMyReferralCode = async () => {
     if (!userId || userId === 'anonim_user_id') return;
     setReferralCodeLoading(true);
+    setReferralCodeError('');
     try {
       const installationId = await getFirebaseInstallationId();
       const result = await callSecureFunction<
@@ -34,6 +36,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
       void loadMyReferrals();
     } catch (err) {
       console.error('Referral code load error:', err);
+      setReferralCodeError('Dəvət kodunu əldə etmək mümkün olmadı. Yenidən yoxlayın.');
     } finally {
       setReferralCodeLoading(false);
     }
@@ -85,7 +88,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
         { userId: string; code: string; installationId: string },
         { status: string; eligibleAt: number }
       >('applyReferral', { userId, code: applyCode, installationId });
-      setApplyMessage(`Dəvət qeydə alındı: ${result.status}`);
+      setApplyMessage(`Dəvət uğurla qeydə alındı. Status: ${result.status}`);
       setApplyCode('');
       void loadMyReferrals();
     } catch (err) {
@@ -109,7 +112,7 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
     if (!myReferralCode) return;
     const url = `${window.location.origin}/register?ref=${myReferralCode}`;
     if (navigator.share) {
-      navigator.share({ title: 'Dəvət edildiniz!', text: `Mənə qoşulun və öz kodu ilə qeydiyyatdan keçin: ${myReferralCode}`, url });
+      navigator.share({ title: 'Dəvət edildiniz!', text: `Mənə qoşulun və mənim dəvət kodumla qeydiyyatdan keçin: ${myReferralCode}`, url });
     } else {
       navigator.clipboard.writeText(url).then(() => alert('Link kopyalandı!'));
     }
@@ -157,16 +160,18 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
                 <span style={{ color: '#667eea', fontWeight: 800 }}>✓</span>
               </div>
             ) : (
-              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontStyle: 'italic' }}>Dəvət kodu hazırlanıyor…</div>
+              <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>{referralCodeLoading ? 'Dəvət kodu yüklənir…' : (referralCodeError || 'Dəvət kodunuz hələ göstərilməyib.')}</div>
             )}
           </div>
 
+          {!myReferralCode && !referralCodeLoading && <button type="button" onClick={() => void loadMyReferralCode()} style={{ width: '100%', marginBottom: 10, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: 10, borderRadius: 10, fontWeight: 700 }}>Dəvət kodunu göstər</button>}
+
           <button type="button" onClick={shareReferral} disabled={!myReferralCode} style={{ width: '100%', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: !myReferralCode ? 'not-allowed' : 'pointer', marginBottom: 16 }}>
-            {myReferralCode ? 'Dəvət Linkini Paylaş / Kopyala' : 'Dəvət kodunu yükləyin'}
+            {myReferralCode ? 'Dəvət Linkini Paylaş / Kopyala' : 'Dəvət kodunu gözləyin'}
           </button>
 
           <div style={{ marginTop: 8 }}>
-            <h3 style={{ margin: '0 0 10px', color: '#fff', fontSize: 14, fontWeight: 800 }}>Başkasının Dəvət Kodunu Tətbiq Edin</h3>
+            <h3 style={{ margin: '0 0 10px', color: '#fff', fontSize: 14, fontWeight: 800 }}>Başqasının dəvət kodunu daxil edin</h3>
             <form onSubmit={handleApplyReferralCode} style={{ display: 'flex', gap: 8 }}>
               <input
                 type="text"
@@ -190,8 +195,8 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
         <div style={{ padding: '20px 24px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
             <div>
-              <h2 style={{ margin: 0, color: '#0f172a', fontSize: 18, fontWeight: 800, letterSpacing: 0.5 }}>Dəvətlərdən Gəlir</h2>
-              <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>Yalnız aktiv (6500 XP bölgəsində çatmış) dəvətlərdən gəlir göstərilir</p>
+              <h2 style={{ margin: 0, color: '#0f172a', fontSize: 18, fontWeight: 800, letterSpacing: 0.5 }}>Dəvətlərdən qazanılan gəlir</h2>
+              <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13 }}>Yalnız 6500 XP həddinə çataraq aktivləşmiş dəvətlər üzrə qazanc göstərilir</p>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 26, fontWeight: 900, color: '#15803d', lineHeight: 1 }}>{totalEarnings.toLocaleString('az-AZ')}</div>
@@ -217,8 +222,8 @@ export default function ReferralSection({ className }: ReferralSectionProps) {
             ) : referrals.length === 0 ? (
               <div style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>
                 <div style={{ fontSize: 24, marginBottom: 8 }}>🤝</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>Hələ heç kəsin dəvət edilməyib</div>
-                <p style={{ margin: '6px 0 0', fontSize: 12, color: '#94a3b8' }}>Dəvət kodunuzu paylaşaraq istifadəçiləri dəvət edin</p>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>Hələ heç kimi dəvət etməmisiniz</div>
+                <p style={{ margin: '6px 0 0', fontSize: 12, color: '#94a3b8' }}>Dəvət kodunuzu paylaşın. Dostlarınız kodla qeydiyyatdan keçərək sizə qoşula bilərlər.</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
