@@ -1842,7 +1842,7 @@ export default function MessagesPageClient() {
                   const chat = chats.find(item => item.id === friend.id) || {
                     chatId: buildChatId(myId, friend.id), id: friend.id,
                     name: [friend.name, friend.surname].filter(Boolean).join(' ') || friend.handle || 'İstifadəçi',
-                    username: friend.handle || '', avatar: friend.avatar || DEFAULT_AVATAR,
+                    username: friend.handle || '', avatar: friend.avatar || '',
                     isOnline: false, lastMsg: '', time: '',
                   };
                   return (
