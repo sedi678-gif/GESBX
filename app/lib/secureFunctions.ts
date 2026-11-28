@@ -146,7 +146,7 @@ async function callSecureApiInternal<TPayload extends Record<string, unknown>, T
     const timedOut = error instanceof Error
       && (error.name === 'TimeoutError' || error.name === 'AbortError');
     if (timedOut) {
-      throw new Error('Server 25 saniyə ərzində cavab vermədi. Creator aktivləşdirməsi tamamlanmadı; bir az sonra yenidən cəhd edin.');
+      throw new Error('Server 25 saniyə ərzində cavab vermədi. Sorğu tamamlanmadı; bir az sonra yenidən cəhd edin.');
     }
     throw new Error('Creator aktivləşdirmə sorğusu serverə çatmadı. İnternet bağlantısını yoxlayıb yenidən cəhd edin.');
   }
@@ -181,6 +181,21 @@ async function callSecureApiInternal<TPayload extends Record<string, unknown>, T
     }
     if (code === 'REFERRALS_UNAVAILABLE') {
       throw new Error('Dəvət məlumatları hazırda yüklənmir. Bir az sonra yenidən cəhd et.');
+    }
+    if (code === 'EMAIL_VERIFICATION_REQUIRED') {
+      throw new Error('Dəvət kodunu tətbiq etmək üçün əvvəlcə e-poçtunuzu təsdiqləyin.');
+    }
+    if (code === 'REFERRAL_CODE_NOT_FOUND') {
+      throw new Error('Bu dəvət kodu tapılmadı. Kodu yoxlayıb yenidən daxil edin.');
+    }
+    if (code === 'REFERRAL_ALREADY_APPLIED') {
+      throw new Error('Bu hesab artıq dəvət kodundan istifadə edib.');
+    }
+    if (code === 'REFERRAL_SELF_USE') {
+      throw new Error('Öz dəvət kodunuzdan istifadə edə bilməzsiniz.');
+    }
+    if (code === 'REFERRAL_DAILY_LIMIT') {
+      throw new Error('Bu dəvət kodu üçün gündəlik limit dolub.');
     }
     if (code === 'XP_MODE_UPDATE_FAILED') {
       throw new Error('XP rejimini dəyişmək alınmadı. Yenidən cəhd et.');
@@ -240,7 +255,7 @@ export async function callSecureApi<TPayload extends Record<string, unknown>, TR
       callSecureApiInternal<TPayload, TResult>(path, action, payload, operationId),
       new Promise<TResult>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error(
-          'Təhlükəsiz bağlantı 30 saniyə ərzində tamamlanmadı. Firebase App Check və ya Android Play Integrity cavab vermir. Yenidən cəhd edin.',
+          'Təhlükəsiz bağlantı 30 saniyə ərzində tamamlanmadı. Firebase App Check və ya server cavab vermir. Yenidən cəhd edin.',
         )), 30_000);
       }),
     ]);
