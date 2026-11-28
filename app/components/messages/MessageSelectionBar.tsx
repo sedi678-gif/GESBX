@@ -12,10 +12,11 @@ interface MessageSelectionBarProps {
   onDelete: () => void;
   onForward: () => void;
   onMore: () => void;
+  onInfo: () => void;
 }
 
 export default function MessageSelectionBar({
-  count, android = false, onCancel, onReply, onPin, onDelete, onForward, onMore,
+  count, android = false, onCancel, onReply, onPin, onDelete, onForward, onMore, onInfo,
 }: MessageSelectionBarProps) {
   const single = count === 1;
   if (!android) {
@@ -24,6 +25,7 @@ export default function MessageSelectionBar({
         <button type="button" className={styles.selectionBarBtn} onClick={onCancel} aria-label="Ləğv et">✕</button>
         <span className={styles.selectionBarCount}>{count} mesaj</span>
         <div className={styles.selectionBarActions}>
+          <button type="button" className={styles.selectionBarBtn} onClick={onInfo} disabled={!single} aria-label="Mesaj məlumatı" title="Mesaj məlumatı">ⓘ</button>
           <button type="button" className={styles.selectionBarBtn} onClick={onMore} disabled={!count}>📋 Kopyala</button>
           <button type="button" className={`${styles.selectionBarBtn} ${styles.selectionBarDanger}`} onClick={onDelete} disabled={!count}>🗑️ Sil</button>
         </div>
@@ -39,6 +41,7 @@ export default function MessageSelectionBar({
         <button type="button" className={styles.selectionBarBtn} onClick={onPin} disabled={!single} aria-label="Sabitlə" title="Sabitlə">📌</button>
         <button type="button" className={styles.selectionBarBtn} onClick={onDelete} disabled={!count} aria-label="Sil" title="Sil">▤</button>
         <button type="button" className={styles.selectionBarBtn} onClick={onForward} disabled={!single} aria-label="Ötür" title="Ötür">➦</button>
+        <button type="button" className={styles.selectionBarBtn} onClick={onInfo} disabled={!single} aria-label="Mesaj məlumatı" title="Mesaj məlumatı">ⓘ</button>
         <button type="button" className={styles.selectionBarBtn} onClick={onMore} aria-label="Seçilmiş mesajları kopyala" title="Kopyala">📋</button>
       </div>
     </header>
