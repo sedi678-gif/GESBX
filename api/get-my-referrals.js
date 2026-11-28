@@ -53,28 +53,41 @@ module.exports = async function getMyReferralsHandler(req, res) {
     const referralsSnap = await db.collection('referrals')
       .where('inviterPlayerId', '==', userId)
       .get();
-    const uniqueReferrals = new Map();
-    referralsSnap.forEach((doc) => {
+    const referrals = [];
+    for (const doc of referralsSnap.docs) {
       const referral = doc.data() || {};
-      if (!['pending', 'active'].includes(String(referral.status || ''))) return;
-      const referredId = String(referral.referredUid || referral.referredPlayerId || '').trim();
-      if (!referredId) return;
-      const previous = uniqueReferrals.get(referredId);
-      if (!previous || referral.status === 'active') uniqueReferrals.set(referredId, referral.status);
-    });
-
-    let activeCount = 0;
-    let pendingCount = 0;
-    for (const status of uniqueReferrals.values()) {
-      if (status === 'active') activeCount += 1;
-      else pendingCount += 1;
+      if (!['pending', 'active'].includes(String(referral.status || ''))) continue;
+      const referredPlayerId = String(referral.referredPlayerId || '').trim();
+      if (!referredPlayerId) continue;
+      const referredPlayerSnap = await db.doc(`players/${referredPlayerId}`).get();
+      const referredXp = referredPlayerSnap.exists
+        ? Math.max(0, Number(referredPlayerSnap.data()?.xp) || 0)
+        : 0;
+      const isActive = referral.status === 'active';
+      referrals.push({
+        id: doc.id,
+        ...referral,
+        referredXp,
+        progressPercent: Math.min(100, Math.round((referredXp / 6500) * 100)),
+        isActive,
+        isPending: referral.status === 'pending',
+        rewardEarned: isActive ? Math.max(0, Number(referral.rewardXp) || 0) : 0,
+      });
     }
+    referrals.sort((a, b) => (Number(b.createdAtMillis) || 0) - (Number(a.createdAtMillis) || 0));
+
+    const activeCount = referrals.filter((referral) => referral.isActive).length;
+    const pendingCount = referrals.filter((referral) => referral.isPending).length;
+    const totalEarnings = referrals.reduce((sum, referral) => sum + referral.rewardEarned, 0);
 
     return sendJson(res, 200, {
+      referrals,
+      totalEarnings,
       activeCount,
       pendingCount,
       walletActivated: Number(player.walletActivatedAt) > 0,
       walletActivatedAt: Number(player.walletActivatedAt) || 0,
+      xpThreshold: 6500,
     });
   } catch (error) {
     const status = error instanceof ApiError ? error.status : 500;
