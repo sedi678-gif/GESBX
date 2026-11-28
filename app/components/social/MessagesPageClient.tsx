@@ -97,8 +97,7 @@ import { useAppStrings } from '@/app/lib/useAppStrings';
 import AppLink from '@/app/components/AppLink';
 import styles from './social.module.css';
 
-const DEFAULT_AVATAR =
-  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80';
+const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='50' fill='%23334155'/%3E%3Ccircle cx='50' cy='37' r='18' fill='%2394a3b8'/%3E%3Cpath d='M18 91c3-20 15-30 32-30s29 10 32 30' fill='%2394a3b8'/%3E%3C/svg%3E";
 
 type InboxTab = 'chats' | 'groups' | 'calls';
 
