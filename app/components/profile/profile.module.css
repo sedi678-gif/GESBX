@@ -1188,7 +1188,7 @@
 .uploadFabPremium {
   position: fixed;
   right: max(16px, var(--app-safe-right, 0px));
-  bottom: var(--app-fab-bottom, 90px);
+  bottom: calc(var(--app-fab-bottom, 90px) + 28px);
   width: clamp(52px, 14vw, 58px);
   height: clamp(52px, 14vw, 58px);
   border-radius: 18px;
