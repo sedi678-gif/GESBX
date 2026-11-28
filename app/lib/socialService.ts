@@ -54,7 +54,7 @@ function mapPublicUserProfile(userId: string, data: Record<string, unknown>): Ap
     surname: data.surname ? String(data.surname) : undefined,
     handle: String(data.handle || ''),
     gender: data.gender ? String(data.gender) : undefined,
-    avatar: data.avatar ? String(data.avatar) : undefined,
+    avatar: String(data.avatar || data.photoURL || data.photoUrl || data.userAvatar || data.avatarUrl || data.profileImage || data.profilePhoto || '') || undefined,
     region: data.region ? String(data.region) : undefined,
     bio: data.bio ? String(data.bio) : undefined,
     bannerGradient: data.bannerGradient ? String(data.bannerGradient) : undefined,
