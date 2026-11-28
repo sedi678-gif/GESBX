@@ -8,7 +8,7 @@ const {
   hmacRiskHash,
   sendJson,
   verifySecureRequest,
-} = require('../services/apiSecurity');
+} = require('../apiSecurity');
 
 const USER_ID_PATTERN = /^\d{1,20}$/;
 
