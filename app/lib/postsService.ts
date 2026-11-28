@@ -683,6 +683,24 @@ export function writeCachedLikesReceived(userId: string, likes: number): void {
   }
 }
 
+export async function reconcileUserLikesReceived(userId: string): Promise<number> {
+  if (!userId) return 0;
+  const firebaseUser = await ensureFirebaseAuth();
+  if (!firebaseUser || firebaseUser.isAnonymous) return 0;
+  const response = await fetch(`${apiBaseUrl}/api/paypal?handler=social-likes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${await firebaseUser.getIdToken()}`,
+    },
+    body: JSON.stringify({ kind: 'likes-recount', userId }),
+    cache: 'no-store',
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(payload.error || 'Bəyənmə sayı bərpa edilmədi.'));
+  return Math.max(0, Math.floor(Number(payload.likesReceived) || 0));
+}
+
 export function listenUserLikesReceived(
   userId: string,
   callback: (likes: number) => void
